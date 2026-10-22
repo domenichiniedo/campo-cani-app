@@ -16,7 +16,7 @@ import { useColors } from '@/lib/theme';
 SplashScreen.preventAutoHideAsync();
 
 function Navigator() {
-  const { ready, session, profile, isOwner, needsTerms, needsBilling } = useSession();
+  const { ready, session, profile, isOwner, isTrainer, needsTerms, needsBilling } = useSession();
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
@@ -38,8 +38,11 @@ function Navigator() {
       <Stack.Protected guard={signedIn && !needsTerms && needsBilling}>
         <Stack.Screen name="billing" />
       </Stack.Protected>
-      <Stack.Protected guard={signedIn && !needsTerms && !needsBilling && !isOwner}>
+      <Stack.Protected guard={signedIn && !needsTerms && !needsBilling && !isOwner && !isTrainer}>
         <Stack.Screen name="(client)" />
+      </Stack.Protected>
+      <Stack.Protected guard={signedIn && isTrainer}>
+        <Stack.Screen name="(trainer)" />
       </Stack.Protected>
       <Stack.Protected guard={signedIn && isOwner}>
         <Stack.Screen name="(owner)" />
@@ -54,7 +57,7 @@ function OwnerOnly() {
   return (
     <View style={{ flex: 1, padding: 24, justifyContent: 'center', gap: 12, backgroundColor: c.bg }}>
       <H1>Solo per il proprietario</H1>
-      <Body>Questo programma serve a gestire il campo. Per prenotare usa l&apos;app sul telefono.</Body>
+      <Body>Questo programma serve a gestire il campo. Per prenotare, o per le lezioni da trainer, usa l&apos;app sul telefono.</Body>
       <Button title="Esci" onPress={() => supabase.auth.signOut()} />
     </View>
   );
