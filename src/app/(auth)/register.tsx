@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 
 import { BillingFields } from '@/components/billing-fields';
-import { PhotoPicker, setPendingPhoto } from '@/components/photo';
+import { PhotoPicker, saveSignupPhoto } from '@/components/photo';
 import { Body, Button, Card, Check, Chips, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingColumns, billingError, emptyBilling, type BillingDraft } from '@/lib/billing';
 import { isDayKey } from '@/lib/format';
@@ -15,7 +15,7 @@ import { rulesLines } from '@/lib/types';
 type DogDraft = { name: string; breed: string; birth: string };
 
 export default function Register() {
-  const { settings, lessonTypes } = useSession();
+  const { settings, lessonTypes, refresh } = useSession();
   const plan = usePlan();
   const [first, setFirst] = useState('');
   const [last, setLast] = useState('');
@@ -39,7 +39,6 @@ export default function Register() {
     setErr('');
     const cleanDogs = dogs.filter((d) => d.name.trim());
     if (!first.trim() || !last.trim() || !phone.trim()) return setErr('Inserisci nome, cognome e telefono.');
-    if (!photo) return setErr('Metti una tua foto: scattala o sceglila dalla galleria.');
     const bErr = asTrainer ? null : billingError(billing);
     if (bErr) return setErr(bErr);
     if (!asTrainer && !cleanDogs.length) return setErr('Inserisci almeno un cane.');
@@ -71,10 +70,16 @@ export default function Register() {
         },
       },
     });
+    if (error) {
+      setBusy(false);
+      return setErr(errorText(error));
+    }
+    // La foto si carica appena c'è l'account; se serve confermare l'email, si mette poi dal profilo.
+    if (photo && data.session) {
+      await saveSignupPhoto(data.session.user.id, photo);
+      await refresh();
+    }
     setBusy(false);
-    if (error) return setErr(errorText(error));
-    // La foto si carica appena c'è l'account (subito, o al primo accesso dopo la conferma dell'email).
-    setPendingPhoto(photo);
     // Se il progetto chiede la conferma dell'email non arriva una sessione: lo diciamo al cliente.
     if (!data.session) setSent(true);
   }
@@ -84,6 +89,7 @@ export default function Register() {
       <Screen>
         <H1>Controlla l&apos;email</H1>
         <Body>Ti abbiamo mandato un link a {email.trim()}. Aprilo per confermare l&apos;iscrizione, poi accedi.</Body>
+        {photo && <Muted>La foto che hai scelto mettila dal tuo profilo, dopo il primo accesso.</Muted>}
         <Button title="Vai all'accesso" onPress={() => router.replace('/')} />
       </Screen>
     );
@@ -95,7 +101,7 @@ export default function Register() {
       <Muted>
         {asTrainer
           ? 'Usa l\'email che hai dato al centro: entrerai nell\'area trainer con le tue lezioni.'
-          : 'Servono i tuoi dati, una tua foto, quelli del cane e il consenso al regolamento e alla privacy.'}
+          : 'Servono i tuoi dati, quelli del cane e il consenso al regolamento e alla privacy.'}
       </Muted>
       <Chips
         items={[
@@ -117,12 +123,12 @@ export default function Register() {
         <Field label="Password (almeno 8 caratteri)" value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
       </Card>
 
-      <Step n="2" title="La tua foto" />
+      <Step n="2" title="La tua foto (se vuoi)" />
       <Card>
         <Muted>
           {asTrainer
-            ? 'I clienti la vedono nelle loro lezioni e nel diario dei cani.'
-            : 'Il centro e i trainer la vedono per riconoscerti al campo.'}
+            ? 'I clienti la vedono nelle loro lezioni e nel diario dei cani. Puoi metterla anche dopo, dal tuo profilo.'
+            : 'Il centro e i trainer la vedono per riconoscerti al campo. Puoi metterla anche dopo, dal tuo profilo.'}
         </Muted>
         <PhotoPicker name={`${first} ${last}`.trim()} value={photo} onChange={setPhoto} />
       </Card>

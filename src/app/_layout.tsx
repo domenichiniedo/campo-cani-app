@@ -17,7 +17,7 @@ import { useColors } from '@/lib/theme';
 SplashScreen.preventAutoHideAsync();
 
 function Navigator() {
-  const { ready, session, profile, isOwner, isTrainer, needsTerms, needsBilling, needsPhoto } = useSession();
+  const { ready, session, profile, isOwner, isTrainer, needsTerms, needsBilling } = useSession();
   const plan = usePlan();
 
   useEffect(() => {
@@ -43,13 +43,10 @@ function Navigator() {
       <Stack.Protected guard={signedIn && !needsTerms && needsBilling}>
         <Stack.Screen name="billing" />
       </Stack.Protected>
-      <Stack.Protected guard={signedIn && !needsTerms && !needsBilling && needsPhoto}>
-        <Stack.Screen name="photo" />
-      </Stack.Protected>
-      <Stack.Protected guard={signedIn && !needsTerms && !needsBilling && !needsPhoto && !isOwner && !isTrainer}>
+      <Stack.Protected guard={signedIn && !needsTerms && !needsBilling && !isOwner && !isTrainer}>
         <Stack.Screen name="(client)" />
       </Stack.Protected>
-      <Stack.Protected guard={signedIn && isTrainer && !needsPhoto}>
+      <Stack.Protected guard={signedIn && isTrainer}>
         <Stack.Screen name="(trainer)" />
       </Stack.Protected>
       <Stack.Protected guard={signedIn && isOwner}>
