@@ -1,6 +1,7 @@
 # Costruisce la demo da installare sui telefoni Android (CampoCani-Demo.apk): l'app vera con i dati
 # di esempio, senza database, con il bottone "Demo" per entrare come proprietario, cliente o trainer.
-# La trovi in GitHub → Actions → "Demo per Android" → l'ultima esecuzione → Artifacts.
+# Si scarica dal telefono da GitHub → Releases → "Demo per Android" (file CampoCani-Demo.apk),
+# oppure da Actions → "Demo per Android" → l'ultima esecuzione → Artifacts.
 # Partenza: a mano (Run workflow) o quando una PR cambia la demo.
 name: Demo per Android
 
@@ -8,6 +9,9 @@ on:
   workflow_dispatch:
   pull_request:
     paths: ['mobile-demo/**', 'desktop/demo/**', '.github/workflows/android-demo.yml']
+
+permissions:
+  contents: write
 
 jobs:
   android:
@@ -49,3 +53,11 @@ jobs:
           name: CampoCani-Demo-Android
           path: CampoCani-Demo.apk
           if-no-files-found: error
+      # Release fissa "demo-android": il link per scaricare l'APK dal telefono resta sempre lo stesso.
+      - name: Pubblica nelle Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view demo-android >/dev/null 2>&1 || gh release create demo-android --prerelease \
+            --title "Demo per Android" --notes "Demo di Campo Cani con i dati di esempio. Scarica CampoCani-Demo.apk dal telefono e aprilo per installarlo."
+          gh release upload demo-android CampoCani-Demo.apk --clobber
