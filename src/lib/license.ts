@@ -11,6 +11,8 @@ export type License = {
   /** Ultimo giorno valido (AAAA-MM-GG), oppure null se non scade. */
   scade: string | null;
   emessa: string;
+  /** Piano: base, professional o pro. Manca nelle licenze fatte prima dei piani (= pro). */
+  piano?: 'base' | 'professional' | 'pro';
   /** Database del campo, se la licenza lo indica. */
   url?: string;
   chiave?: string;
@@ -56,8 +58,12 @@ export const isExpired = (l: License, today: string) => !!l.scade && l.scade < t
 export const expiredText = (l: License) =>
   `La licenza di ${l.campo} è scaduta il ${(l.scade ?? '').split('-').reverse().join('/')}. Il centro deve rinnovarla.`;
 
-/** Tra due licenze valide tiene quella che dura di più. */
-export const longer = (a: License, b: License) => (!a.scade ? a : !b.scade ? b : a.scade >= b.scade ? a : b);
+/** Tra due licenze valide tiene quella che dura di più; a pari durata la più recente (es. un cambio di piano). */
+export function longer(a: License, b: License) {
+  const end = (l: License) => l.scade ?? '9999-12-31';
+  if (end(a) !== end(b)) return end(a) > end(b) ? a : b;
+  return a.emessa >= b.emessa ? a : b;
+}
 
 /** Controlla firma e scadenza. `today` è la data locale AAAA-MM-GG. */
 export function checkLicense(code: string, today: string, publicKey = LICENSE_PUBLIC_KEY): LicenseCheck {

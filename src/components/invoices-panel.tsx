@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { Badge, Body, Button, Card, Chips, ErrorText, Field, Muted, Row, Toggle } from '@/components/ui';
 import { printEpsonReceipt } from '@/lib/epson-rt';
 import { euro, shortDate } from '@/lib/format';
+import { planWith, usePlan } from '@/lib/plans';
 import { errorText, supabase } from '@/lib/supabase';
 import { invoiceTitle, type Invoice, type InvoiceSettings } from '@/lib/types';
 
@@ -74,6 +75,7 @@ function ReceiptDone({ id, onDone }: { id: string; onDone: (e?: string) => void 
 
 /** Fatture dei pagamenti online: come si fattura, ultime fatture e invio a Fatture in Cloud. */
 export function InvoicesPanel() {
+  const plan = usePlan();
   const [cfg, setCfg] = useState<InvoiceSettings | null>(null);
   const [vat, setVat] = useState('22');
   const [list, setList] = useState<Invoice[]>([]);
@@ -82,21 +84,31 @@ export function InvoicesPanel() {
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
 
-  const load = () =>
-    Promise.all([
-      supabase.from('invoice_settings').select('*').eq('id', 1).maybeSingle(),
-      supabase.from('invoices').select('*').order('created_at', { ascending: false }).limit(20),
-    ]).then(([c, l]) => {
-      if (c.data) {
-        setCfg(c.data as InvoiceSettings);
-        setVat(String(c.data.vat_rate).replace('.', ','));
-      }
-      setList((l.data ?? []) as Invoice[]);
-    });
+  const devices = plan.receiptDevices;
+  const load = useCallback(
+    () =>
+      Promise.all([
+        supabase.from('invoice_settings').select('*').eq('id', 1).maybeSingle(),
+        supabase.from('invoices').select('*').order('created_at', { ascending: false }).limit(20),
+      ]).then(([c, l]) => {
+        if (c.data) {
+          const loaded = c.data as InvoiceSettings;
+          // Dopo il passaggio a un piano senza registratori lo scontrino torna "Lo batto io".
+          if (!devices && loaded.receipt_mode !== 'manual') {
+            loaded.receipt_mode = 'manual';
+            supabase.from('invoice_settings').update({ receipt_mode: 'manual' }).eq('id', 1).then(() => {});
+          }
+          setCfg(loaded);
+          setVat(String(loaded.vat_rate).replace('.', ','));
+        }
+        setList((l.data ?? []) as Invoice[]);
+      }),
+    [devices],
+  );
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   async function save() {
     if (!cfg) return;
@@ -153,6 +165,8 @@ export function InvoicesPanel() {
 
   if (!cfg) return <Muted>Esegui la migrazione 0006_fatture.sql per attivare le fatture.</Muted>;
   const pending = list.filter((i) => i.status === 'pending' && (i.kind === 'invoice' || cfg.receipt_mode === 'cloud')).length;
+  // I registratori (in cloud e al campo) sono nel piano Pro: negli altri si batte a mano.
+  const modes = plan.receiptDevices ? RECEIPT_MODES : RECEIPT_MODES.filter((m) => m.value === 'manual');
   const mode = RECEIPT_MODES.find((m) => m.value === cfg.receipt_mode) ?? RECEIPT_MODES[0];
 
   return (
@@ -178,11 +192,14 @@ export function InvoicesPanel() {
         )}
         <Muted style={{ fontSize: 13 }}>Scontrino</Muted>
         <Chips
-          items={RECEIPT_MODES.map((m) => ({ value: m.value, label: m.label }))}
+          items={modes.map((m) => ({ value: m.value, label: m.label }))}
           value={cfg.receipt_mode}
           onChange={(v) => setCfg({ ...cfg, receipt_mode: v })}
         />
         <Muted style={{ fontSize: 13 }}>{mode.help}</Muted>
+        {!plan.receiptDevices && (
+          <Muted style={{ fontSize: 13 }}>Registratore in cloud e registratore al campo sono compresi dal piano {planWith('receiptDevices')}.</Muted>
+        )}
         {cfg.receipt_mode === 'device' && (
           <Field
             label="Indirizzo del registratore"

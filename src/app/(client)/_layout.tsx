@@ -1,10 +1,12 @@
 import { Tabs } from 'expo-router/js-tabs';
 
 import { tabIcon } from '@/components/ui';
+import { usePlan } from '@/lib/plans';
 import { useColors } from '@/lib/theme';
 
 export default function ClientLayout() {
   const c = useColors();
+  const plan = usePlan();
   return (
     <Tabs
       screenOptions={{
@@ -15,7 +17,7 @@ export default function ClientLayout() {
       }}>
       <Tabs.Screen name="index" options={{ title: 'Prenota', tabBarIcon: tabIcon('＋') }} />
       <Tabs.Screen name="bookings" options={{ title: 'Le mie lezioni', tabBarIcon: tabIcon('☰') }} />
-      <Tabs.Screen name="packages" options={{ title: 'Pacchetti', tabBarIcon: tabIcon('▤') }} />
+      <Tabs.Screen name="packages" options={{ title: 'Pacchetti', tabBarIcon: tabIcon('▤'), href: plan.packages ? undefined : null }} />
       <Tabs.Screen name="profile" options={{ title: 'Profilo', tabBarIcon: tabIcon('◉') }} />
     </Tabs>
   );
