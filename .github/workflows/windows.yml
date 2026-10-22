@@ -1,4 +1,4 @@
-# Costruisce il programma di installazione per Windows (CampoCani-Setup-x.y.z.exe).
+# Costruisce il programma di installazione per Windows (K9Manager-Setup-x.y.z.exe).
 # Lo trovi in GitHub → Actions → "App per Windows" → l'ultima esecuzione → Artifacts.
 # Partenza: a mano (Run workflow), con un tag v1.2.3, o quando una PR cambia il programma Windows.
 #
@@ -49,6 +49,6 @@ jobs:
         working-directory: desktop
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.demo && 'CampoCani-Windows-Demo' || 'CampoCani-Windows' }}
+          name: ${{ inputs.demo && 'K9Manager-Windows-Demo' || 'K9Manager-Windows' }}
           path: desktop/release/*.exe
           if-no-files-found: error

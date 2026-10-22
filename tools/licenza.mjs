@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Licenze di Campo Cani: le generi tu sul tuo computer, con una chiave privata che non
+// Licenze di K9 Manager: le generi tu sul tuo computer, con una chiave privata che non
 // esce mai da lì. L'app contiene solo la chiave pubblica, che serve a controllarle ma non
 // a crearle: senza la tua chiave privata nessuno può fare una licenza valida.
 //
@@ -77,7 +77,7 @@ function generate(o) {
 
 function check(code) {
   const [prefix, body, sig] = (code ?? '').trim().split('.');
-  if (prefix !== PREFIX || !body || !sig) fail('Non è un codice di licenza Campo Cani.');
+  if (prefix !== PREFIX || !body || !sig) fail('Non è un codice di licenza K9 Manager.');
   const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
   console.log(payload);
   if (!existsSync(PRIVATE)) return console.log('Firma: non controllata (manca la chiave privata su questo computer).');

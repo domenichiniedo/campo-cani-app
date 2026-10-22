@@ -1,6 +1,6 @@
 {
   "appId": "it.campocani.demo",
-  "appName": "Campo Cani Demo",
+  "appName": "K9 Manager Demo",
   "webDir": "www",
   "android": {
     "adjustMarginsForEdgeToEdge": "force"

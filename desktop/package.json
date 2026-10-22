@@ -1,8 +1,8 @@
 {
   "name": "campo-cani-desktop",
-  "productName": "Campo Cani",
+  "productName": "K9 Manager",
   "version": "1.0.0",
-  "description": "Campo Cani per Windows",
+  "description": "K9 Manager per Windows",
   "author": "domenichiniedo",
   "private": true,
   "main": "main.js",
@@ -18,12 +18,12 @@
   },
   "build": {
     "appId": "it.campocani.app",
-    "productName": "Campo Cani",
+    "productName": "K9 Manager",
     "directories": { "output": "release" },
     "files": ["main.js", "preload.js", "package.json"],
     "extraResources": [{ "from": "web", "to": "web" }],
-    "protocols": [{ "name": "Campo Cani", "schemes": ["campocaniapp"] }],
-    "win": { "icon": "../assets/images/icon.png", "artifactName": "CampoCani-Setup-${version}.exe" },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "shortcutName": "Campo Cani" }
+    "protocols": [{ "name": "K9 Manager", "schemes": ["campocaniapp"] }],
+    "win": { "icon": "../assets/images/icon.png", "artifactName": "K9Manager-Setup-${version}.exe" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "shortcutName": "K9 Manager" }
   }
 }

@@ -1,4 +1,4 @@
-# Campo Cani
+# K9 Manager
 
 App per prenotare il campo di addestramento. I clienti si iscrivono, accettano regolamento e privacy e prenotano le lezioni
 (IGP da 60 minuti, educazione base da 30). Il proprietario apre gli orari, vede il piano del giorno e della settimana, segna
@@ -220,14 +220,14 @@ La stessa app esiste anche come programma da installare sul PC del campo, **solo
 né schermate dei clienti), con la stessa licenza e la stampa sul registratore Epson RT della rete del campo.
 
 - **Scaricarlo**: su GitHub apri **Actions → App per Windows → Run workflow**. Finita l'esecuzione, in fondo alla pagina
-  trovi **CampoCani-Windows** con il file `CampoCani-Setup-x.y.z.exe`. Lo stesso succede quando crei un tag `v1.0.0`.
+  trovi **K9Manager-Windows** con il file `K9Manager-Setup-x.y.z.exe`. Lo stesso succede quando crei un tag `v1.0.0`.
 - **Quale database usa**: se in **Settings → Secrets and variables → Actions → Variables** imposti
   `EXPO_PUBLIC_SUPABASE_URL` ed `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, il programma è collegato al tuo campo. Altrimenti
   chiede il codice di licenza al primo avvio, come l'app sugli store (serve la chiave pubblica, punto 7).
 - **Avviso di Windows**: il programma non è firmato, quindi al primo avvio Windows SmartScreen mostra "Windows ha protetto
   il PC": premi **Ulteriori informazioni → Esegui comunque**. Per toglierlo serve un certificato di firma del codice
   (a pagamento), da aggiungere quando lo vendi.
-- **Versione demo**: in **Run workflow** spunta **demo**. Esce **CampoCani-Windows-Demo**, con i dati di esempio della
+- **Versione demo**: in **Run workflow** spunta **demo**. Esce **K9Manager-Windows-Demo**, con i dati di esempio della
   demo web e senza database: utile per farlo vedere a un centro.
 - **Provarlo sul tuo computer**: nella cartella `desktop` esegui `npm install`, `npm run web` e `npm start`.
 

@@ -1,4 +1,4 @@
-// Campo Cani per Windows: apre la versione web dell'app in una finestra, senza browser.
+// K9 Manager per Windows: apre la versione web dell'app in una finestra, senza browser.
 // I file dell'app stanno in web/ (creati da "npm run web") e si servono dall'indirizzo app://campo/.
 const { app, BrowserWindow, ipcMain, net, protocol, shell } = require('electron');
 const fs = require('node:fs');
@@ -41,7 +41,7 @@ function createWindow(link) {
     height: 860,
     minWidth: 380,
     minHeight: 560,
-    title: 'Campo Cani',
+    title: 'K9 Manager',
     backgroundColor: '#123a2b',
     autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true },

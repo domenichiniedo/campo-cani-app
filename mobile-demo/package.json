@@ -1,7 +1,7 @@
 {
   "name": "campo-cani-demo-android",
   "private": true,
-  "description": "Demo di Campo Cani da installare sul telefono Android: l'app vera con i dati di esempio, senza database.",
+  "description": "Demo di K9 Manager da installare sul telefono Android: l'app vera con i dati di esempio, senza database.",
   "scripts": {
     "web": "node build.mjs",
     "android": "cap add android && cap sync android"
