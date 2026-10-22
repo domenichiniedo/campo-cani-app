@@ -4,12 +4,13 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { useColorScheme, View } from 'react-native';
 
-import { Body, H1, Muted } from '@/components/ui';
+import { Body, Button, H1, Muted } from '@/components/ui';
 import { SessionProvider, useSession } from '@/lib/session';
 import { Activate } from '@/components/activate';
+import { ownerOnly } from '@/lib/edition';
 import { licensingEnabled } from '@/lib/license';
 import { LicenseGate } from '@/lib/license-gate';
-import { hasEnvConfig } from '@/lib/supabase';
+import { hasEnvConfig, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -23,6 +24,7 @@ function Navigator() {
 
   if (!ready) return null;
   const signedIn = !!session && !!profile;
+  if (ownerOnly && signedIn && !isOwner) return <OwnerOnly />;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
@@ -46,6 +48,18 @@ function Navigator() {
   );
 }
 
+/** Un cliente ha fatto l'accesso nel programma del proprietario. */
+function OwnerOnly() {
+  const c = useColors();
+  return (
+    <View style={{ flex: 1, padding: 24, justifyContent: 'center', gap: 12, backgroundColor: c.bg }}>
+      <H1>Solo per il proprietario</H1>
+      <Body>Questo programma serve a gestire il campo. Per prenotare usa l&apos;app sul telefono.</Body>
+      <Button title="Esci" onPress={() => supabase.auth.signOut()} />
+    </View>
+  );
+}
+
 function NotConfigured() {
   const c = useColors();
   useEffect(() => {
@@ -56,8 +70,9 @@ function NotConfigured() {
       <H1>Manca il collegamento</H1>
       <Body>L&apos;app non sa ancora a quale database collegarsi.</Body>
       <Muted>
-        Copia il file .env.example in .env.local e inserisci EXPO_PUBLIC_SUPABASE_URL ed EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY del tuo
-        progetto Supabase, poi riavvia con npx expo start.
+        {ownerOnly
+          ? 'Su GitHub, in Settings → Secrets and variables → Actions → Variables, inserisci EXPO_PUBLIC_SUPABASE_URL ed EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY del tuo progetto Supabase, poi ricostruisci il programma (Actions → App per Windows → Run workflow).'
+          : 'Copia il file .env.example in .env.local e inserisci EXPO_PUBLIC_SUPABASE_URL ed EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY del tuo progetto Supabase, poi riavvia con npx expo start.'}
       </Muted>
     </View>
   );
