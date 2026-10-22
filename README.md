@@ -16,7 +16,8 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
    Poi, in ordine, `0003_fatturazione.sql` (codice fiscale e indirizzo di fatturazione), `0004_pacchetti.sql` (pacchetti
    di lezioni), `0005_cancellazione_account.sql` (il cliente può cancellare il proprio account), `0006_fatture.sql`
    (fatture dei pagamenti online), `0007_scontrini.sql` (scontrino elettronico in alternativa alla fattura) e
-   `0008_licenza.sql` (licenza per l'app venduta ad altri centri). Ogni file va eseguito una volta sola.
+   `0008_licenza.sql` (licenza per l'app venduta ad altri centri) e `0009_piani.sql` (piani Base, Professional e Pro).
+   Ogni file va eseguito una volta sola.
 3. In **Project Settings → API Keys** copia l'URL del progetto e la **Publishable key** (inizia con `sb_publishable_`).
    Non usare mai la Secret key nell'app.
 4. Copia il file `.env.example` in `.env.local` e incolla i due valori:
@@ -167,10 +168,10 @@ firmato con una chiave privata che resta sul tuo computer: chi non ce l'ha non p
 **Per ogni centro che compra**
 
 1. Crea il suo progetto Supabase (meglio sul suo account, così i dati dei suoi clienti sono suoi) ed esegui le
-   migrazioni, dalla `0001` alla `0008`, come al punto 1.
-2. Genera la licenza con l'indirizzo e la **publishable key** del suo progetto:
+   migrazioni, dalla `0001` alla `0009`, come al punto 1.
+2. Genera la licenza con il piano, l'indirizzo e la **publishable key** del suo progetto:
    ```sh
-   node tools/licenza.mjs genera --campo "Centro Cinofilo Le Querce" --id querce \
+   node tools/licenza.mjs genera --campo "Centro Cinofilo Le Querce" --id querce --piano professional \
      --scadenza 2027-12-31 --url https://xxxx.supabase.co --chiave sb_publishable_xxxx
    ```
 3. Manda il codice al centro. Il titolare installa l'app, incolla il codice, si iscrive e lo rendi proprietario come al
@@ -183,6 +184,24 @@ firmato con una chiave privata che resta sul tuo computer: chi non ce l'ha non p
 - Per sospendere un centro basta non rinnovare: alla scadenza l'app non si apre più. Se vuoi più controllo, fai
   licenze brevi (per esempio mensili).
 - `node tools/licenza.mjs verifica <codice>` mostra cosa c'è in un codice e se la firma è tua.
+
+**Piani**
+
+L'app è una sola: il piano scritto nella licenza decide cosa si vede. Le licenze fatte prima dei piani valgono come Pro.
+
+| | Base | Professional | Pro |
+| --- | --- | --- | --- |
+| Prenotazioni, orari, clienti e cani, penalità, regolamento e privacy, logo | sì | sì | sì |
+| Campi | 1 | fino a 3 | senza limite |
+| Clienti iscritti | fino a 50 | fino a 150 | senza limite |
+| Trainer | no | sì | sì |
+| Pacchetti di lezioni | no | sì | sì |
+| Fatture automatiche e scontrino battuto a mano | no | sì | sì |
+| Registratore in cloud o registratore Epson al campo | no | no | sì |
+
+Per cambiare piano genera un codice con lo **stesso `--id`** e il nuovo `--piano` (la scadenza può restare uguale): il
+centro lo incolla in Impostazioni → Licenza. Quando un centro raggiunge il limite di clienti, i nuovi non possono
+iscriversi e il titolare lo vede in Impostazioni → Licenza. I limiti sono in `src/lib/plans.ts`.
 
 ## 8. Programma per Windows
 

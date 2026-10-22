@@ -7,9 +7,11 @@
 //       Crea la coppia di chiavi (una volta sola). La privata va in ~/.campo-cani/licenza-privata.pem:
 //       tienila al sicuro e fanne una copia. La pubblica va incollata in src/lib/license-key.ts.
 //
-//   node tools/licenza.mjs genera --campo "Centro Cinofilo Le Querce" --scadenza 2027-12-31 \
+//   node tools/licenza.mjs genera --campo "Centro Cinofilo Le Querce" --piano professional --scadenza 2027-12-31 \
 //       [--url https://xxxx.supabase.co --chiave sb_publishable_xxxx] [--id lq-001]
 //       Stampa il codice di licenza da dare al campo. Senza --scadenza non scade mai.
+//       --piano è base, professional o pro (vedi src/lib/plans.ts). Per cambiare piano a un centro
+//       genera un nuovo codice con lo stesso --id, --url e --chiave: lo incolla in Impostazioni → Licenza.
 //
 //   node tools/licenza.mjs verifica <codice>
 //       Mostra cosa contiene un codice e se la firma è valida.
@@ -22,6 +24,7 @@ import { join } from 'node:path';
 const DIR = join(homedir(), '.campo-cani');
 const PRIVATE = process.env.CAMPO_CANI_CHIAVE ?? join(DIR, 'licenza-privata.pem');
 const PREFIX = 'CC1';
+const PLANS = ['base', 'professional', 'pro'];
 
 const b64url = (buf) => Buffer.from(buf).toString('base64url');
 const fail = (msg) => {
@@ -53,6 +56,7 @@ function keys() {
 function generate(o) {
   if (!existsSync(PRIVATE)) fail('Manca la chiave privata: esegui prima "node tools/licenza.mjs chiavi".');
   if (!o.campo?.trim()) fail('Indica il nome del campo con --campo "Nome".');
+  if (!PLANS.includes(o.piano)) fail(`Indica il piano con --piano ${PLANS.join(' | ')}.`);
   if (o.scadenza && !/^\d{4}-\d{2}-\d{2}$/.test(o.scadenza)) fail('La scadenza va scritta come AAAA-MM-GG.');
   if (!!o.url !== !!o.chiave) fail('--url e --chiave vanno insieme: sono l\'indirizzo e la publishable key del database del campo.');
   if (o.chiave && !o.chiave.startsWith('sb_publishable_')) fail('Usa la publishable key (sb_publishable_...), mai la secret key.');
@@ -60,6 +64,7 @@ function generate(o) {
     v: 1,
     id: o.id || b64url(randomBytes(6)),
     campo: o.campo.trim(),
+    piano: o.piano,
     scade: o.scadenza || null,
     emessa: new Date().toISOString().slice(0, 10),
     ...(o.url ? { url: o.url.replace(/\/+$/, ''), chiave: o.chiave } : {}),
@@ -67,7 +72,7 @@ function generate(o) {
   const body = b64url(JSON.stringify(payload));
   const sig = sign(null, Buffer.from(`${PREFIX}.${body}`), createPrivateKey(readFileSync(PRIVATE)));
   console.log(`${PREFIX}.${body}.${b64url(sig)}`);
-  console.error(`\nLicenza ${payload.id} per "${payload.campo}", ${payload.scade ? `valida fino al ${payload.scade}` : 'senza scadenza'}.`);
+  console.error(`\nLicenza ${payload.id} per "${payload.campo}", piano ${payload.piano}, ${payload.scade ? `valida fino al ${payload.scade}` : 'senza scadenza'}.`);
 }
 
 function check(code) {
@@ -85,4 +90,4 @@ const [cmd, ...rest] = process.argv.slice(2);
 if (cmd === 'chiavi') keys();
 else if (cmd === 'genera') generate(args(rest));
 else if (cmd === 'verifica') check(rest[0]);
-else fail('Uso: node tools/licenza.mjs chiavi | genera --campo "Nome" [--scadenza AAAA-MM-GG] | verifica <codice>');
+else fail('Uso: node tools/licenza.mjs chiavi | genera --campo "Nome" --piano base|professional|pro [--scadenza AAAA-MM-GG] | verifica <codice>');

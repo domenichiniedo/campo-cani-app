@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import { hasBilling } from '@/lib/billing';
+import { usePlan } from '@/lib/plans';
 import { supabase } from '@/lib/supabase';
 import type { Field, LessonType, Profile, Settings, Trainer } from '@/lib/types';
 
@@ -11,9 +12,9 @@ type Ctx = {
   profile: Profile | null;
   settings: Settings | null;
   lessonTypes: LessonType[];
-  /** Campi attivi, in ordine. */
+  /** Campi attivi, in ordine, fino al numero previsto dal piano. */
   fields: Field[];
-  /** Trainer attivi, in ordine. */
+  /** Trainer attivi, in ordine (nessuno se il piano non li prevede). */
   trainers: Trainer[];
   isOwner: boolean;
   needsTerms: boolean;
@@ -26,6 +27,7 @@ type Ctx = {
 const SessionContext = createContext<Ctx | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
+  const plan = usePlan();
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -45,8 +47,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     ]);
     if (s.data) setSettings(s.data as Settings);
     setLessonTypes((t.data ?? []) as LessonType[]);
-    setFields((f.data ?? []) as Field[]);
-    setTrainers((tr.data ?? []) as Trainer[]);
+    setFields(((f.data ?? []) as Field[]).slice(0, plan.maxFields ?? undefined));
+    setTrainers(plan.trainers ? ((tr.data ?? []) as Trainer[]) : []);
     const uid = (await supabase.auth.getSession()).data.session?.user.id ?? null;
     if (uid) {
       const p = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle();
@@ -55,7 +57,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setProfile(null);
     }
     setLoadedFor(uid);
-  }, []);
+  }, [plan]);
 
   useEffect(() => {
     const load = () =>
