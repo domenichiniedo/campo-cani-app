@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { InvoicesPanel } from '@/components/invoices-panel';
+import { LicensePanel } from '@/components/license-panel';
 import { PackagesEditor } from '@/components/packages-editor';
 import { Body, Button, Card, ErrorText, Field, H1, Muted, Row, Screen, Step, Toggle } from '@/components/ui';
 import { hm, parseHm, STEP } from '@/lib/format';
+import { licensingEnabled } from '@/lib/license';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
@@ -231,6 +233,13 @@ export default function OwnerSettings() {
   return (
     <Screen>
       <H1>Impostazioni</H1>
+
+      {licensingEnabled && (
+        <>
+          <Step title="Licenza" />
+          <LicensePanel />
+        </>
+      )}
 
       <Step title="Centro e logo" />
       <Card>
