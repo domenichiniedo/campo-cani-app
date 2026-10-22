@@ -13,8 +13,8 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
    Crea tabelle, regole di accesso, le due lezioni di partenza e lo spazio per il logo.
    Poi fai lo stesso con `supabase/migrations/0002_campi_trainer.sql`, che aggiunge campi e trainer.
    Se avevi già eseguito il primo file, esegui solo il secondo: orari e prenotazioni esistenti passano al primo campo.
-   Poi, in ordine, `0003_fatturazione.sql` (codice fiscale e indirizzo di fatturazione) e `0004_pacchetti.sql` (pacchetti
-   di lezioni). Ogni file va eseguito una volta sola.
+   Poi, in ordine, `0003_fatturazione.sql` (codice fiscale e indirizzo di fatturazione), `0004_pacchetti.sql` (pacchetti
+   di lezioni) e `0005_cancellazione_account.sql` (il cliente può cancellare il proprio account). Ogni file va eseguito una volta sola.
 3. In **Project Settings → API Keys** copia l'URL del progetto e la **Publishable key** (inizia con `sb_publishable_`).
    Non usare mai la Secret key nell'app.
 4. Copia il file `.env.example` in `.env.local` e incolla i due valori:

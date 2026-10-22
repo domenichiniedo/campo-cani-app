@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
 import { BillingFields } from '@/components/billing-fields';
-import { Badge, Body, Button, Card, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
+import { Badge, Body, Button, Card, ConfirmButton, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingColumns, billingError, billingFromProfile } from '@/lib/billing';
 import { isDayKey, shortDate } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -18,6 +18,15 @@ export default function Profile() {
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [penalties, setPenalties] = useState<Penalty[]>([]);
   const [newDog, setNewDog] = useState({ name: '', breed: '', birth: '' });
+  const [deleteErr, setDeleteErr] = useState('');
+
+  async function deleteAccount() {
+    setDeleteErr('');
+    const { error } = await supabase.rpc('delete_my_account');
+    if (error) return setDeleteErr(errorText(error));
+    // L'utente non esiste più: chiudiamo solo la sessione su questo telefono.
+    await supabase.auth.signOut({ scope: 'local' });
+  }
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
 
@@ -127,6 +136,16 @@ export default function Profile() {
       </Card>
 
       <Button title="Esci" kind="ghost" onPress={() => supabase.auth.signOut()} />
+
+      <Step title="Cancella account" />
+      <Card>
+        <Muted>
+          Annulla le tue lezioni in programma e cancella i tuoi dati, i cani e i pacchetti. Le lezioni rimaste nei pacchetti
+          non vengono rimborsate dall&apos;app: parlane con il campo prima di procedere.
+        </Muted>
+        <ConfirmButton title="Cancella il mio account" onConfirm={deleteAccount} />
+        <ErrorText>{deleteErr}</ErrorText>
+      </Card>
     </Screen>
   );
 }
