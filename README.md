@@ -14,8 +14,8 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
    Poi fai lo stesso con `supabase/migrations/0002_campi_trainer.sql`, che aggiunge campi e trainer.
    Se avevi già eseguito il primo file, esegui solo il secondo: orari e prenotazioni esistenti passano al primo campo.
    Poi, in ordine, `0003_fatturazione.sql` (codice fiscale e indirizzo di fatturazione), `0004_pacchetti.sql` (pacchetti
-   di lezioni), `0005_cancellazione_account.sql` (il cliente può cancellare il proprio account) e `0006_fatture.sql`
-   (fatture dei pagamenti online). Ogni file va eseguito una volta sola.
+   di lezioni), `0005_cancellazione_account.sql` (il cliente può cancellare il proprio account), `0006_fatture.sql`
+   (fatture dei pagamenti online) e `0007_scontrini.sql` (scontrino elettronico in alternativa alla fattura). Ogni file va eseguito una volta sola.
 3. In **Project Settings → API Keys** copia l'URL del progetto e la **Publishable key** (inizia con `sb_publishable_`).
    Non usare mai la Secret key nell'app.
 4. Copia il file `.env.example` in `.env.local` e incolla i due valori:
@@ -101,6 +101,7 @@ Il token resta nei Secrets di Supabase: non finisce mai nell'app.
    ```
 3. In Supabase apri **Database → Webhooks** e crea un webhook sulla tabella `invoices`, evento **Insert**, tipo
    **Supabase Edge Functions**, funzione `fatture-in-cloud`, con l'intestazione `x-webhook-secret` uguale a `WEBHOOK_SECRET`.
+   Se usi il registratore in cloud (sotto), crea un secondo webhook uguale per la funzione `scontrini-openapi`.
 4. Nell'app, in **Impostazioni → Fatture**, scegli il regime (ordinario con l'aliquota IVA inclusa nei prezzi, oppure
    forfettario) e premi **Invia ora**.
 
@@ -114,6 +115,35 @@ supabase secrets set FIC_SEND_TO_SDI=si
 Se il token vede più aziende, aggiungi `FIC_COMPANY_ID`. Se l'aliquota non viene trovata da sola, aggiungi `FIC_VAT_ID`;
 per registrare l'incasso su un conto preciso, `FIC_PAYMENT_ACCOUNT_ID`. Le fatture con un errore restano nell'elenco con
 il motivo e il tasto **Riprova**. Le fatture già emesse restano anche se il cliente cancella il suo account.
+
+## 6. Scontrino elettronico
+
+Nel Profilo il cliente sceglie se per i pagamenti online vuole la **fattura** o lo **scontrino**. In **Impostazioni →
+Fatture** scegli come emettere lo scontrino:
+
+- **Lo batto io**: lo scontrino compare come "da emettere"; lo batti sul registratore telematico del campo e premi
+  **Battuto** (il numero del documento è facoltativo). Va bene con qualsiasi registratore.
+- **Registratore al campo (Wi-Fi)**: il tuo telefono lo stampa con **Stampa sul registratore** e salva il numero da solo.
+  Funziona con i registratori Epson RT che accettano ePOS-Print XML (per esempio FP-81 II RT e FP-90 III RT). Scrivi
+  l'indirizzo del registratore (per esempio `192.168.1.50`) e stai sulla stessa rete Wi-Fi. Non funziona dalla demo nel
+  browser: serve l'app installata.
+- **Registratore in cloud**: lo trasmette all'Agenzia delle Entrate la funzione `scontrini-openapi`, con il servizio
+  scontrini di [Openapi](https://openapi.com/products/electronic-receipt-italy), anche quando non sei al campo.
+  1. Su Openapi configura la tua partita IVA per gli scontrini, con le credenziali Fisconline della persona incaricata
+     alla trasmissione (la procedura per l'incarico è nella loro documentazione). Openapi indica il servizio solo per
+     le società.
+  2. Genera un token con il permesso `POST:invoice.openapi.com/IT-receipts` (e la lettura dello stesso indirizzo).
+  3. Dalla cartella del progetto:
+     ```sh
+     supabase secrets set OPENAPI_TOKEN=il_token OPENAPI_FISCAL_ID=la_tua_partita_iva
+     supabase functions deploy scontrini-openapi
+     ```
+  4. Aggiungi il secondo webhook (punto 3 delle fatture). All'inizio la funzione usa l'ambiente di prova di Openapi;
+     quando è tutto a posto: `supabase secrets set OPENAPI_LIVE=si`.
+
+  Openapi lavora in differita: lo scontrino passa a "emesso" con il suo numero quando la trasmissione è fatta (premi
+  **Invia ora** per controllare). Openapi ha annunciato un nuovo servizio scontrini che sostituirà questo: prima di
+  attivarlo chiedi a loro quale usare.
 
 ## Cosa fa l'app
 

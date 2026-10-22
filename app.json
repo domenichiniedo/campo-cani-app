@@ -8,7 +8,13 @@
     "scheme": "campocaniapp",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        },
+        "NSLocalNetworkUsageDescription": "Serve per stampare gli scontrini sul registratore telematico del campo."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -37,6 +43,14 @@
         "expo-image-picker",
         {
           "photosPermission": "Serve per scegliere il logo del campo dalla galleria."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
         }
       ]
     ],

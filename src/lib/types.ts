@@ -55,6 +55,8 @@ export type Profile = {
   privacy_accepted_at: string | null;
   created_at: string;
   tax_code: string;
+  /** Per i pagamenti online: fattura o scontrino. */
+  doc_pref: 'invoice' | 'receipt';
   billing_street: string;
   billing_zip: string;
   billing_city: string;
@@ -123,10 +125,14 @@ export type InvoiceSettings = {
   tax_regime: 'RF01' | 'RF19';
   vat_rate: number;
   auto_invoice: boolean;
+  receipt_mode: 'manual' | 'cloud' | 'device';
+  printer_url: string;
 };
 
 export type Invoice = {
   id: string;
+  kind: 'invoice' | 'receipt';
+  receipt_number: string | null;
   year: number;
   number: number | null;
   issued_on: string;
@@ -140,7 +146,14 @@ export type Invoice = {
   sent_at: string | null;
 };
 
-export const invoiceTitle = (i: Invoice) => (i.number ? `Fattura ${i.number}/${i.year}` : 'Fattura in preparazione');
+export const invoiceTitle = (i: Invoice) =>
+  i.kind === 'receipt'
+    ? i.status === 'sent'
+      ? `Scontrino${i.receipt_number ? ` ${i.receipt_number}` : ''}`
+      : 'Scontrino da emettere'
+    : i.number
+      ? `Fattura ${i.number}/${i.year}`
+      : 'Fattura in preparazione';
 
 /** Pacchetto attivo, non scaduto e con lezioni rimaste. */
 export const usable = (cp: ClientPackage, now = Date.now()) =>

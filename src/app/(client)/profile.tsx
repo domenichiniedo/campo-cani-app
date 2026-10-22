@@ -2,8 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
 import { BillingFields } from '@/components/billing-fields';
-import { InvoiceBadge } from '@/components/invoices-panel';
-import { Badge, Body, Button, Card, ConfirmButton, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
+import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingColumns, billingError, billingFromProfile } from '@/lib/billing';
 import { euro, isDayKey, shortDate } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -16,6 +15,7 @@ export default function Profile() {
   const [last, setLast] = useState(profile?.last_name ?? '');
   const [phone, setPhone] = useState(profile?.phone ?? '');
   const [billing, setBilling] = useState(billingFromProfile(profile));
+  const [docPref, setDocPref] = useState(profile?.doc_pref ?? 'invoice');
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [penalties, setPenalties] = useState<Penalty[]>([]);
   const [newDog, setNewDog] = useState({ name: '', breed: '', birth: '' });
@@ -62,7 +62,7 @@ export default function Profile() {
     setErr('');
     const { error } = await supabase
       .from('profiles')
-      .update({ first_name: first.trim(), last_name: last.trim(), phone: phone.trim(), ...billingColumns(billing) })
+      .update({ first_name: first.trim(), last_name: last.trim(), phone: phone.trim(), doc_pref: docPref, ...billingColumns(billing) })
       .eq('id', profile.id);
     if (error) return setErr(errorText(error));
     setMsg('Dati salvati.');
@@ -100,6 +100,15 @@ export default function Profile() {
         <Field label="Telefono" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
         <Muted>Email: {profile?.email}</Muted>
         <BillingFields value={billing} onChange={setBilling} />
+        <Muted style={{ fontSize: 13 }}>Per i pagamenti online vuoi</Muted>
+        <Chips
+          items={[
+            { value: 'invoice', label: 'Fattura' },
+            { value: 'receipt', label: 'Scontrino' },
+          ]}
+          value={docPref}
+          onChange={setDocPref}
+        />
         {!!msg && <Muted>{msg}</Muted>}
         <Button title="Salva" onPress={saveMe} small />
       </Card>
@@ -136,19 +145,22 @@ export default function Profile() {
 
       {invoices.length > 0 && (
         <>
-          <Step title="Le tue fatture" />
+          <Step title="Fatture e scontrini" />
           {invoices.map((i) => (
             <Card key={i.id}>
               <Row style={{ justifyContent: 'space-between' }}>
                 <Body bold>{invoiceTitle(i)}</Body>
-                {i.status === 'sent' ? <InvoiceBadge status="sent" /> : <Badge tone="warn">In preparazione</Badge>}
+                {i.status === 'sent' ? <Badge tone="ok">Emesso</Badge> : <Badge tone="warn">In preparazione</Badge>}
               </Row>
               <Muted>
                 {i.description} · {euro(i.total_cents)}
               </Muted>
             </Card>
           ))}
-          <Muted style={{ fontSize: 13 }}>Le fatture inviate le trovi anche nel tuo cassetto fiscale sul sito dell&apos;Agenzia delle Entrate.</Muted>
+          <Muted style={{ fontSize: 13 }}>
+            Le fatture inviate le trovi anche nel tuo cassetto fiscale sul sito dell&apos;Agenzia delle Entrate. Lo scontrino te lo
+            consegna il campo.
+          </Muted>
         </>
       )}
 
