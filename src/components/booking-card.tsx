@@ -4,6 +4,7 @@ import { Text, View } from 'react-native';
 import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Muted, Row } from '@/components/ui';
 import { euro, hm, timeOf } from '@/lib/format';
 import type { OwnerBooking } from '@/lib/owner';
+import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
@@ -13,6 +14,7 @@ import { fullName, PENALTY_REASONS } from '@/lib/types';
 export function OwnerBookingCard({ b, onChange, showField }: { b: OwnerBooking; onChange: () => void; showField?: boolean }) {
   const c = useColors();
   const { trainers } = useSession();
+  const plan = usePlan();
   const [trainerOpen, setTrainerOpen] = useState(false);
   // Solo i trainer che seguono questo tipo di lezione (lista vuota = tutti).
   const fit = trainers.filter((t) => !t.lessons.length || t.lessons.includes(b.lesson_type));
@@ -78,12 +80,14 @@ export function OwnerBookingCard({ b, onChange, showField }: { b: OwnerBooking; 
         {b.pay === 'package' ? (
           <Badge tone="ok">Dal pacchetto</Badge>
         ) : (
-          <Button
-            small
-            kind="ghost"
-            title={b.paid ? `Pagato ${euro(b.price_cents)} ✓` : `Incassa ${euro(b.price_cents)}`}
-            onPress={() => run(() => supabase.from('bookings').update({ paid: !b.paid }).eq('id', b.id))}
-          />
+          plan.payments && (
+            <Button
+              small
+              kind="ghost"
+              title={b.paid ? `Pagato ${euro(b.price_cents)} ✓` : `Incassa ${euro(b.price_cents)}`}
+              onPress={() => run(() => supabase.from('bookings').update({ paid: !b.paid }).eq('id', b.id))}
+            />
+          )
         )}
         {trainers.length > 0 && (
           <Button small kind="ghost" title={b.trainers ? 'Cambia trainer' : 'Assegna trainer'} onPress={() => setTrainerOpen(!trainerOpen)} />

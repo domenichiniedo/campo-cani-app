@@ -2,7 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import { hasBilling } from '@/lib/billing';
-import { usePlan } from '@/lib/plans';
+import { upTo, usePlan } from '@/lib/plans';
 import { supabase } from '@/lib/supabase';
 import type { Field, LessonType, Profile, Settings, Trainer } from '@/lib/types';
 
@@ -50,9 +50,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       supabase.from('trainers').select('*').eq('active', true).order('sort'),
     ]);
     if (s.data) setSettings(s.data as Settings);
-    setLessonTypes((t.data ?? []) as LessonType[]);
+    setLessonTypes(upTo((t.data ?? []) as LessonType[], plan.maxLessonTypes));
     setFields(((f.data ?? []) as Field[]).slice(0, plan.maxFields ?? undefined));
-    setTrainers(plan.trainers ? ((tr.data ?? []) as Trainer[]) : []);
+    setTrainers(upTo((tr.data ?? []) as Trainer[], plan.maxTrainers));
     const uid = (await supabase.auth.getSession()).data.session?.user.id ?? null;
     if (uid) {
       const p = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle();

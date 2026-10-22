@@ -6,6 +6,7 @@ import { DogDiary } from '@/components/dog-diary';
 import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Field, H1, Muted, Row, Screen } from '@/components/ui';
 import { billingLine } from '@/lib/billing';
 import { euro, shortDate } from '@/lib/format';
+import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
@@ -22,6 +23,7 @@ const initial = (p: Client) => (p.last_name || p.first_name).charAt(0).toUpperCa
 export default function OwnerClients() {
   const c = useColors();
   const { settings } = useSession();
+  const plan = usePlan();
   // Sul PC la scheda del cliente sta a destra della lista; sul telefono si apre sotto il nome.
   const { width, height } = useWindowDimensions();
   const wide = width >= 900;
@@ -154,14 +156,16 @@ export default function OwnerClients() {
       {requests.length > 0 && (
         <Card accent>
           <Body bold>{requests.length === 1 ? '1 pacchetto da attivare' : `${requests.length} pacchetti da attivare`}</Body>
-          <Muted style={{ fontSize: 13 }}>Attivalo quando il cliente paga: parte la fattura o lo scontrino, come per le lezioni.</Muted>
+          <Muted style={{ fontSize: 13 }}>
+            {plan.invoices ? 'Attivalo quando il cliente paga: parte la fattura o lo scontrino, come per le lezioni.' : 'Attivalo quando il cliente paga.'}
+          </Muted>
           {requests.map(({ p, cp }) => (
             <View key={cp.id} style={{ gap: 6 }}>
               <Muted>
                 {fullName(p)}: {cp.name}, {euro(cp.price_cents)}
               </Muted>
               <Row>
-                <Button small title="Incassato, attiva" onPress={() => activate(cp)} />
+                <Button small title={plan.payments ? 'Incassato, attiva' : 'Attiva'} onPress={() => activate(cp)} />
                 <ConfirmButton title="Rifiuta" onConfirm={() => reject(cp)} />
               </Row>
             </View>

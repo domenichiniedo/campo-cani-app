@@ -195,12 +195,19 @@ L'app è una sola: il piano scritto nella licenza decide cosa si vede. Le licenz
 | | Base | Professional | Pro |
 | --- | --- | --- | --- |
 | Prenotazioni, orari, clienti e cani, penalità, regolamento e privacy, logo | sì | sì | sì |
-| Campi | 1 | fino a 3 | senza limite |
-| Clienti iscritti | fino a 50 | fino a 150 | senza limite |
-| Trainer | no | sì | sì |
-| Pacchetti di lezioni | no | sì | sì |
-| Fatture automatiche e scontrino battuto a mano | no | sì | sì |
+| Campi | 1 | fino a 2 | senza limite |
+| Clienti iscritti | fino a 100 | fino a 100 | senza limite |
+| Lezioni prenotabili | fino a 3 | fino a 5 | senza limite |
+| Pacchetti di lezioni richiedibili | fino a 3 | fino a 5 | senza limite |
+| Trainer (con la loro app e il diario dei cani) | no | fino a 2 | senza limite |
+| Incassi: lezioni da incassare e pagina Incassi | no | sì | sì |
+| Statistiche: grafico, presenze, disdette, ripartizioni | no | no | sì |
+| Fatture automatiche e scontrino | no | no | sì |
 | Registratore in cloud o registratore Epson al campo | no | no | sì |
+| Programma per Windows | no | no | sì |
+
+Le lezioni e i pacchetti spenti non contano nel limite. Se un centro scende di piano con più campi, lezioni, pacchetti o
+trainer di quanti ne comprende il nuovo piano, restano attivi solo i primi in ordine.
 
 Per cambiare piano genera un codice con lo **stesso `--id`** e il nuovo `--piano` (la scadenza può restare uguale): il
 centro lo incolla in Impostazioni → Licenza. Quando un centro raggiunge il limite di clienti, i nuovi non possono

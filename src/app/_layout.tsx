@@ -10,6 +10,7 @@ import { Activate } from '@/components/activate';
 import { ownerOnly } from '@/lib/edition';
 import { licensingEnabled } from '@/lib/license';
 import { LicenseGate } from '@/lib/license-gate';
+import { planWith, usePlan } from '@/lib/plans';
 import { hasEnvConfig, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
 
@@ -17,11 +18,15 @@ SplashScreen.preventAutoHideAsync();
 
 function Navigator() {
   const { ready, session, profile, isOwner, isTrainer, needsTerms, needsBilling } = useSession();
+  const plan = usePlan();
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
 
+  // Il programma per Windows si apre solo con una licenza del piano che lo comprende.
+  if (ownerOnly && !plan.desktop)
+    return <Activate reason={`Il programma per Windows è compreso nel piano ${planWith('desktop')}, la tua licenza è del piano ${plan.label}. Inserisci un codice ${planWith('desktop')}, oppure usa l'app sul telefono.`} />;
   if (!ready) return null;
   const signedIn = !!session && !!profile;
   if (ownerOnly && signedIn && !isOwner) return <OwnerOnly />;

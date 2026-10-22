@@ -6,6 +6,7 @@ import { OwnerBook, type BookStart } from '@/components/owner-book';
 import { Button, Chips, ErrorText, H1, Muted, Row, Screen, Stat } from '@/components/ui';
 import { addDays, cap, dayKey, euro, fromKey, isDayKey, longDay, today } from '@/lib/format';
 import { ownerBookings, type OwnerBooking } from '@/lib/owner';
+import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText } from '@/lib/supabase';
 
@@ -15,6 +16,7 @@ export default function OwnerDay() {
   const day = params.day && isDayKey(params.day) ? params.day : dayKey(today());
   const setDay = (k: string) => router.setParams({ day: k });
   const { fields, trainers, settings } = useSession();
+  const plan = usePlan();
   const [booking, setBooking] = useState<BookStart | null>(null);
   const [fieldFilter, setFieldFilter] = useState('');
   const [rows, setRows] = useState<OwnerBooking[]>([]);
@@ -59,7 +61,7 @@ export default function OwnerDay() {
       <Row>
         <Stat label="Lezioni" value={rows.length} />
         <Stat label="Entrati" value={`${arrived}/${rows.length}`} />
-        <Stat label="Da incassare" value={euro(toCollect)} />
+        {plan.payments && <Stat label="Da incassare" value={euro(toCollect)} />}
       </Row>
       {fields.length > 1 && (
         <Chips

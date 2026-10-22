@@ -5,6 +5,7 @@ import { Pressable, Text, View } from 'react-native';
 import { Button, Card, Chips, ErrorText, H1, Muted, Row, Screen, Stat, Step } from '@/components/ui';
 import { addDays, cap, dayKey, euro, longDay, today } from '@/lib/format';
 import { mondayOf } from '@/lib/owner';
+import { planWith, usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
@@ -62,6 +63,7 @@ async function bookingsBetween(from: string, to: string) {
 export default function OwnerStats() {
   const c = useColors();
   const { lessonTypes, fields, trainers } = useSession();
+  const plan = usePlan();
   const [period, setPeriod] = useState<Period>('month');
   const [anchor, setAnchor] = useState(today());
   const [rows, setRows] = useState<Line[]>([]);
@@ -150,7 +152,10 @@ export default function OwnerStats() {
     fields.length > 1 && { title: 'Per campo', rows: group((b) => b.field_id, (k) => fields.find((f) => f.id === k)?.name ?? 'Campo tolto') },
     trainers.length > 0 && { title: 'Per trainer', rows: group((b) => b.trainer_id ?? '', (k) => (k ? trainers.find((t) => t.id === k)?.name ?? 'Trainer tolto' : 'Da assegnare')) },
     { title: 'Per pagamento', rows: group((b) => b.pay, (k) => PAY[k as Booking['pay']] ?? k) },
-  ].filter((s): s is { title: string; rows: ReturnType<typeof group> } => !!s && s.rows.length > 0);
+  ]
+    .filter((s): s is { title: string; rows: ReturnType<typeof group> } => !!s && s.rows.length > 0)
+    // Senza statistiche resta solo come sono state pagate le lezioni.
+    .filter((s) => plan.stats || s.title === 'Per pagamento');
 
   const setP = (p: Period) => {
     setPeriod(p);
@@ -190,53 +195,61 @@ export default function OwnerStats() {
         Incassato: lezioni pagate più pacchetti venduti. Da incassare: lezioni già fatte e non ancora pagate. Previsto: lezioni prenotate nei prossimi giorni.
       </Muted>
 
-      <Card>
-        <Text style={{ color: c.text, fontWeight: '800' }}>
-          {picked !== null
-            ? `${byMonth ? cap(MONTHS_LONG[picked]) : cap(longDay(buckets[picked].key))}: ${euro(values[picked])}`
-            : `Incassato per ${byMonth ? 'mese' : 'giorno'}`}
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 140, gap: 2 }}>
-          {values.map((v, i) => (
-            <Pressable
-              key={buckets[i].key}
-              accessibilityRole="button"
-              accessibilityLabel={`${buckets[i].label}: ${euro(v)}`}
-              onPress={() => setPick(picked === i ? null : i)}
-              onHoverIn={() => setPick(i)}
-              style={{ flex: 1, height: '100%', justifyContent: 'flex-end' }}>
-              <View
-                style={{
-                  height: v ? Math.max(3, (v / max) * 140) : 1,
-                  borderTopLeftRadius: 4,
-                  borderTopRightRadius: 4,
-                  backgroundColor: v ? c.accent : c.line,
-                  opacity: picked === null || picked === i ? 1 : 0.45,
-                }}
-              />
-            </Pressable>
-          ))}
-        </View>
-        <View style={{ height: 18, borderTopWidth: 1, borderTopColor: c.line }}>
-          {buckets.map((b, i) =>
-            byMonth || buckets.length <= 7 || i % 7 === 0 || i === buckets.length - 1 ? (
-              <Text
-                key={b.key}
-                style={{ position: 'absolute', top: 3, left: `${((i + 0.5) / buckets.length) * 100}%`, width: 32, marginLeft: -16, textAlign: 'center', color: c.muted, fontSize: 10 }}>
-                {b.label}
-              </Text>
-            ) : null,
-          )}
-        </View>
-        <Muted style={{ fontSize: 12 }}>{"Tocca una barra per vedere l'importo."}</Muted>
-      </Card>
+      {!plan.stats && (
+        <Muted style={{ fontSize: 13 }}>{`Grafico, presenze, disdette e ripartizioni per lezione, campo e trainer sono compresi dal piano ${planWith('stats')}.`}</Muted>
+      )}
 
-      <Row>
-        <Stat label="Lezioni" value={active.length} />
-        <Stat label="Presenze" value={past.length ? `${Math.round((arrived / past.length) * 100)}%` : '–'} />
-        <Stat label="Disdette" value={cancelled} />
-        <Stat label="Clienti" value={clients} />
-      </Row>
+      {plan.stats && (
+        <Card>
+          <Text style={{ color: c.text, fontWeight: '800' }}>
+            {picked !== null
+              ? `${byMonth ? cap(MONTHS_LONG[picked]) : cap(longDay(buckets[picked].key))}: ${euro(values[picked])}`
+              : `Incassato per ${byMonth ? 'mese' : 'giorno'}`}
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 140, gap: 2 }}>
+            {values.map((v, i) => (
+              <Pressable
+                key={buckets[i].key}
+                accessibilityRole="button"
+                accessibilityLabel={`${buckets[i].label}: ${euro(v)}`}
+                onPress={() => setPick(picked === i ? null : i)}
+                onHoverIn={() => setPick(i)}
+                style={{ flex: 1, height: '100%', justifyContent: 'flex-end' }}>
+                <View
+                  style={{
+                    height: v ? Math.max(3, (v / max) * 140) : 1,
+                    borderTopLeftRadius: 4,
+                    borderTopRightRadius: 4,
+                    backgroundColor: v ? c.accent : c.line,
+                    opacity: picked === null || picked === i ? 1 : 0.45,
+                  }}
+                />
+              </Pressable>
+            ))}
+          </View>
+          <View style={{ height: 18, borderTopWidth: 1, borderTopColor: c.line }}>
+            {buckets.map((b, i) =>
+              byMonth || buckets.length <= 7 || i % 7 === 0 || i === buckets.length - 1 ? (
+                <Text
+                  key={b.key}
+                  style={{ position: 'absolute', top: 3, left: `${((i + 0.5) / buckets.length) * 100}%`, width: 32, marginLeft: -16, textAlign: 'center', color: c.muted, fontSize: 10 }}>
+                  {b.label}
+                </Text>
+              ) : null,
+            )}
+          </View>
+          <Muted style={{ fontSize: 12 }}>{"Tocca una barra per vedere l'importo."}</Muted>
+        </Card>
+      )}
+
+      {plan.stats && (
+        <Row>
+          <Stat label="Lezioni" value={active.length} />
+          <Stat label="Presenze" value={past.length ? `${Math.round((arrived / past.length) * 100)}%` : '–'} />
+          <Stat label="Disdette" value={cancelled} />
+          <Stat label="Clienti" value={clients} />
+        </Row>
+      )}
 
       {sections.map((s) => {
         const top = Math.max(...s.rows.map((r) => r.n));

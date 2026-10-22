@@ -5,6 +5,7 @@ import { Text, View } from 'react-native';
 
 import { InvoicesPanel } from '@/components/invoices-panel';
 import { LicensePanel } from '@/components/license-panel';
+import { LimitNote } from '@/components/limit-note';
 import { PackagesEditor } from '@/components/packages-editor';
 import { Body, Button, Card, ErrorText, Field, H1, Muted, Row, Screen, Step, Toggle } from '@/components/ui';
 import { hm, parseHm, STEP } from '@/lib/format';
@@ -141,6 +142,9 @@ export default function OwnerSettings() {
     return results.find((r) => r.error)?.error ?? null;
   }
 
+  // Il piano conta le lezioni prenotabili: quelle spente non pesano.
+  const activeTypes = types.filter((t) => t.active).length;
+  const typesFull = plan.maxLessonTypes !== null && activeTypes >= plan.maxLessonTypes;
   const setType = (i: number, patch: Partial<TypeDraft>) => setTypes(types.map((t, j) => (j === i ? { ...t, ...patch } : t)));
 
   async function pickLogo() {
@@ -328,7 +332,13 @@ export default function OwnerSettings() {
               <Button small kind="danger" title="Togli trainer" onPress={() => setTrainerList(trainerList.filter((_, j) => j !== i))} />
             </Card>
           ))}
-          <Button title="+ Aggiungi trainer" kind="ghost" onPress={() => setTrainerList([...trainerList, { name: '', lessons: [] }])} />
+          <Button
+            title="+ Aggiungi trainer"
+            kind="ghost"
+            disabled={plan.maxTrainers !== null && trainerList.length >= plan.maxTrainers}
+            onPress={() => setTrainerList([...trainerList, { name: '', lessons: [] }])}
+          />
+          <LimitNote kind="maxTrainers" count={trainerList.length} what="trainer" />
         </>
       ) : (
         <PlanNote title="Trainer" plan={planWith('trainers')} />
@@ -360,12 +370,13 @@ export default function OwnerSettings() {
             <Field label="Prezzo (€)" value={t.price} onChangeText={(v) => setType(i, { price: v })} keyboardType="decimal-pad" style={{ flex: 1, minWidth: 120 }} />
           </Row>
           <Field label="Opzioni, separate da virgola" value={t.options} onChangeText={(v) => setType(i, { options: v })} />
-          <Toggle label="Prenotabile" value={t.active} onChange={(v) => setType(i, { active: v })} />
+          <Toggle label="Prenotabile" value={t.active} onChange={(v) => setType(i, { active: v })} disabled={!t.active && typesFull} />
         </Card>
       ))}
       <Button
         title="+ Aggiungi lezione"
         kind="ghost"
+        disabled={typesFull}
         onPress={() =>
           setTypes([
             ...types,
@@ -377,6 +388,7 @@ export default function OwnerSettings() {
       <Muted style={{ fontSize: 13 }}>
         Per togliere una lezione spegni &quot;Prenotabile&quot;: i clienti non la vedono più, ma restano le prenotazioni già fatte.
       </Muted>
+      <LimitNote kind="maxLessonTypes" count={activeTypes} what="lezioni prenotabili" />
 
       {plan.packages ? (
         <>

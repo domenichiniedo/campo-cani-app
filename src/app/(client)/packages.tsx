@@ -3,12 +3,14 @@ import { useCallback, useState } from 'react';
 
 import { Badge, Body, Button, Card, ErrorText, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { euro, shortDate } from '@/lib/format';
+import { upTo, usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { usable, type ClientPackage, type Package } from '@/lib/types';
 
 export default function Packages() {
   const { profile, lessonTypes } = useSession();
+  const plan = usePlan();
   const [offers, setOffers] = useState<Package[]>([]);
   const [mine, setMine] = useState<ClientPackage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -23,11 +25,11 @@ export default function Packages() {
       supabase.from('packages').select('*').eq('active', true).order('sort'),
       supabase.from('client_packages').select('*').eq('user_id', profile.id).neq('status', 'cancelled').order('requested_at', { ascending: false }),
     ]);
-    setOffers((o.data ?? []) as Package[]);
+    setOffers(upTo((o.data ?? []) as Package[], plan.maxPackages));
     setMine((m.data ?? []) as ClientPackage[]);
     setNow(Date.now());
     setLoading(false);
-  }, [profile]);
+  }, [profile, plan]);
 
   useFocusEffect(
     useCallback(() => {
@@ -42,7 +44,9 @@ export default function Packages() {
     setMsg('');
     const { error } = await supabase.rpc('request_package', { p_package: p.id });
     if (error) return setErr(errorText(error));
-    setMsg(`Richiesta inviata. Paga ${euro(p.price_cents)} al campo: il pacchetto si attiva appena il campo conferma l'incasso e ricevi fattura o scontrino.`);
+    setMsg(
+      `Richiesta inviata. Paga ${euro(p.price_cents)} al campo: il pacchetto si attiva appena il campo conferma l'incasso${plan.invoices ? ' e ricevi fattura o scontrino' : ''}.`,
+    );
     load();
   }
 

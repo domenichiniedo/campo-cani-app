@@ -13,27 +13,75 @@ export type Plan = {
   maxFields: number | null;
   /** Clienti iscritti; null = senza limite. */
   maxClients: number | null;
+  /** Tipi di lezione prenotabili; null = senza limite. */
+  maxLessonTypes: number | null;
+  /** Pacchetti richiedibili dai clienti; null = senza limite. */
+  maxPackages: number | null;
+  /** Trainer attivi; 0 = niente trainer, null = senza limite. */
+  maxTrainers: number | null;
   trainers: boolean;
   packages: boolean;
+  /** Lezioni segnate come incassate, da incassare e pagina Incassi. */
+  payments: boolean;
+  /** Statistiche nella pagina Incassi: grafico, presenze, disdette, ripartizioni. */
+  stats: boolean;
   /** Fatture automatiche e scontrino battuto a mano. */
   invoices: boolean;
   /** Scontrino con registratore in cloud o registratore Epson al campo. */
   receiptDevices: boolean;
+  /** Programma per Windows. */
+  desktop: boolean;
 };
 
 export const PLANS: Record<PlanId, Plan> = {
-  base: { id: 'base', label: 'Base', maxFields: 1, maxClients: 50, trainers: false, packages: false, invoices: false, receiptDevices: false },
+  base: {
+    id: 'base',
+    label: 'Base',
+    maxFields: 1,
+    maxClients: 100,
+    maxLessonTypes: 3,
+    maxPackages: 3,
+    maxTrainers: 0,
+    trainers: false,
+    packages: true,
+    payments: false,
+    stats: false,
+    invoices: false,
+    receiptDevices: false,
+    desktop: false,
+  },
   professional: {
     id: 'professional',
     label: 'Professional',
-    maxFields: 3,
-    maxClients: 150,
+    maxFields: 2,
+    maxClients: 100,
+    maxLessonTypes: 5,
+    maxPackages: 5,
+    maxTrainers: 2,
     trainers: true,
     packages: true,
-    invoices: true,
+    payments: true,
+    stats: false,
+    invoices: false,
     receiptDevices: false,
+    desktop: false,
   },
-  pro: { id: 'pro', label: 'Pro', maxFields: null, maxClients: null, trainers: true, packages: true, invoices: true, receiptDevices: true },
+  pro: {
+    id: 'pro',
+    label: 'Pro',
+    maxFields: null,
+    maxClients: null,
+    maxLessonTypes: null,
+    maxPackages: null,
+    maxTrainers: null,
+    trainers: true,
+    packages: true,
+    payments: true,
+    stats: true,
+    invoices: true,
+    receiptDevices: true,
+    desktop: true,
+  },
 };
 
 export const PLAN_IDS = Object.keys(PLANS) as PlanId[];
@@ -44,5 +92,12 @@ export const planOf = (license: License | null): Plan => PLANS[license?.piano ??
 export const usePlan = () => planOf(useLicense().license);
 
 /** Il piano più piccolo che ha la funzione, per dire al centro cosa gli serve. */
-export const planWith = (feature: keyof Omit<Plan, 'id' | 'label' | 'maxFields' | 'maxClients'>) =>
+export const planWith = (feature: { [K in keyof Plan]: Plan[K] extends boolean ? K : never }[keyof Plan]) =>
   PLAN_IDS.map((id) => PLANS[id]).find((p) => p[feature])!.label;
+
+/** Il primo piano che permette più di `n` elementi di quel tipo. */
+export const planAbove = (limit: 'maxFields' | 'maxClients' | 'maxLessonTypes' | 'maxPackages' | 'maxTrainers', n: number) =>
+  PLAN_IDS.map((id) => PLANS[id]).find((p) => p[limit] === null || p[limit] > n)!.label;
+
+/** I primi `max` elementi (tutti se il piano non ha limite). */
+export const upTo = <T,>(list: T[], max: number | null) => (max === null ? list : list.slice(0, max));
