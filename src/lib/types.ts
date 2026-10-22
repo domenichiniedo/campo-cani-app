@@ -119,6 +119,29 @@ export type ClientPackage = {
   expires_at: string | null;
 };
 
+export type InvoiceSettings = {
+  tax_regime: 'RF01' | 'RF19';
+  vat_rate: number;
+  auto_invoice: boolean;
+};
+
+export type Invoice = {
+  id: string;
+  year: number;
+  number: number | null;
+  issued_on: string;
+  user_id: string | null;
+  booking_id: string | null;
+  buyer_name: string;
+  description: string;
+  total_cents: number;
+  status: 'pending' | 'sent' | 'error';
+  error: string | null;
+  sent_at: string | null;
+};
+
+export const invoiceTitle = (i: Invoice) => (i.number ? `Fattura ${i.number}/${i.year}` : 'Fattura in preparazione');
+
 /** Pacchetto attivo, non scaduto e con lezioni rimaste. */
 export const usable = (cp: ClientPackage, now = Date.now()) =>
   cp.status === 'active' && cp.lessons_used < cp.lessons_total && (!cp.expires_at || new Date(cp.expires_at).getTime() > now);

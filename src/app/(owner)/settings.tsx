@@ -3,6 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 
+import { InvoicesPanel } from '@/components/invoices-panel';
 import { PackagesEditor } from '@/components/packages-editor';
 import { Body, Button, Card, ErrorText, Field, H1, Muted, Row, Screen, Step, Toggle } from '@/components/ui';
 import { hm, parseHm, STEP } from '@/lib/format';
@@ -339,6 +340,9 @@ export default function OwnerSettings() {
 
       <Step title="Pacchetti" />
       <PackagesEditor />
+
+      <Step title="Fatture" />
+      <InvoicesPanel />
 
       <Step title="Regolamento e privacy" />
       <Card>

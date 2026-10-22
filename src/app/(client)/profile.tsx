@@ -2,12 +2,13 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
 import { BillingFields } from '@/components/billing-fields';
+import { InvoiceBadge } from '@/components/invoices-panel';
 import { Badge, Body, Button, Card, ConfirmButton, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingColumns, billingError, billingFromProfile } from '@/lib/billing';
-import { isDayKey, shortDate } from '@/lib/format';
+import { euro, isDayKey, shortDate } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
-import { rulesLines, type Dog, type Penalty } from '@/lib/types';
+import { invoiceTitle, rulesLines, type Dog, type Invoice, type Penalty } from '@/lib/types';
 
 export default function Profile() {
   const { profile, settings, lessonTypes, refresh } = useSession();
@@ -18,6 +19,7 @@ export default function Profile() {
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [penalties, setPenalties] = useState<Penalty[]>([]);
   const [newDog, setNewDog] = useState({ name: '', breed: '', birth: '' });
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [deleteErr, setDeleteErr] = useState('');
 
   async function deleteAccount() {
@@ -32,6 +34,12 @@ export default function Profile() {
 
   const load = useCallback(async () => {
     if (!profile) return;
+    supabase
+      .from('invoices')
+      .select('*')
+      .eq('user_id', profile.id)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setInvoices((data ?? []) as Invoice[]));
     const d = await supabase.from('dogs').select('*').eq('owner_id', profile.id).eq('archived', false).order('name');
     const list = (d.data ?? []) as Dog[];
     setDogs(list);
@@ -126,6 +134,24 @@ export default function Profile() {
       </Card>
       <ErrorText>{err}</ErrorText>
 
+      {invoices.length > 0 && (
+        <>
+          <Step title="Le tue fatture" />
+          {invoices.map((i) => (
+            <Card key={i.id}>
+              <Row style={{ justifyContent: 'space-between' }}>
+                <Body bold>{invoiceTitle(i)}</Body>
+                {i.status === 'sent' ? <InvoiceBadge status="sent" /> : <Badge tone="warn">In preparazione</Badge>}
+              </Row>
+              <Muted>
+                {i.description} · {euro(i.total_cents)}
+              </Muted>
+            </Card>
+          ))}
+          <Muted style={{ fontSize: 13 }}>Le fatture inviate le trovi anche nel tuo cassetto fiscale sul sito dell&apos;Agenzia delle Entrate.</Muted>
+        </>
+      )}
+
       <Step title="Documenti" />
       <Card>
         {settings && <Expandable title="il regolamento" lines={rulesLines(settings, lessonTypes)} />}
@@ -140,8 +166,9 @@ export default function Profile() {
       <Step title="Cancella account" />
       <Card>
         <Muted>
-          Annulla le tue lezioni in programma e cancella i tuoi dati, i cani e i pacchetti. Le lezioni rimaste nei pacchetti
-          non vengono rimborsate dall&apos;app: parlane con il campo prima di procedere.
+          Annulla le tue lezioni in programma e cancella i tuoi dati, i cani e i pacchetti. Le fatture già emesse restano al
+          campo, come chiede la legge. Le lezioni rimaste nei pacchetti non vengono rimborsate dall&apos;app: parlane con il
+          campo prima di procedere.
         </Muted>
         <ConfirmButton title="Cancella il mio account" onConfirm={deleteAccount} />
         <ErrorText>{deleteErr}</ErrorText>

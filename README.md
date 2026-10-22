@@ -14,7 +14,8 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
    Poi fai lo stesso con `supabase/migrations/0002_campi_trainer.sql`, che aggiunge campi e trainer.
    Se avevi già eseguito il primo file, esegui solo il secondo: orari e prenotazioni esistenti passano al primo campo.
    Poi, in ordine, `0003_fatturazione.sql` (codice fiscale e indirizzo di fatturazione), `0004_pacchetti.sql` (pacchetti
-   di lezioni) e `0005_cancellazione_account.sql` (il cliente può cancellare il proprio account). Ogni file va eseguito una volta sola.
+   di lezioni), `0005_cancellazione_account.sql` (il cliente può cancellare il proprio account) e `0006_fatture.sql`
+   (fatture dei pagamenti online). Ogni file va eseguito una volta sola.
 3. In **Project Settings → API Keys** copia l'URL del progetto e la **Publishable key** (inizia con `sb_publishable_`).
    Non usare mai la Secret key nell'app.
 4. Copia il file `.env.example` in `.env.local` e incolla i due valori:
@@ -82,6 +83,37 @@ eas submit                     # invia la build agli store
 
 Prima di pubblicare metti le due variabili `EXPO_PUBLIC_...` anche su EAS (`eas env:create`) e sostituisci icona e schermata
 iniziale in `assets/images`.
+
+## 5. Fatture automatiche con Fatture in Cloud
+
+Quando una lezione pagata online risulta incassata, l'app prepara la fattura con i dati del cliente. La funzione
+`supabase/functions/fatture-in-cloud` la crea sul tuo account Fatture in Cloud, che la numera, e la trasmette allo SDI.
+Il token resta nei Secrets di Supabase: non finisce mai nell'app.
+
+1. Su Fatture in Cloud, nell'area sviluppatori, crea un'applicazione con **autenticazione manuale** e genera un token con
+   i permessi su anagrafiche, documenti emessi e fatturazione elettronica.
+2. Installa la [Supabase CLI](https://supabase.com/docs/guides/cli) e, dalla cartella del progetto:
+   ```sh
+   supabase login
+   supabase link --project-ref IL_TUO_PROJECT_REF
+   supabase secrets set FIC_ACCESS_TOKEN=il_token WEBHOOK_SECRET=una_parola_lunga_a_caso
+   supabase functions deploy fatture-in-cloud
+   ```
+3. In Supabase apri **Database → Webhooks** e crea un webhook sulla tabella `invoices`, evento **Insert**, tipo
+   **Supabase Edge Functions**, funzione `fatture-in-cloud`, con l'intestazione `x-webhook-secret` uguale a `WEBHOOK_SECRET`.
+4. Nell'app, in **Impostazioni → Fatture**, scegli il regime (ordinario con l'aliquota IVA inclusa nei prezzi, oppure
+   forfettario) e premi **Invia ora**.
+
+All'inizio la funzione lavora **in prova**: crea le fatture su Fatture in Cloud e le fa controllare, ma non le manda allo
+SDI. Controlla le prime su Fatture in Cloud; quando sono giuste, attiva l'invio vero:
+
+```sh
+supabase secrets set FIC_SEND_TO_SDI=si
+```
+
+Se il token vede più aziende, aggiungi `FIC_COMPANY_ID`. Se l'aliquota non viene trovata da sola, aggiungi `FIC_VAT_ID`;
+per registrare l'incasso su un conto preciso, `FIC_PAYMENT_ACCOUNT_ID`. Le fatture con un errore restano nell'elenco con
+il motivo e il tasto **Riprova**. Le fatture già emesse restano anche se il cliente cancella il suo account.
 
 ## Cosa fa l'app
 
