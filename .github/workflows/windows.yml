@@ -8,6 +8,7 @@
 # di licenza (serve la chiave pubblica in src/lib/license-key.ts).
 #
 # Versione demo, con i dati di esempio e senza database: Run workflow con "demo" spuntato.
+# La demo finisce anche in GitHub → Releases → "Demo per Windows" (file K9Manager-Windows-Demo.exe).
 name: App per Windows
 
 on:
@@ -21,6 +22,9 @@ on:
     tags: ['v*']
   pull_request:
     paths: ['desktop/**', 'app.config.js', '.github/workflows/windows.yml']
+
+permissions:
+  contents: write
 
 jobs:
   windows:
@@ -52,3 +56,14 @@ jobs:
           name: ${{ inputs.demo && 'K9Manager-Windows-Demo' || 'K9Manager-Windows' }}
           path: desktop/release/*.exe
           if-no-files-found: error
+      # Release fissa "demo-windows": il link per scaricare la demo resta sempre lo stesso.
+      - if: ${{ inputs.demo }}
+        name: Pubblica la demo nelle Releases
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp desktop/release/*.exe K9Manager-Windows-Demo.exe
+          gh release view demo-windows >/dev/null 2>&1 || gh release create demo-windows --prerelease \
+            --title "Demo per Windows" --notes "Demo del programma K9 Manager per Windows, con i dati di esempio e senza database. Scarica K9Manager-Windows-Demo.exe e aprilo per installarlo."
+          gh release upload demo-windows K9Manager-Windows-Demo.exe --clobber
