@@ -5,6 +5,7 @@ import { BillingFields } from '@/components/billing-fields';
 import { Body, Button, Card, Check, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingColumns, billingError, emptyBilling, type BillingDraft } from '@/lib/billing';
 import { isDayKey } from '@/lib/format';
+import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { rulesLines } from '@/lib/types';
@@ -13,6 +14,7 @@ type DogDraft = { name: string; breed: string; birth: string };
 
 export default function Register() {
   const { settings, lessonTypes } = useSession();
+  const plan = usePlan();
   const [first, setFirst] = useState('');
   const [last, setLast] = useState('');
   const [phone, setPhone] = useState('');
@@ -41,6 +43,13 @@ export default function Register() {
     if (!settings) return setErr('Impossibile leggere il regolamento. Controlla la connessione.');
 
     setBusy(true);
+    if (plan.maxClients !== null) {
+      const { data: count } = await supabase.rpc('client_count');
+      if (typeof count === 'number' && count >= plan.maxClients) {
+        setBusy(false);
+        return setErr('Il centro ha raggiunto il numero massimo di iscritti previsto dal suo abbonamento. Contatta il centro.');
+      }
+    }
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,

@@ -9,6 +9,7 @@ import { PackagesEditor } from '@/components/packages-editor';
 import { Body, Button, Card, ErrorText, Field, H1, Muted, Row, Screen, Step, Toggle } from '@/components/ui';
 import { hm, parseHm, STEP } from '@/lib/format';
 import { licensingEnabled } from '@/lib/license';
+import { planWith, usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
@@ -29,9 +30,20 @@ const toDraft = (t: LessonType): TypeDraft => ({
   active: t.active,
 });
 
+/** Sezione che il piano attuale non comprende. */
+function PlanNote({ title, plan }: { title: string; plan: string }) {
+  return (
+    <>
+      <Step title={title} />
+      <Muted>Compresi dal piano {plan} in su. Per passare a un piano superiore chiedi un nuovo codice di licenza.</Muted>
+    </>
+  );
+}
+
 export default function OwnerSettings() {
   const c = useColors();
   const { settings, logoUrl, profile, refresh } = useSession();
+  const plan = usePlan();
   const [name, setName] = useState(settings?.field_name ?? '');
   const [address, setAddress] = useState(settings?.field_address ?? '');
   const [openAt, setOpenAt] = useState(hm(settings?.open_min ?? 480));
@@ -87,7 +99,7 @@ export default function OwnerSettings() {
     setTrainerList(trainerList.map((t, j) => (j === i ? { ...t, ...patch } : t)));
 
   function setFieldCount(n: number) {
-    if (n < 1) return;
+    if (n < 1 || (plan.maxFields !== null && n > Math.max(plan.maxFields, fieldList.length))) return;
     if (n < fieldList.length) {
       const removed = fieldList.slice(n).filter((f) => f.id);
       setSpareFields([...removed, ...spareFields]);
@@ -263,13 +275,26 @@ export default function OwnerSettings() {
           <Row>
             <Button small kind="ghost" title="−" onPress={() => setFieldCount(fieldList.length - 1)} disabled={fieldList.length <= 1} />
             <Text style={{ color: c.text, fontSize: 22, fontWeight: '800', minWidth: 28, textAlign: 'center' }}>{fieldList.length}</Text>
-            <Button small kind="ghost" title="+" onPress={() => setFieldCount(fieldList.length + 1)} />
+            <Button
+              small
+              kind="ghost"
+              title="+"
+              onPress={() => setFieldCount(fieldList.length + 1)}
+              disabled={plan.maxFields !== null && fieldList.length >= plan.maxFields}
+            />
           </Row>
         </Row>
         <Muted style={{ fontSize: 13 }}>
           Ogni campo ha orari e prenotazioni suoi. Più campi possono stare allo stesso indirizzo. Se togli un campo, le
           prenotazioni già fatte restano nel piano.
         </Muted>
+        {plan.maxFields !== null && (
+          <Muted style={{ fontSize: 13, color: fieldList.length > plan.maxFields ? c.brassText : c.muted }}>
+            {fieldList.length > plan.maxFields
+              ? `Il piano ${plan.label} prevede ${plan.maxFields === 1 ? '1 campo' : `${plan.maxFields} campi`}: si prenotano solo i primi.`
+              : `Il piano ${plan.label} prevede fino a ${plan.maxFields === 1 ? '1 campo' : `${plan.maxFields} campi`}. Per averne di più serve un piano superiore.`}
+          </Muted>
+        )}
       </Card>
       {fieldList.map((f, i) => (
         <Card key={f.id ?? `new-${i}`}>
@@ -278,30 +303,36 @@ export default function OwnerSettings() {
         </Card>
       ))}
 
-      <Step title="Trainer" />
-      <Muted>Assegni il trainer a ogni lezione dal piano del giorno. Un trainer non può avere due lezioni alla stessa ora.</Muted>
-      {trainerList.map((t, i) => (
-        <Card key={t.id ?? `new-${i}`}>
-          <Field label="Nome" value={t.name} onChangeText={(v) => setTrainerAt(i, { name: v })} />
-          <Muted style={{ fontSize: 13 }}>Lezioni che segue (nessuna scelta = tutte)</Muted>
-          <Row>
-            {types.map((lt) => {
-              const on = t.lessons.includes(lt.id);
-              return (
-                <Button
-                  key={lt.id}
-                  small
-                  kind={on ? 'primary' : 'ghost'}
-                  title={lt.label}
-                  onPress={() => setTrainerAt(i, { lessons: on ? t.lessons.filter((x) => x !== lt.id) : [...t.lessons, lt.id] })}
-                />
-              );
-            })}
-          </Row>
-          <Button small kind="danger" title="Togli trainer" onPress={() => setTrainerList(trainerList.filter((_, j) => j !== i))} />
-        </Card>
-      ))}
-      <Button title="+ Aggiungi trainer" kind="ghost" onPress={() => setTrainerList([...trainerList, { name: '', lessons: [] }])} />
+      {plan.trainers ? (
+        <>
+          <Step title="Trainer" />
+          <Muted>Assegni il trainer a ogni lezione dal piano del giorno. Un trainer non può avere due lezioni alla stessa ora.</Muted>
+          {trainerList.map((t, i) => (
+            <Card key={t.id ?? `new-${i}`}>
+              <Field label="Nome" value={t.name} onChangeText={(v) => setTrainerAt(i, { name: v })} />
+              <Muted style={{ fontSize: 13 }}>Lezioni che segue (nessuna scelta = tutte)</Muted>
+              <Row>
+                {types.map((lt) => {
+                  const on = t.lessons.includes(lt.id);
+                  return (
+                    <Button
+                      key={lt.id}
+                      small
+                      kind={on ? 'primary' : 'ghost'}
+                      title={lt.label}
+                      onPress={() => setTrainerAt(i, { lessons: on ? t.lessons.filter((x) => x !== lt.id) : [...t.lessons, lt.id] })}
+                    />
+                  );
+                })}
+              </Row>
+              <Button small kind="danger" title="Togli trainer" onPress={() => setTrainerList(trainerList.filter((_, j) => j !== i))} />
+            </Card>
+          ))}
+          <Button title="+ Aggiungi trainer" kind="ghost" onPress={() => setTrainerList([...trainerList, { name: '', lessons: [] }])} />
+        </>
+      ) : (
+        <PlanNote title="Trainer" plan={planWith('trainers')} />
+      )}
 
       <Step title="Orari e regole" />
       <Card>
@@ -347,11 +378,23 @@ export default function OwnerSettings() {
         Per togliere una lezione spegni &quot;Prenotabile&quot;: i clienti non la vedono più, ma restano le prenotazioni già fatte.
       </Muted>
 
-      <Step title="Pacchetti" />
-      <PackagesEditor />
+      {plan.packages ? (
+        <>
+          <Step title="Pacchetti" />
+          <PackagesEditor />
+        </>
+      ) : (
+        <PlanNote title="Pacchetti" plan={planWith('packages')} />
+      )}
 
-      <Step title="Fatture" />
-      <InvoicesPanel />
+      {plan.invoices ? (
+        <>
+          <Step title="Fatture" />
+          <InvoicesPanel />
+        </>
+      ) : (
+        <PlanNote title="Fatture e scontrini" plan={planWith('invoices')} />
+      )}
 
       <Step title="Regolamento e privacy" />
       <Card>

@@ -42,3 +42,8 @@ example
 /ios
 /android
 .env
+
+# Programma Windows
+desktop/node_modules/
+desktop/web/
+desktop/release/

@@ -8,6 +8,7 @@ import { euro, isDayKey, shortDate } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { invoiceTitle, rulesLines, type Dog, type Invoice, type Penalty } from '@/lib/types';
+import { usePlan } from '@/lib/plans';
 
 export default function Profile() {
   const { profile, settings, lessonTypes, refresh } = useSession();
@@ -15,6 +16,7 @@ export default function Profile() {
   const [last, setLast] = useState(profile?.last_name ?? '');
   const [phone, setPhone] = useState(profile?.phone ?? '');
   const [billing, setBilling] = useState(billingFromProfile(profile));
+  const plan = usePlan();
   const [docPref, setDocPref] = useState(profile?.doc_pref ?? 'invoice');
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [penalties, setPenalties] = useState<Penalty[]>([]);
@@ -100,15 +102,19 @@ export default function Profile() {
         <Field label="Telefono" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
         <Muted>Email: {profile?.email}</Muted>
         <BillingFields value={billing} onChange={setBilling} />
-        <Muted style={{ fontSize: 13 }}>Per i pagamenti online vuoi</Muted>
-        <Chips
-          items={[
-            { value: 'invoice', label: 'Fattura' },
-            { value: 'receipt', label: 'Scontrino' },
-          ]}
-          value={docPref}
-          onChange={setDocPref}
-        />
+        {plan.invoices && (
+          <>
+            <Muted style={{ fontSize: 13 }}>Per i pagamenti online vuoi</Muted>
+            <Chips
+              items={[
+                { value: 'invoice', label: 'Fattura' },
+                { value: 'receipt', label: 'Scontrino' },
+              ]}
+              value={docPref}
+              onChange={setDocPref}
+            />
+          </>
+        )}
         {!!msg && <Muted>{msg}</Muted>}
         <Button title="Salva" onPress={saveMe} small />
       </Card>
