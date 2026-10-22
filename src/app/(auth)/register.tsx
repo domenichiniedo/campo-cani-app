@@ -2,9 +2,11 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 
 import { BillingFields } from '@/components/billing-fields';
+import { PhotoPicker, saveSignupPhoto } from '@/components/photo';
 import { Body, Button, Card, Check, Chips, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingColumns, billingError, emptyBilling, type BillingDraft } from '@/lib/billing';
 import { isDayKey } from '@/lib/format';
+import type { Picked } from '@/lib/images';
 import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
@@ -13,13 +15,14 @@ import { rulesLines } from '@/lib/types';
 type DogDraft = { name: string; breed: string; birth: string };
 
 export default function Register() {
-  const { settings, lessonTypes } = useSession();
+  const { settings, lessonTypes, refresh } = useSession();
   const plan = usePlan();
   const [first, setFirst] = useState('');
   const [last, setLast] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [photo, setPhoto] = useState<Picked | null>(null);
   const [billing, setBilling] = useState<BillingDraft>(emptyBilling);
   const [dogs, setDogs] = useState<DogDraft[]>([{ name: '', breed: '', birth: '' }]);
   const [rulesOk, setRulesOk] = useState(false);
@@ -67,8 +70,16 @@ export default function Register() {
         },
       },
     });
+    if (error) {
+      setBusy(false);
+      return setErr(errorText(error));
+    }
+    // La foto si carica appena c'è l'account; se serve confermare l'email, si mette poi dal profilo.
+    if (photo && data.session) {
+      await saveSignupPhoto(data.session.user.id, photo);
+      await refresh();
+    }
     setBusy(false);
-    if (error) return setErr(errorText(error));
     // Se il progetto chiede la conferma dell'email non arriva una sessione: lo diciamo al cliente.
     if (!data.session) setSent(true);
   }
@@ -78,6 +89,7 @@ export default function Register() {
       <Screen>
         <H1>Controlla l&apos;email</H1>
         <Body>Ti abbiamo mandato un link a {email.trim()}. Aprilo per confermare l&apos;iscrizione, poi accedi.</Body>
+        {photo && <Muted>La foto che hai scelto mettila dal tuo profilo, dopo il primo accesso.</Muted>}
         <Button title="Vai all'accesso" onPress={() => router.replace('/')} />
       </Screen>
     );
@@ -111,14 +123,24 @@ export default function Register() {
         <Field label="Password (almeno 8 caratteri)" value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
       </Card>
 
+      <Step n="2" title="La tua foto (se vuoi)" />
+      <Card>
+        <Muted>
+          {asTrainer
+            ? 'I clienti la vedono nelle loro lezioni e nel diario dei cani. Puoi metterla anche dopo, dal tuo profilo.'
+            : 'Il centro e i trainer la vedono per riconoscerti al campo. Puoi metterla anche dopo, dal tuo profilo.'}
+        </Muted>
+        <PhotoPicker name={`${first} ${last}`.trim()} value={photo} onChange={setPhoto} />
+      </Card>
+
       {!asTrainer && (
         <>
-          <Step n="2" title="Fatturazione" />
+          <Step n="3" title="Fatturazione" />
           <Card>
             <BillingFields value={billing} onChange={setBilling} />
           </Card>
 
-          <Step n="3" title={dogs.length > 1 ? 'I tuoi cani' : 'Il tuo cane'} />
+          <Step n="4" title={dogs.length > 1 ? 'I tuoi cani' : 'Il tuo cane'} />
         </>
       )}
       {!asTrainer && dogs.map((d, i) => (
@@ -133,7 +155,7 @@ export default function Register() {
         <Button title="+ Aggiungi un altro cane" kind="ghost" onPress={() => setDogs([...dogs, { name: '', breed: '', birth: '' }])} />
       )}
 
-      <Step n={asTrainer ? '2' : '4'} title="Consensi" />
+      <Step n={asTrainer ? '3' : '5'} title="Consensi" />
       <Card>
         {settings && <Expandable title="il regolamento" lines={rulesLines(settings, lessonTypes)} />}
         <Check value={rulesOk} onChange={setRulesOk}>

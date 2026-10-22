@@ -3,8 +3,9 @@ import { useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { Button, ErrorText, Row } from '@/components/ui';
-import { imageUrl, pickAndUpload, removeImage, type Source } from '@/lib/images';
-import { errorText } from '@/lib/supabase';
+import { imageUrl, pickAndUpload, pickImage, removeImage, uploadImage, type Picked, type Source } from '@/lib/images';
+import { errorText, supabase } from '@/lib/supabase';
+import { fullName, type Profile, type Trainer } from '@/lib/types';
 import { useColors } from '@/lib/theme';
 
 const initials = (name: string) =>
@@ -15,10 +16,10 @@ const initials = (name: string) =>
     .map((w) => w[0]!.toUpperCase())
     .join('');
 
-/** Foto tonda di un trainer o di un cliente; senza foto, le iniziali del nome. */
-export function Avatar({ name, path, size = 40 }: { name: string; path: string | null | undefined; size?: number }) {
+/** Foto tonda di un trainer o di un cliente; senza foto, le iniziali del nome. `uri` mostra una foto non ancora caricata. */
+export function Avatar({ name, path, uri, size = 40 }: { name: string; path: string | null | undefined; uri?: string; size?: number }) {
   const c = useColors();
-  const url = imageUrl('foto', path);
+  const url = uri ?? imageUrl('foto', path);
   return (
     <View
       style={{
@@ -90,4 +91,73 @@ export function PhotoEditor({
       <ErrorText>{err}</ErrorText>
     </View>
   );
+}
+
+/** Foto da scegliere in un modulo, prima che esista l'account: si carica dopo l'iscrizione. */
+export function PhotoPicker({ name, value, onChange }: { name: string; value: Picked | null; onChange: (p: Picked) => void }) {
+  const [err, setErr] = useState('');
+  async function pick(source: Source) {
+    setErr('');
+    try {
+      const p = await pickImage(source);
+      if (p) onChange(p);
+    } catch (e) {
+      setErr(errorText(e));
+    }
+  }
+  return (
+    <View style={{ gap: 8 }}>
+      <Row>
+        <Avatar name={name || '?'} path={null} uri={value?.uri} size={72} />
+        <View style={{ gap: 8, flex: 1, minWidth: 160 }}>
+          <Button small title={value ? 'Scatta di nuovo' : 'Scatta foto'} onPress={() => pick('camera')} />
+          <Button small kind="ghost" title="Dalla galleria" onPress={() => pick('library')} />
+        </View>
+      </Row>
+      <ErrorText>{err}</ErrorText>
+    </View>
+  );
+}
+
+/** Dove sta la foto di chi è connesso: il trainer nella sua scheda, il cliente nel profilo. */
+export function myPhoto(profile: Profile, myTrainer: Pick<Trainer, 'id' | 'name' | 'photo_path'> | null) {
+  return myTrainer
+    ? {
+        name: myTrainer.name,
+        path: myTrainer.photo_path,
+        prefix: `trainer-${myTrainer.id}-`,
+        write: (path: string | null) => supabase.rpc('set_my_photo', { p_path: path }),
+      }
+    : {
+        name: fullName(profile),
+        path: profile.photo_path,
+        prefix: `cliente-${profile.id}-`,
+        write: (path: string | null) => supabase.from('profiles').update({ photo_path: path }).eq('id', profile.id),
+      };
+}
+
+/** Carica la foto scelta nel modulo d'iscrizione, appena c'è l'account. Torna un errore o null. */
+export async function saveSignupPhoto(userId: string, picked: Picked): Promise<string | null> {
+  const p = await supabase.from('profiles').select('*').eq('id', userId).single();
+  if (p.error) return errorText(p.error);
+  const profile = p.data as Profile;
+  let trainer: Pick<Trainer, 'id' | 'name' | 'photo_path'> | null = null;
+  if (profile.role === 'trainer') {
+    const a = await supabase.from('trainer_accounts').select('trainer_id').eq('user_id', userId).maybeSingle();
+    const id = (a.data as { trainer_id: string } | null)?.trainer_id;
+    if (!id) return null;
+    trainer = { id, name: fullName(profile), photo_path: null };
+  }
+  const me = myPhoto(profile, trainer);
+  try {
+    const path = await uploadImage('foto', me.prefix, picked);
+    const { error } = await me.write(path);
+    if (error) {
+      await removeImage('foto', path);
+      return errorText(error);
+    }
+    return null;
+  } catch (e) {
+    return errorText(e);
+  }
 }
