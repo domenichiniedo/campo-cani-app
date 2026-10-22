@@ -138,6 +138,7 @@ export type Invoice = {
   issued_on: string;
   user_id: string | null;
   booking_id: string | null;
+  package_id: string | null;
   buyer_name: string;
   description: string;
   total_cents: number;

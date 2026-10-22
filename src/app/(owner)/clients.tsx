@@ -1,20 +1,35 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
-import { Badge, Body, Button, Card, ConfirmButton, ErrorText, Field, H1, Muted, Row, Screen } from '@/components/ui';
+import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Field, H1, Muted, Row, Screen } from '@/components/ui';
 import { billingLine } from '@/lib/billing';
 import { euro, shortDate } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
+import { useColors } from '@/lib/theme';
 import { fullName, usable, type ClientPackage, type Dog, type Penalty, type Profile } from '@/lib/types';
 
 type Client = Profile & { dogs: (Dog & { penalties: Penalty[] })[]; client_packages: ClientPackage[] };
+type Filter = 'all' | 'package' | 'blocked' | 'penalties' | 'billing';
+type Act = (fn: () => PromiseLike<{ error: unknown }>) => Promise<void>;
+
+const dogsOf = (p: Client) => p.dogs.filter((d) => !d.archived);
+const sortName = (p: Client) => `${p.last_name} ${p.first_name}`.trim();
+const initial = (p: Client) => (p.last_name || p.first_name).charAt(0).toUpperCase();
 
 export default function OwnerClients() {
+  const c = useColors();
   const { settings } = useSession();
+  // Sul PC la scheda del cliente sta a destra della lista; sul telefono si apre sotto il nome.
+  const { width, height } = useWindowDimensions();
+  const wide = width >= 900;
+  // Sul PC lista e scheda scorrono ognuna per conto suo, così la scheda resta sempre in vista.
+  const paneH = Math.max(420, height - 220);
   const [rows, setRows] = useState<Client[]>([]);
   const [q, setQ] = useState('');
+  const [filter, setFilter] = useState<Filter>('all');
+  const [openId, setOpenId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
@@ -36,26 +51,97 @@ export default function OwnerClients() {
     }, [load]),
   );
 
-  async function act(fn: () => PromiseLike<{ error: unknown }>) {
+  const act: Act = async (fn) => {
     setErr('');
     const { error } = await fn();
     if (error) setErr(errorText(error));
     load();
-  }
+  };
 
   const needle = q.trim().toLowerCase();
-  const shown = rows.filter(
-    (p) =>
-      !needle ||
-      fullName(p).toLowerCase().includes(needle) ||
-      p.phone.includes(needle) ||
-      p.tax_code.toLowerCase().includes(needle) ||
-      p.dogs.some((d) => d.name.toLowerCase().includes(needle)),
-  );
+  const matches = (p: Client) =>
+    !needle ||
+    fullName(p).toLowerCase().includes(needle) ||
+    sortName(p).toLowerCase().includes(needle) ||
+    p.phone.replace(/\s/g, '').includes(needle.replace(/\s/g, '')) ||
+    p.email.toLowerCase().includes(needle) ||
+    p.tax_code.toLowerCase().includes(needle) ||
+    p.dogs.some((d) => d.name.toLowerCase().includes(needle));
+  const passes = (p: Client) =>
+    filter === 'all' ||
+    (filter === 'package' && p.client_packages.some((cp) => usable(cp))) ||
+    (filter === 'blocked' && dogsOf(p).some((d) => d.blocked)) ||
+    (filter === 'penalties' && dogsOf(p).some((d) => d.penalties.length > 0)) ||
+    (filter === 'billing' && !p.tax_code);
+  const shown = rows
+    .filter((p) => matches(p) && passes(p))
+    .sort((a, b) => sortName(a).localeCompare(sortName(b), 'it', { sensitivity: 'base' }));
+  const open = rows.find((p) => p.id === openId) ?? null;
+
   const limit = settings?.penalty_limit ?? 0;
   const requests = rows.flatMap((p) => p.client_packages.filter((cp) => cp.status === 'requested').map((cp) => ({ p, cp })));
   const activate = (cp: ClientPackage) => act(() => supabase.from('client_packages').update({ status: 'active' }).eq('id', cp.id));
   const reject = (cp: ClientPackage) => act(() => supabase.from('client_packages').update({ status: 'cancelled' }).eq('id', cp.id));
+
+  const list = (
+    <View style={{ borderWidth: 1, borderColor: c.line, borderRadius: 8, backgroundColor: c.surface, overflow: 'hidden' }}>
+      {shown.map((p, i) => {
+        const letter = initial(p);
+        const first = i === 0 || initial(shown[i - 1]) !== letter;
+        const dogs = dogsOf(p);
+        const pkg = p.client_packages.find((cp) => usable(cp));
+        const pens = dogs.reduce((s, d) => s + d.penalties.length, 0);
+        const on = p.id === openId;
+        return (
+          <View key={p.id}>
+            {first && (
+              <Text style={{ backgroundColor: c.surface2, color: c.muted, fontWeight: '800', fontSize: 12, paddingHorizontal: 12, paddingVertical: 4 }}>
+                {letter}
+              </Text>
+            )}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: on }}
+              onPress={() => setOpenId(on ? null : p.id)}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 10,
+                paddingHorizontal: 12,
+                paddingVertical: 9,
+                borderTopWidth: first ? 0 : 1,
+                borderTopColor: c.line,
+                backgroundColor: on ? c.accentSoft : pressed ? c.surface2 : c.surface,
+              })}>
+              <View style={{ flex: 1, gap: 1 }}>
+                <Text style={{ color: c.text, fontWeight: '700', fontSize: 15 }} numberOfLines={1}>
+                  {sortName(p) || p.email}
+                </Text>
+                <Text style={{ color: c.muted, fontSize: 13 }} numberOfLines={1}>
+                  {dogs.length ? dogs.map((d) => d.name).join(', ') : 'Nessun cane'}
+                  {p.phone ? `  ·  ${p.phone}` : ''}
+                </Text>
+              </View>
+              <Row style={{ gap: 4, flexWrap: 'nowrap' }}>
+                {pkg && <Badge tone="ok">{`${pkg.lessons_total - pkg.lessons_used} lez.`}</Badge>}
+                {pens > 0 && <Badge tone="warn">{`${pens} pen.`}</Badge>}
+                {dogs.some((d) => d.blocked) && <Badge tone="bad">Sospeso</Badge>}
+              </Row>
+              {!wide && <Text style={{ color: c.muted, fontSize: 16 }}>{on ? '▾' : '›'}</Text>}
+            </Pressable>
+            {!wide && on && (
+              <View style={{ padding: 12, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.bg }}>
+                <ClientDetail p={p} act={act} />
+              </View>
+            )}
+          </View>
+        );
+      })}
+      {shown.length === 0 && !loading && (
+        <Text style={{ color: c.muted, padding: 12 }}>{rows.length ? 'Nessun cliente corrisponde alla ricerca.' : 'Ancora nessun iscritto.'}</Text>
+      )}
+    </View>
+  );
 
   return (
     <Screen onRefresh={load} refreshing={loading}>
@@ -67,78 +153,107 @@ export default function OwnerClients() {
       {requests.length > 0 && (
         <Card accent>
           <Body bold>{requests.length === 1 ? '1 pacchetto da attivare' : `${requests.length} pacchetti da attivare`}</Body>
+          <Muted style={{ fontSize: 13 }}>Attivalo quando il cliente paga: parte la fattura o lo scontrino, come per le lezioni.</Muted>
           {requests.map(({ p, cp }) => (
             <View key={cp.id} style={{ gap: 6 }}>
               <Muted>
                 {fullName(p)}: {cp.name}, {euro(cp.price_cents)}
               </Muted>
               <Row>
-                <Button small title={`Incassato, attiva`} onPress={() => activate(cp)} />
+                <Button small title="Incassato, attiva" onPress={() => activate(cp)} />
                 <ConfirmButton title="Rifiuta" onConfirm={() => reject(cp)} />
               </Row>
             </View>
           ))}
         </Card>
       )}
-      <Field label="Cerca" value={q} onChangeText={setQ} placeholder="Nome, telefono, codice fiscale o cane" />
+      <Field label="Cerca" value={q} onChangeText={setQ} placeholder="Nome, cognome, cane, telefono, email o codice fiscale" />
+      <Chips
+        items={[
+          { value: 'all', label: 'Tutti' },
+          { value: 'package', label: 'Con pacchetto' },
+          { value: 'penalties', label: 'Con penalità' },
+          { value: 'blocked', label: 'Sospesi' },
+          { value: 'billing', label: 'Senza dati fattura' },
+        ]}
+        value={filter}
+        onChange={setFilter}
+      />
+      {(!!needle || filter !== 'all') && <Muted style={{ fontSize: 13 }}>{`${shown.length} di ${rows.length}`}</Muted>}
       <ErrorText>{err}</ErrorText>
-      {shown.map((p) => (
-        <Card key={p.id}>
-          <View style={{ gap: 2 }}>
-            <Body bold>{fullName(p)}</Body>
-            <Muted>
-              {p.phone} · {p.email}
-            </Muted>
-            <Muted style={{ fontSize: 13 }}>
-              {p.tax_code ? `CF ${p.tax_code} · ${billingLine(p)}` : 'Dati di fatturazione mancanti'}
-            </Muted>
-            <Muted style={{ fontSize: 12 }}>
-              Iscritto il {shortDate(p.created_at)} · consensi regolamento v{p.rules_ver ?? '–'}, privacy v{p.privacy_ver ?? '–'}
-            </Muted>
-          </View>
-          {p.client_packages
-            .filter((cp) => cp.status === 'active')
-            .map((cp) => (
-              <Row key={cp.id} style={{ justifyContent: 'space-between' }}>
-                <Muted style={{ fontSize: 13, flex: 1 }}>
-                  {cp.name}: {cp.lessons_used}/{cp.lessons_total} usate
-                  {cp.expires_at ? `, scade il ${shortDate(cp.expires_at)}` : ''}
-                </Muted>
-                <Badge tone={usable(cp) ? 'ok' : 'neutral'}>{usable(cp) ? 'Attivo' : 'Finito'}</Badge>
-              </Row>
-            ))}
-          {p.dogs
-            .filter((d) => !d.archived)
-            .map((d) => (
-              <View key={d.id} style={{ gap: 6, paddingTop: 8 }}>
-                <Row style={{ justifyContent: 'space-between' }}>
-                  <Body bold>
-                    {d.name}
-                    {d.breed ? ` (${d.breed})` : ''}
-                  </Body>
-                  <Row>
-                    {d.penalties.length > 0 && <Badge tone="warn">{`${d.penalties.length} penalità`}</Badge>}
-                    {d.blocked && <Badge tone="bad">Sospeso</Badge>}
-                  </Row>
-                </Row>
-                {d.penalties.map((pen) => (
-                  <Row key={pen.id} style={{ justifyContent: 'space-between' }}>
-                    <Muted style={{ fontSize: 13, flex: 1 }}>
-                      {shortDate(pen.created_at)}: {pen.reason}
-                    </Muted>
-                    <ConfirmButton title="Togli" onConfirm={() => act(() => supabase.from('penalties').delete().eq('id', pen.id))} />
-                  </Row>
-                ))}
-                <Button
-                  small
-                  kind={d.blocked ? 'primary' : 'danger'}
-                  title={d.blocked ? 'Riattiva prenotazioni' : 'Sospendi prenotazioni'}
-                  onPress={() => act(() => supabase.from('dogs').update({ blocked: !d.blocked }).eq('id', d.id))}
-                />
-              </View>
-            ))}
-        </Card>
-      ))}
+      {wide ? (
+        <View style={{ flexDirection: 'row', gap: 16, alignItems: 'flex-start' }}>
+          <ScrollView style={{ flex: 1, maxWidth: 520, height: paneH }}>{list}</ScrollView>
+          <ScrollView style={{ flex: 1.3, height: paneH }}>
+            {open ? (
+              <Card>
+                <ClientDetail p={open} act={act} />
+              </Card>
+            ) : (
+              <Muted>Scegli un cliente dalla lista per vedere cani, pacchetti e penalità.</Muted>
+            )}
+          </ScrollView>
+        </View>
+      ) : (
+        list
+      )}
     </Screen>
+  );
+}
+
+/** Scheda del cliente: contatti, dati di fatturazione, pacchetti e cani con penalità. */
+function ClientDetail({ p, act }: { p: Client; act: Act }) {
+  return (
+    <View style={{ gap: 10 }}>
+      <View style={{ gap: 2 }}>
+        <Body bold>{fullName(p)}</Body>
+        <Muted>
+          {p.phone} · {p.email}
+        </Muted>
+        <Muted style={{ fontSize: 13 }}>{p.tax_code ? `CF ${p.tax_code} · ${billingLine(p)}` : 'Dati di fatturazione mancanti'}</Muted>
+        <Muted style={{ fontSize: 12 }}>
+          Iscritto il {shortDate(p.created_at)} · consensi regolamento v{p.rules_ver ?? '–'}, privacy v{p.privacy_ver ?? '–'}
+        </Muted>
+      </View>
+      {p.client_packages
+        .filter((cp) => cp.status === 'active')
+        .map((cp) => (
+          <Row key={cp.id} style={{ justifyContent: 'space-between' }}>
+            <Muted style={{ fontSize: 13, flex: 1 }}>
+              {cp.name}: {cp.lessons_used}/{cp.lessons_total} usate
+              {cp.expires_at ? `, scade il ${shortDate(cp.expires_at)}` : ''}
+            </Muted>
+            <Badge tone={usable(cp) ? 'ok' : 'neutral'}>{usable(cp) ? 'Attivo' : 'Finito'}</Badge>
+          </Row>
+        ))}
+      {dogsOf(p).map((d) => (
+        <View key={d.id} style={{ gap: 6, paddingTop: 4 }}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Body bold>
+              {d.name}
+              {d.breed ? ` (${d.breed})` : ''}
+            </Body>
+            <Row>
+              {d.penalties.length > 0 && <Badge tone="warn">{`${d.penalties.length} penalità`}</Badge>}
+              {d.blocked && <Badge tone="bad">Sospeso</Badge>}
+            </Row>
+          </Row>
+          {d.penalties.map((pen) => (
+            <Row key={pen.id} style={{ justifyContent: 'space-between' }}>
+              <Muted style={{ fontSize: 13, flex: 1 }}>
+                {shortDate(pen.created_at)}: {pen.reason}
+              </Muted>
+              <ConfirmButton title="Togli" onConfirm={() => act(() => supabase.from('penalties').delete().eq('id', pen.id))} />
+            </Row>
+          ))}
+          <Button
+            small
+            kind={d.blocked ? 'primary' : 'danger'}
+            title={d.blocked ? 'Riattiva prenotazioni' : 'Sospendi prenotazioni'}
+            onPress={() => act(() => supabase.from('dogs').update({ blocked: !d.blocked }).eq('id', d.id))}
+          />
+        </View>
+      ))}
+    </View>
   );
 }

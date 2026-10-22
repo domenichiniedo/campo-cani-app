@@ -16,6 +16,7 @@ export default function OwnerLayout() {
       <Tabs.Screen name="index" options={{ title: 'Giorno', tabBarIcon: tabIcon('◷') }} />
       <Tabs.Screen name="week" options={{ title: 'Settimana', tabBarIcon: tabIcon('▦') }} />
       <Tabs.Screen name="hours" options={{ title: 'Orari', tabBarIcon: tabIcon('◑') }} />
+      <Tabs.Screen name="stats" options={{ title: 'Incassi', tabBarIcon: tabIcon('€') }} />
       <Tabs.Screen name="clients" options={{ title: 'Clienti', tabBarIcon: tabIcon('☺') }} />
       <Tabs.Screen name="settings" options={{ title: 'Impostazioni', tabBarIcon: tabIcon('⚙') }} />
     </Tabs>

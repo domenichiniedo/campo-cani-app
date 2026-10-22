@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, useColorScheme, View } from 'react-native';
 
 import { cap, dayKey, fromKey, hm, STEP, today, weekdayShort } from '@/lib/format';
 import { useLessonColors } from '@/lib/lesson-colors';
@@ -41,12 +41,32 @@ function layout(list: OwnerBooking[]) {
   return out;
 }
 
-/** Settimana a colonne, per gli schermi larghi (PC): un giorno per colonna, le ore in verticale. */
-export function WeekGrid({ days, rows }: { days: string[]; rows: OwnerBooking[] }) {
+/** Pastello per le mezz'ore in cui il campo è chiuso. */
+const CLOSED = { light: '#f4e4e8', dark: '#2b2026' };
+
+/**
+ * Settimana a colonne, per gli schermi larghi (PC): un giorno per colonna, divisa per campo, con le
+ * ore in verticale. Le mezz'ore chiuse sono in pastello; cliccando una mezz'ora libera si prenota.
+ */
+export function WeekGrid({
+  days,
+  rows,
+  open,
+  onSlot,
+}: {
+  days: string[];
+  rows: OwnerBooking[];
+  /** Mezz'ore aperte per campo e giorno: chiave "campo|giorno". */
+  open: Record<string, number[]>;
+  onSlot: (day: string, fieldId: string, start: number) => void;
+}) {
   const c = useColors();
+  const dark = useColorScheme() === 'dark';
+  const closedBg = dark ? CLOSED.dark : CLOSED.light;
   const color = useLessonColors();
   const { settings, fields, lessonTypes } = useSession();
   const todayKey = dayKey(today());
+  const many = fields.length > 1;
 
   // Dall'apertura alla chiusura, allargato se c'è una lezione fuori orario.
   const first = Math.min(settings?.open_min ?? 480, ...rows.map((b) => b.start_min));
@@ -58,42 +78,56 @@ export function WeekGrid({ days, rows }: { days: string[]; rows: OwnerBooking[] 
 
   return (
     <View style={{ gap: 10 }}>
-      {lessonTypes.length > 1 && (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14 }}>
-          {lessonTypes.map((t) => (
-            <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: color(t.id).bar }} />
-              <Text style={{ color: c.text, fontSize: 13 }}>{t.label}</Text>
-            </View>
-          ))}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14 }}>
+        {lessonTypes.map((t) => (
+          <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: color(t.id).bar }} />
+            <Text style={{ color: c.text, fontSize: 13 }}>{t.label}</Text>
+          </View>
+        ))}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: closedBg, borderWidth: 1, borderColor: c.line }} />
+          <Text style={{ color: c.text, fontSize: 13 }}>Chiuso</Text>
         </View>
-      )}
+      </View>
 
       <View style={{ borderWidth: 1, borderColor: c.line, borderRadius: 10, overflow: 'hidden', backgroundColor: c.surface }}>
-        {/* Intestazione: giorno e numero di lezioni */}
+        {/* Intestazione: giorno, numero di lezioni e, con più campi, il nome di ogni campo */}
         <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderColor: c.line }}>
           <View style={{ width: HOURS_W }} />
           {days.map((k) => {
             const n = rows.filter((b) => b.day === k).length;
             const isToday = k === todayKey;
             return (
-              <Pressable
-                key={k}
-                accessibilityRole="button"
-                onPress={() => openDay(k)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 8,
-                  alignItems: 'center',
-                  borderLeftWidth: 1,
-                  borderColor: c.line,
-                  backgroundColor: isToday ? c.accentSoft : undefined,
-                }}>
-                <Text style={{ color: isToday ? c.accent : c.text, fontWeight: '800' }}>
-                  {`${cap(weekdayShort(fromKey(k)))} ${fromKey(k).getDate()}`}
-                </Text>
-                <Text style={{ color: c.muted, fontSize: 12 }}>{n ? (n === 1 ? '1 lezione' : `${n} lezioni`) : 'Libero'}</Text>
-              </Pressable>
+              <View key={k} style={{ flex: 1, borderLeftWidth: 1, borderColor: c.lineStrong, backgroundColor: isToday ? c.accentSoft : undefined }}>
+                <Pressable accessibilityRole="button" onPress={() => openDay(k)} style={{ paddingVertical: 8, alignItems: 'center' }}>
+                  <Text style={{ color: isToday ? c.accent : c.text, fontWeight: '800' }}>
+                    {`${cap(weekdayShort(fromKey(k)))} ${fromKey(k).getDate()}`}
+                  </Text>
+                  <Text style={{ color: c.muted, fontSize: 12 }}>{n ? (n === 1 ? '1 lezione' : `${n} lezioni`) : 'Libero'}</Text>
+                </Pressable>
+                {many && (
+                  <View style={{ flexDirection: 'row', borderTopWidth: 1, borderColor: c.line }}>
+                    {fields.map((f, i) => (
+                      <Text
+                        key={f.id}
+                        numberOfLines={1}
+                        style={{
+                          flex: 1,
+                          textAlign: 'center',
+                          color: c.muted,
+                          fontSize: 11,
+                          fontWeight: '700',
+                          paddingVertical: 3,
+                          borderLeftWidth: i ? 1 : 0,
+                          borderColor: c.line,
+                        }}>
+                        {f.name}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+              </View>
             );
           })}
         </View>
@@ -107,68 +141,92 @@ export function WeekGrid({ days, rows }: { days: string[]; rows: OwnerBooking[] 
               </Text>
             ))}
           </View>
-          {days.map((k) => {
-            const list = rows.filter((b) => b.day === k);
-            const pos = layout(list);
-            return (
-              <View key={k} style={{ flex: 1, borderLeftWidth: 1, borderColor: c.line, backgroundColor: k === todayKey ? c.surface2 : undefined }}>
-                {Array.from({ length: slots }, (_, i) => (
-                  <View
-                    key={i}
-                    style={{ position: 'absolute', top: i * ROW, left: 0, right: 0, borderTopWidth: i ? 1 : 0, borderColor: i % 2 ? c.off : c.line }}
-                  />
-                ))}
-                {list.map((b) => {
-                  const col = color(b.lesson_type);
-                  const h = Math.max(top(b.start_min + b.dur_min) - top(b.start_min) - 2, ROW - 2);
-                  const { lane, of } = pos.get(b.id)!;
-                  return (
-                    <Pressable
-                      key={b.id}
-                      accessibilityRole="button"
-                      onPress={() => openDay(k)}
-                      style={{
-                        position: 'absolute',
-                        top: top(b.start_min) + 1,
-                        height: h,
-                        left: `${(lane / of) * 100}%`,
-                        width: `${100 / of}%`,
-                        padding: 2,
-                      }}>
-                      <View
-                        style={{
-                          flex: 1,
-                          backgroundColor: col.bg,
-                          borderLeftWidth: 4,
-                          borderColor: col.bar,
-                          borderRadius: 6,
-                          paddingHorizontal: 6,
-                          paddingVertical: 3,
-                          overflow: 'hidden',
-                        }}>
-                        <Text style={{ color: col.text, fontSize: 12, fontWeight: '800' }} numberOfLines={1}>
-                          {`${hm(b.start_min)} ${b.dogs?.name ?? ''}`}
-                          {b.checked_in_at ? ' ✓' : ''}
-                        </Text>
-                        <Text style={{ color: col.text, fontSize: 12 }} numberOfLines={h > 2 * ROW ? 2 : 1}>
-                          {b.lesson_types?.label ?? b.lesson_type}
-                          {b.lesson_option ? ` · ${b.lesson_option}` : ''}
-                        </Text>
-                        {h > 2 * ROW && (
-                          <Text style={{ color: col.text, fontSize: 11, opacity: 0.85 }} numberOfLines={1}>
-                            {[fields.length > 1 ? b.fields?.name : null, b.trainers?.name].filter(Boolean).join(' · ')}
-                          </Text>
-                        )}
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            );
-          })}
+          {days.map((k) => (
+            <View key={k} style={{ flex: 1, flexDirection: 'row', borderLeftWidth: 1, borderColor: c.lineStrong }}>
+              {fields.map((f, fi) => {
+                const list = rows.filter((b) => b.day === k && b.field_id === f.id);
+                const pos = layout(list);
+                const openSlots = open[`${f.id}|${k}`] ?? [];
+                return (
+                  <View key={f.id} style={{ flex: 1, borderLeftWidth: fi ? 1 : 0, borderColor: c.line }}>
+                    {Array.from({ length: slots }, (_, i) => {
+                      const m = start + i * STEP;
+                      const closed = !openSlots.includes(m);
+                      return (
+                        <Pressable
+                          key={i}
+                          accessibilityLabel={`Prenota ${f.name} ${hm(m)}`}
+                          onPress={() => onSlot(k, f.id, m)}
+                          style={{
+                            position: 'absolute',
+                            top: i * ROW,
+                            height: ROW,
+                            left: 0,
+                            right: 0,
+                            borderTopWidth: i ? 1 : 0,
+                            borderColor: i % 2 ? c.off : c.line,
+                            backgroundColor: closed ? closedBg : k === todayKey ? c.surface2 : undefined,
+                          }}
+                        />
+                      );
+                    })}
+                    {list.map((b) => {
+                      const col = color(b.lesson_type);
+                      const h = Math.max(top(b.start_min + b.dur_min) - top(b.start_min) - 2, ROW - 2);
+                      const { lane, of } = pos.get(b.id)!;
+                      const tall = h > 2 * ROW;
+                      return (
+                        <Pressable
+                          key={b.id}
+                          accessibilityRole="button"
+                          onPress={() => openDay(k)}
+                          style={{
+                            position: 'absolute',
+                            top: top(b.start_min) + 1,
+                            height: h,
+                            left: `${(lane / of) * 100}%`,
+                            width: `${100 / of}%`,
+                            padding: 2,
+                          }}>
+                          <View
+                            style={{
+                              flex: 1,
+                              backgroundColor: col.bg,
+                              borderLeftWidth: 4,
+                              borderColor: col.bar,
+                              borderRadius: 6,
+                              paddingHorizontal: 5,
+                              paddingVertical: 2,
+                              overflow: 'hidden',
+                            }}>
+                            <Text style={{ color: col.text, fontSize: 12, fontWeight: '800' }} numberOfLines={1}>
+                              {`${hm(b.start_min)} ${b.dogs?.name ?? ''}`}
+                              {b.checked_in_at ? ' ✓' : ''}
+                            </Text>
+                            <Text style={{ color: col.text, fontSize: 11 }} numberOfLines={tall ? 2 : 1}>
+                              {tall
+                                ? `${b.lesson_types?.label ?? b.lesson_type}${b.lesson_option ? ` · ${b.lesson_option}` : ''}`
+                                : `${b.trainers?.name ?? 'Trainer da assegnare'} · ${b.lesson_option || (b.lesson_types?.label ?? '')}`}
+                            </Text>
+                            {tall && (
+                              <Text style={{ color: col.text, fontSize: 11, fontWeight: '700' }} numberOfLines={1}>
+                                {b.trainers ? `Trainer: ${b.trainers.name}` : 'Trainer da assegnare'}
+                              </Text>
+                            )}
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                );
+              })}
+            </View>
+          ))}
         </View>
       </View>
-      <Text style={{ color: c.muted, fontSize: 12 }}>Clicca su un giorno o su una lezione per aprire il giorno.</Text>
+      <Text style={{ color: c.muted, fontSize: 12 }}>
+        Clicca su una lezione per aprire il giorno, o su una mezz&apos;ora libera per prenotare per un cliente.
+      </Text>
     </View>
   );
 }
