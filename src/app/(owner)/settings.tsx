@@ -321,6 +321,20 @@ export default function OwnerSettings() {
           <Toggle label="Prenotabile" value={t.active} onChange={(v) => setType(i, { active: v })} />
         </Card>
       ))}
+      <Button
+        title="+ Aggiungi lezione"
+        kind="ghost"
+        onPress={() =>
+          setTypes([
+            ...types,
+            // L'id resta fisso anche se poi cambi il nome; serve ai trainer per riconoscere la lezione.
+            { id: `lez-${Date.now().toString(36)}`, label: '', description: '', duration: '60', price: '0', options: '', active: true },
+          ])
+        }
+      />
+      <Muted style={{ fontSize: 13 }}>
+        Per togliere una lezione spegni &quot;Prenotabile&quot;: i clienti non la vedono più, ma restano le prenotazioni già fatte.
+      </Muted>
 
       <Step title="Regolamento e privacy" />
       <Card>
