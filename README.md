@@ -216,6 +216,8 @@ la stampa sul registratore Epson RT della rete del campo.
 - **Avviso di Windows**: il programma non è firmato, quindi al primo avvio Windows SmartScreen mostra "Windows ha protetto
   il PC": premi **Ulteriori informazioni → Esegui comunque**. Per toglierlo serve un certificato di firma del codice
   (a pagamento), da aggiungere quando lo vendi.
+- **Versione demo**: in **Run workflow** spunta **demo**. Esce **CampoCani-Windows-Demo**, con i dati di esempio della
+  demo web e senza database: utile per farlo vedere a un centro.
 - **Provarlo sul tuo computer**: nella cartella `desktop` esegui `npm install`, `npm run web` e `npm start`.
 
 ## Cosa fa l'app

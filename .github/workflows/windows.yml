@@ -6,14 +6,19 @@
 #   EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 # per una versione collegata al database del tuo campo. Senza, il programma chiede il codice
 # di licenza (serve la chiave pubblica in src/lib/license-key.ts).
+#
+# Versione demo, con i dati di esempio e senza database: Run workflow con "demo" spuntato.
 name: App per Windows
 
 on:
   workflow_dispatch:
+    inputs:
+      demo:
+        description: Versione demo con dati di esempio, senza database
+        type: boolean
+        default: false
   push:
     tags: ['v*']
-    # Solo su questo branch: versione demo con dati di esempio, senza database.
-    branches: [demo-windows]
   pull_request:
     paths: ['desktop/**', 'app.config.js', '.github/workflows/windows.yml']
 
@@ -35,14 +40,15 @@ jobs:
       - run: npm run web
         working-directory: desktop
         env:
-          EXPO_PUBLIC_SUPABASE_URL: https://demo.supabase.co
-          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: demo
-      - run: node demo/inject.js
+          EXPO_PUBLIC_SUPABASE_URL: ${{ inputs.demo && 'https://demo.supabase.co' || vars.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ inputs.demo && 'demo' || vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      - if: ${{ inputs.demo }}
+        run: node demo/inject.js
         working-directory: desktop
       - run: npm run dist
         working-directory: desktop
       - uses: actions/upload-artifact@v4
         with:
-          name: CampoCani-Windows-Demo
+          name: ${{ inputs.demo && 'CampoCani-Windows-Demo' || 'CampoCani-Windows' }}
           path: desktop/release/*.exe
           if-no-files-found: error
