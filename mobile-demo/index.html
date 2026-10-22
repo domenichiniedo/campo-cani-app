@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Campo Cani Demo</title>
+<style>
+/* L'app occupa tutto lo schermo; il bottone Demo apre un pannello per cambiare persona e piano. */
+:root {
+  --bg: #eef1ec; --surface: #ffffff; --text: #16211b; --muted: #5a675f; --line: #d7ddd4;
+  --pitch: #123a2b; --accent: #1d6b46;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --bg: #0b110e; --surface: #141d18; --text: #e7eee9; --muted: #9aa9a0; --line: #26332c;
+  --pitch: #0e2a1f; --accent: #4fae7e; color-scheme: dark } }
+html, body { height: 100%; margin: 0; background: var(--pitch); font-family: system-ui, -apple-system, Roboto, sans-serif; }
+#app { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+#open { position: fixed; right: 12px; bottom: 74px; z-index: 2; border: 0; border-radius: 999px; padding: 10px 14px;
+  background: var(--accent); color: #fff; font: 700 14px system-ui, sans-serif; box-shadow: 0 6px 18px rgba(0,0,0,.25); opacity: .92; }
+#sheet { position: fixed; inset: 0; z-index: 3; display: none; background: rgba(0,0,0,.45); }
+#sheet.on { display: flex; align-items: flex-end; }
+.panel { background: var(--bg); color: var(--text); width: 100%; max-height: 88%; overflow-y: auto; border-radius: 16px 16px 0 0;
+  padding: 18px 16px 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; }
+h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 8px 0 0; }
+p { margin: 0; line-height: 1.45; color: var(--muted); font-size: 14px; }
+.who button, .row button { font: 600 15px system-ui, sans-serif; border-radius: 10px; padding: 12px 14px; text-align: left; width: 100%;
+  border: 1px solid var(--line); background: var(--surface); color: var(--text); display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.who { display: flex; flex-direction: column; gap: 8px; }
+.who button.on { border-color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }
+.who small { color: var(--muted); font-weight: 500; font-size: 13px; text-align: right; }
+.row { display: flex; gap: 8px; }
+code { font-family: ui-monospace, monospace; color: var(--text); }
+</style>
+</head>
+<body>
+<iframe id="app" title="App Campo Cani"></iframe>
+<button id="open" type="button">Demo</button>
+<div id="sheet">
+  <div class="panel" role="dialog" aria-label="Demo">
+    <h2>Entra come</h2>
+    <div class="who" id="people">
+      <button id="as-owner" type="button" data-email="proprietario@demo.it">Proprietario <small>giorno, settimana, incassi</small></button>
+      <button id="as-client" type="button" data-email="cliente@demo.it">Cliente: Giulia <small>prenota, lezioni, diario</small></button>
+      <button id="as-trainer" type="button" data-email="luca@demo.it">Trainer: Luca <small>lezioni, diario, penalità</small></button>
+      <button id="as-new" type="button" data-email="">Nuovo cliente <small>iscrizione</small></button>
+    </div>
+    <h2>Piano</h2>
+    <div class="who" id="plans">
+      <button id="plan-base" type="button" data-plan="base">Base <small>1 campo, 3 lezioni, 3 pacchetti</small></button>
+      <button id="plan-professional" type="button" data-plan="professional">Professional <small>2 campi, 2 trainer, incassi</small></button>
+      <button id="plan-pro" type="button" data-plan="pro">Pro <small>tutto</small></button>
+    </div>
+    <p>Dati di esempio, solo su questo telefono. Password di tutti: <code>demo1234</code>. Codice per la password dimenticata: <code>123456</code>.</p>
+    <div class="row">
+      <button id="reset" type="button">Rimetti i dati di esempio</button>
+      <button id="close" type="button">Chiudi</button>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var frame = document.getElementById('app'), sheet = document.getElementById('sheet');
+  var TOKEN = 'sb-demo-auth-token';
+  var people = document.querySelectorAll('#people button'), planButtons = document.querySelectorAll('#plans button');
+  // Licenze di prova, firmate con una chiave solo per la demo.
+  var CODES = {"base": "CC1.eyJ2IjoxLCJpZCI6ImRlbW8iLCJjYW1wbyI6IkNlbnRybyBDaW5vZmlsbyBMZSBRdWVyY2UiLCJwaWFubyI6ImJhc2UiLCJzY2FkZSI6bnVsbCwiZW1lc3NhIjoiMjAyNi0xMC0yMiIsInVybCI6Imh0dHBzOi8vZGVtby5zdXBhYmFzZS5jbyIsImNoaWF2ZSI6InNiX3B1Ymxpc2hhYmxlX2RlbW8ifQ.M03U9XHbE6lsFNpPJGfJbQkk3M5rdx9wJ-1GwPSKH0iTKjEUXsyOWQTFX0hP9EI0avz9Nv_gAtbo5gNKN1P2AQ", "professional": "CC1.eyJ2IjoxLCJpZCI6ImRlbW8iLCJjYW1wbyI6IkNlbnRybyBDaW5vZmlsbyBMZSBRdWVyY2UiLCJwaWFubyI6InByb2Zlc3Npb25hbCIsInNjYWRlIjpudWxsLCJlbWVzc2EiOiIyMDI2LTEwLTIyIiwidXJsIjoiaHR0cHM6Ly9kZW1vLnN1cGFiYXNlLmNvIiwiY2hpYXZlIjoic2JfcHVibGlzaGFibGVfZGVtbyJ9._wTTU6c1k4nN_LEEO6It5zWSBrDnqzqzljRwVcwFgjPH46cpLEfTbF0TGCu3h7mVoA9iMlKn1b7_dRjgYJe6Aw", "pro": "CC1.eyJ2IjoxLCJpZCI6ImRlbW8iLCJjYW1wbyI6IkNlbnRybyBDaW5vZmlsbyBMZSBRdWVyY2UiLCJwaWFubyI6InBybyIsInNjYWRlIjpudWxsLCJlbWVzc2EiOiIyMDI2LTEwLTIyIiwidXJsIjoiaHR0cHM6Ly9kZW1vLnN1cGFiYXNlLmNvIiwiY2hpYXZlIjoic2JfcHVibGlzaGFibGVfZGVtbyJ9.XNRhCot2sINDgFDcbcTkYID8Ccr1w82Nq1NOvXNFcsPsujj5tucI_xYxLGvJmVuJKoTjmtIX_0InOgXhUX_dBQ"};
+  var PLAN = 'campo-cani-demo-piano', LICENSE = 'campo-cani-licenza', DB = 'campo-demo-db-v6';
+  function currentPlan() { try { return CODES[localStorage.getItem(PLAN)] ? localStorage.getItem(PLAN) : 'pro'; } catch (e) { return 'pro'; } }
+  function markPlan(p) { planButtons.forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-plan') === p); }); }
+  function usePlan(p) {
+    try {
+      localStorage.setItem(PLAN, p);
+      localStorage.setItem(LICENSE, CODES[p]);
+      var db = JSON.parse(localStorage.getItem(DB) || 'null');
+      if (db && db.settings && db.settings[0]) { db.settings[0].license_code = CODES[p]; localStorage.setItem(DB, JSON.stringify(db)); }
+    } catch (e) {}
+    markPlan(p);
+  }
+  function mark(id) { people.forEach(function (b) { b.classList.toggle('on', b.id === id); }); try { localStorage.setItem('campo-demo-chi', id); } catch (e) {} }
+  function reload() { frame.src = 'app.html?' + Date.now(); sheet.classList.remove('on'); }
+  function enter(btn) {
+    var w = frame.contentWindow, email = btn.getAttribute('data-email');
+    // Il piano Base non ha i trainer: per vedere la loro app si passa a Professional.
+    if (btn.id === 'as-trainer' && currentPlan() === 'base') usePlan('professional');
+    try {
+      if (email) { var s = w.__demoSession && w.__demoSession(email); if (s) w.localStorage.setItem(TOKEN, JSON.stringify(s)); }
+      else w.localStorage.removeItem(TOKEN);
+    } catch (e) {}
+    mark(btn.id);
+    reload();
+  }
+  people.forEach(function (b) { b.addEventListener('click', function () { enter(b); }); });
+  planButtons.forEach(function (b) { b.addEventListener('click', function () { usePlan(b.getAttribute('data-plan')); reload(); }); });
+  document.getElementById('open').addEventListener('click', function () { sheet.classList.add('on'); });
+  document.getElementById('close').addEventListener('click', function () { sheet.classList.remove('on'); });
+  sheet.addEventListener('click', function (e) { if (e.target === sheet) sheet.classList.remove('on'); });
+  document.getElementById('reset').addEventListener('click', function () {
+    try { frame.contentWindow.__demoReset(); frame.contentWindow.localStorage.removeItem(TOKEN); } catch (e) {}
+    mark('');
+    usePlan(currentPlan());
+    reload();
+  });
+  // Al primo avvio entra come proprietario e apre il pannello, così si vede subito cosa si può provare.
+  try {
+    if (!localStorage.getItem(TOKEN)) {
+      var exp = Math.floor(Date.now() / 1000) + 31536000;
+      localStorage.setItem(TOKEN, JSON.stringify({ access_token: 'demo.owner', token_type: 'bearer', expires_in: 31536000, expires_at: exp,
+        refresh_token: 'demo-refresh-owner', user: { id: 'owner', aud: 'authenticated', role: 'authenticated', email: 'proprietario@demo.it', app_metadata: {}, user_metadata: {} } }));
+      mark('as-owner');
+      sheet.classList.add('on');
+    } else {
+      mark(localStorage.getItem('campo-demo-chi') || '');
+    }
+  } catch (e) {}
+  usePlan(currentPlan());
+  frame.src = 'app.html';
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "campo-cani-demo-android",
+  "private": true,
+  "description": "Demo di Campo Cani da installare sul telefono Android: l'app vera con i dati di esempio, senza database.",
+  "scripts": {
+    "web": "node build.mjs",
+    "android": "cap add android && cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "7.6.9",
+    "@capacitor/cli": "7.6.9",
+    "@capacitor/core": "7.6.9"
+  }
+}
