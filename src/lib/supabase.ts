@@ -1,18 +1,39 @@
 import 'expo-sqlite/localStorage/install';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { AppState } from 'react-native';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
-const supabasePublishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? '';
+const envUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
+const envKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? '';
 
-export const isConfigured = supabaseUrl.length > 0 && supabasePublishableKey.length > 0;
+/** C'è un database scritto nella build (la copia del tuo campo). */
+export const hasEnvConfig = envUrl.length > 0 && envKey.length > 0;
 
-export const supabase = createClient(supabaseUrl || 'http://localhost', supabasePublishableKey || 'missing', {
-  auth: {
-    storage: localStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
+const make = (url: string, key: string) =>
+  createClient(url || 'http://localhost', key || 'missing', {
+    auth: {
+      storage: localStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
+  });
+
+let current = make(envUrl, envKey);
+let currentUrl = envUrl;
+
+/** Collega l'app al database di un centro (dalla licenza). */
+export function connectTo(url: string, key: string) {
+  if (url === currentUrl) return;
+  current.auth.stopAutoRefresh();
+  current = make(url, key);
+  currentUrl = url;
+}
+
+// Tutta l'app usa `supabase`: punta sempre al database collegato in quel momento.
+export const supabase = new Proxy({} as SupabaseClient, {
+  get: (_t, prop) => {
+    const v = Reflect.get(current, prop);
+    return typeof v === 'function' ? v.bind(current) : v;
   },
 });
 

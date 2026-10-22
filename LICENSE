@@ -1,21 +1,7 @@
-The MIT License (MIT)
+Copyright (c) 2026 domenichiniedo. Tutti i diritti riservati.
 
-Copyright (c) 2015-present 650 Industries, Inc. (aka Expo)
+Questo software e il suo codice sorgente sono di proprietà dell'autore. Non è consentito
+copiarli, modificarli, distribuirli o rivenderli senza il suo permesso scritto. L'uso
+dell'app è concesso ai centri che hanno una licenza valida rilasciata dall'autore.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+L'app usa librerie di terze parti, ciascuna con la propria licenza (vedi node_modules).
