@@ -12,7 +12,7 @@ import { useColors } from '@/lib/theme';
 SplashScreen.preventAutoHideAsync();
 
 function Navigator() {
-  const { ready, session, profile, isOwner, needsTerms } = useSession();
+  const { ready, session, profile, isOwner, needsTerms, needsBilling } = useSession();
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
@@ -29,7 +29,10 @@ function Navigator() {
       <Stack.Protected guard={signedIn && needsTerms}>
         <Stack.Screen name="terms" />
       </Stack.Protected>
-      <Stack.Protected guard={signedIn && !needsTerms && !isOwner}>
+      <Stack.Protected guard={signedIn && !needsTerms && needsBilling}>
+        <Stack.Screen name="billing" />
+      </Stack.Protected>
+      <Stack.Protected guard={signedIn && !needsTerms && !needsBilling && !isOwner}>
         <Stack.Screen name="(client)" />
       </Stack.Protected>
       <Stack.Protected guard={signedIn && isOwner}>

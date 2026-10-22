@@ -75,12 +75,16 @@ export function OwnerBookingCard({ b, onChange, showField }: { b: OwnerBooking; 
             run(() => supabase.from('bookings').update({ checked_in_at: arrived ? null : new Date().toISOString() }).eq('id', b.id))
           }
         />
-        <Button
-          small
-          kind="ghost"
-          title={b.paid ? `Pagato ${euro(b.price_cents)} ✓` : `Incassa ${euro(b.price_cents)}`}
-          onPress={() => run(() => supabase.from('bookings').update({ paid: !b.paid }).eq('id', b.id))}
-        />
+        {b.pay === 'package' ? (
+          <Badge tone="ok">Dal pacchetto</Badge>
+        ) : (
+          <Button
+            small
+            kind="ghost"
+            title={b.paid ? `Pagato ${euro(b.price_cents)} ✓` : `Incassa ${euro(b.price_cents)}`}
+            onPress={() => run(() => supabase.from('bookings').update({ paid: !b.paid }).eq('id', b.id))}
+          />
+        )}
         {trainers.length > 0 && (
           <Button small kind="ghost" title={b.trainers ? 'Cambia trainer' : 'Assegna trainer'} onPress={() => setTrainerOpen(!trainerOpen)} />
         )}

@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
+import { hasBilling } from '@/lib/billing';
 import { supabase } from '@/lib/supabase';
 import type { Field, LessonType, Profile, Settings, Trainer } from '@/lib/types';
 
@@ -16,6 +17,8 @@ type Ctx = {
   trainers: Trainer[];
   isOwner: boolean;
   needsTerms: boolean;
+  /** Cliente senza codice fiscale o indirizzo di fatturazione (iscritto prima che servissero). */
+  needsBilling: boolean;
   logoUrl: string | null;
   refresh: () => Promise<void>;
 };
@@ -77,13 +80,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const needsTerms =
     !!session && !!profile && !!settings && !isOwner &&
     (profile.rules_ver !== settings.rules_ver || profile.privacy_ver !== settings.privacy_ver);
+  const needsBilling = !!session && !!profile && !isOwner && !hasBilling(profile);
   const logoUrl = settings?.logo_path
     ? supabase.storage.from('branding').getPublicUrl(settings.logo_path).data.publicUrl
     : null;
 
   return (
     <SessionContext.Provider
-      value={{ ready: authReady && dataReady, session, profile, settings, lessonTypes, fields, trainers, isOwner, needsTerms, logoUrl, refresh }}>
+      value={{ ready: authReady && dataReady, session, profile, settings, lessonTypes, fields, trainers, isOwner, needsTerms, needsBilling, logoUrl, refresh }}>
       {children}
     </SessionContext.Provider>
   );

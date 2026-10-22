@@ -1,7 +1,9 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 
+import { BillingFields } from '@/components/billing-fields';
 import { Body, Button, Card, Check, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
+import { billingColumns, billingError, emptyBilling, type BillingDraft } from '@/lib/billing';
 import { isDayKey } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
@@ -16,6 +18,7 @@ export default function Register() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [billing, setBilling] = useState<BillingDraft>(emptyBilling);
   const [dogs, setDogs] = useState<DogDraft[]>([{ name: '', breed: '', birth: '' }]);
   const [rulesOk, setRulesOk] = useState(false);
   const [privacyOk, setPrivacyOk] = useState(false);
@@ -29,6 +32,8 @@ export default function Register() {
     setErr('');
     const cleanDogs = dogs.filter((d) => d.name.trim());
     if (!first.trim() || !last.trim() || !phone.trim()) return setErr('Inserisci nome, cognome e telefono.');
+    const bErr = billingError(billing);
+    if (bErr) return setErr(bErr);
     if (!cleanDogs.length) return setErr('Inserisci almeno un cane.');
     if (cleanDogs.some((d) => d.birth && !isDayKey(d.birth))) return setErr('Scrivi la data di nascita come AAAA-MM-GG, per esempio 2024-03-15.');
     if (password.length < 8) return setErr('La password deve avere almeno 8 caratteri.');
@@ -44,6 +49,7 @@ export default function Register() {
           first_name: first.trim(),
           last_name: last.trim(),
           phone: phone.trim(),
+          ...billingColumns(billing),
           rules_ver: settings.rules_ver,
           privacy_ver: settings.privacy_ver,
           dogs: cleanDogs.map((d) => ({ name: d.name.trim(), breed: d.breed.trim(), birth: d.birth || null })),
@@ -82,7 +88,12 @@ export default function Register() {
         <Field label="Password (almeno 8 caratteri)" value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
       </Card>
 
-      <Step n="2" title={dogs.length > 1 ? 'I tuoi cani' : 'Il tuo cane'} />
+      <Step n="2" title="Fatturazione" />
+      <Card>
+        <BillingFields value={billing} onChange={setBilling} />
+      </Card>
+
+      <Step n="3" title={dogs.length > 1 ? 'I tuoi cani' : 'Il tuo cane'} />
       {dogs.map((d, i) => (
         <Card key={i}>
           <Field label="Nome del cane" value={d.name} onChangeText={(v) => setDog(i, { name: v })} />
@@ -93,7 +104,7 @@ export default function Register() {
       ))}
       <Button title="+ Aggiungi un altro cane" kind="ghost" onPress={() => setDogs([...dogs, { name: '', breed: '', birth: '' }])} />
 
-      <Step n="3" title="Consensi" />
+      <Step n="4" title="Consensi" />
       <Card>
         {settings && <Expandable title="il regolamento" lines={rulesLines(settings, lessonTypes)} />}
         <Check value={rulesOk} onChange={setRulesOk}>

@@ -3,6 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 
+import { PackagesEditor } from '@/components/packages-editor';
 import { Body, Button, Card, ErrorText, Field, H1, Muted, Row, Screen, Step, Toggle } from '@/components/ui';
 import { hm, parseHm, STEP } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -335,6 +336,9 @@ export default function OwnerSettings() {
       <Muted style={{ fontSize: 13 }}>
         Per togliere una lezione spegni &quot;Prenotabile&quot;: i clienti non la vedono più, ma restano le prenotazioni già fatte.
       </Muted>
+
+      <Step title="Pacchetti" />
+      <PackagesEditor />
 
       <Step title="Regolamento e privacy" />
       <Card>

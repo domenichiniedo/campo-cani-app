@@ -67,7 +67,7 @@ export default function MyBookings() {
             )}
             <Row>
               <Badge>{`${b.dur_min} min`}</Badge>
-              <Badge tone={b.paid ? 'ok' : 'warn'}>{b.paid ? 'Pagato' : b.pay === 'online' ? 'Online' : `Al campo ${euro(b.price_cents)}`}</Badge>
+              <Badge tone={b.paid ? 'ok' : 'warn'}>{b.pay === 'package' ? 'Dal pacchetto' : b.paid ? 'Pagato' : b.pay === 'online' ? 'Online' : `Al campo ${euro(b.price_cents)}`}</Badge>
               {b.checked_in_at && <Badge tone="ok">Entrato</Badge>}
             </Row>
             {canCancel ? (

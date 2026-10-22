@@ -54,6 +54,11 @@ export type Profile = {
   rules_accepted_at: string | null;
   privacy_accepted_at: string | null;
   created_at: string;
+  tax_code: string;
+  billing_street: string;
+  billing_zip: string;
+  billing_city: string;
+  billing_province: string;
 };
 
 export type Dog = {
@@ -78,12 +83,45 @@ export type Booking = {
   start_min: number;
   dur_min: number;
   price_cents: number;
-  pay: 'online' | 'onsite';
+  pay: 'online' | 'onsite' | 'package';
+  package_id: string | null;
   paid: boolean;
   checked_in_at: string | null;
   note: string;
   status: 'active' | 'cancelled';
 };
+
+export type Package = {
+  id: string;
+  name: string;
+  /** Tipo di lezione a cui vale; null = tutte. */
+  lesson_type: string | null;
+  lessons: number;
+  price_cents: number;
+  /** Giorni di validità dall'attivazione; null = non scade. */
+  valid_days: number | null;
+  sort: number;
+  active: boolean;
+};
+
+export type ClientPackage = {
+  id: string;
+  user_id: string;
+  package_id: string | null;
+  name: string;
+  lesson_type: string | null;
+  lessons_total: number;
+  lessons_used: number;
+  price_cents: number;
+  status: 'requested' | 'active' | 'cancelled';
+  requested_at: string;
+  activated_at: string | null;
+  expires_at: string | null;
+};
+
+/** Pacchetto attivo, non scaduto e con lezioni rimaste. */
+export const usable = (cp: ClientPackage, now = Date.now()) =>
+  cp.status === 'active' && cp.lessons_used < cp.lessons_total && (!cp.expires_at || new Date(cp.expires_at).getTime() > now);
 
 export type Penalty = {
   id: string;

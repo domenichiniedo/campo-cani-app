@@ -13,6 +13,8 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
    Crea tabelle, regole di accesso, le due lezioni di partenza e lo spazio per il logo.
    Poi fai lo stesso con `supabase/migrations/0002_campi_trainer.sql`, che aggiunge campi e trainer.
    Se avevi già eseguito il primo file, esegui solo il secondo: orari e prenotazioni esistenti passano al primo campo.
+   Poi, in ordine, `0003_fatturazione.sql` (codice fiscale e indirizzo di fatturazione) e `0004_pacchetti.sql` (pacchetti
+   di lezioni). Ogni file va eseguito una volta sola.
 3. In **Project Settings → API Keys** copia l'URL del progetto e la **Publishable key** (inizia con `sb_publishable_`).
    Non usare mai la Secret key nell'app.
 4. Copia il file `.env.example` in `.env.local` e incolla i due valori:
@@ -84,10 +86,13 @@ iniziale in `assets/images`.
 ## Cosa fa l'app
 
 **Cliente**
-- Iscrizione con dati, uno o più cani e consenso a regolamento e privacy.
+- Iscrizione con dati, codice fiscale (o partita IVA) e indirizzo di fatturazione, uno o più cani e consenso a
+  regolamento e privacy. Il codice fiscale viene controllato. Chi era iscritto prima completa i dati al primo accesso.
 - Prenota: cane, lezione e opzione (IGP: Pista, Obbedienza, Attacco; Educazione base: Cucciolo o Adulto), campo (se ce
   n'è più di uno), giorno, ora. Vede solo le mezz'ore aperte e non già occupate su quel campo.
 - Le mie lezioni, con disdetta fino al limite di ore deciso dal campo.
+- Pacchetti: vede quelli offerti e li richiede; paga al campo e il proprietario lo attiva. Da lì ogni prenotazione di quel
+  tipo scala una lezione, e una lezione annullata torna nel pacchetto.
 - Profilo: dati, cani, penalità ricevute, regolamento e privacy.
 - Se il proprietario cambia regolamento o privacy, al prossimo accesso deve accettare il nuovo testo prima di prenotare.
 
@@ -96,10 +101,10 @@ iniziale in `assets/images`.
   annullo. Un trainer non può avere due lezioni alla stessa ora, nemmeno su campi diversi.
 - Settimana: vista dei 7 giorni con campo e trainer, tocca un giorno per aprirlo.
 - Orari: per ogni campo apri o chiudi le mezz'ore di ogni giorno, copiale sulle settimane seguenti o su tutti i campi.
-- Clienti: ricerca, penalità per cane, sospensione e riattivazione. Alla penalità numero N (scelta in Impostazioni) il cane
+- Clienti: ricerca anche per codice fiscale, dati di fatturazione, pacchetti da attivare e lezioni rimaste, penalità per cane, sospensione e riattivazione. Alla penalità numero N (scelta in Impostazioni) il cane
   viene sospeso da solo; 0 spegne la sospensione automatica.
 - Impostazioni: nome del centro, logo, numero di campi (ognuno con nome e indirizzo, anche uguale), trainer con le
-  lezioni che seguono, orario della griglia, ore per la disdetta, limite penalità, lezioni (nome, durata,
+  lezioni che seguono, pacchetti (lezioni, prezzo, validità), orario della griglia, ore per la disdetta, limite penalità, lezioni (nome, durata,
   prezzo, opzioni), regolamento e privacy.
 
 **Pagamento online.** È predisposto ma spento: i clienti pagano al campo. Per accenderlo serve collegare un conto Stripe e un

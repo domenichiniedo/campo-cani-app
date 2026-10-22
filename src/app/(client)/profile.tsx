@@ -1,7 +1,9 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
+import { BillingFields } from '@/components/billing-fields';
 import { Badge, Body, Button, Card, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
+import { billingColumns, billingError, billingFromProfile } from '@/lib/billing';
 import { isDayKey, shortDate } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
@@ -12,6 +14,7 @@ export default function Profile() {
   const [first, setFirst] = useState(profile?.first_name ?? '');
   const [last, setLast] = useState(profile?.last_name ?? '');
   const [phone, setPhone] = useState(profile?.phone ?? '');
+  const [billing, setBilling] = useState(billingFromProfile(profile));
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [penalties, setPenalties] = useState<Penalty[]>([]);
   const [newDog, setNewDog] = useState({ name: '', breed: '', birth: '' });
@@ -37,8 +40,13 @@ export default function Profile() {
 
   async function saveMe() {
     if (!profile) return;
+    const bErr = billingError(billing);
+    if (bErr) return setErr(bErr);
     setErr('');
-    const { error } = await supabase.from('profiles').update({ first_name: first.trim(), last_name: last.trim(), phone: phone.trim() }).eq('id', profile.id);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ first_name: first.trim(), last_name: last.trim(), phone: phone.trim(), ...billingColumns(billing) })
+      .eq('id', profile.id);
     if (error) return setErr(errorText(error));
     setMsg('Dati salvati.');
     refresh();
@@ -74,6 +82,7 @@ export default function Profile() {
         </Row>
         <Field label="Telefono" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
         <Muted>Email: {profile?.email}</Muted>
+        <BillingFields value={billing} onChange={setBilling} />
         {!!msg && <Muted>{msg}</Muted>}
         <Button title="Salva" onPress={saveMe} small />
       </Card>
