@@ -17,6 +17,7 @@ export default function ClientLayout() {
       }}>
       <Tabs.Screen name="index" options={{ title: 'Prenota', tabBarIcon: tabIcon('＋') }} />
       <Tabs.Screen name="bookings" options={{ title: 'Le mie lezioni', tabBarIcon: tabIcon('☰') }} />
+      <Tabs.Screen name="diary" options={{ title: 'Diario', tabBarIcon: tabIcon('✎'), href: plan.trainers ? undefined : null }} />
       <Tabs.Screen name="packages" options={{ title: 'Pacchetti', tabBarIcon: tabIcon('▤'), href: plan.packages ? undefined : null }} />
       <Tabs.Screen name="profile" options={{ title: 'Profilo', tabBarIcon: tabIcon('◉') }} />
     </Tabs>

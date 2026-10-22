@@ -48,7 +48,7 @@ export type Profile = {
   last_name: string;
   phone: string;
   email: string;
-  role: 'client' | 'owner';
+  role: 'client' | 'owner' | 'trainer';
   rules_ver: number | null;
   privacy_ver: number | null;
   rules_accepted_at: string | null;
@@ -159,6 +159,24 @@ export const invoiceTitle = (i: Invoice) =>
 /** Pacchetto attivo, non scaduto e con lezioni rimaste. */
 export const usable = (cp: ClientPackage, now = Date.now()) =>
   cp.status === 'active' && cp.lessons_used < cp.lessons_total && (!cp.expires_at || new Date(cp.expires_at).getTime() > now);
+
+/** Pagina del diario di allenamento di un cane: cosa si è fatto a una lezione e i commenti. */
+export type DogNote = {
+  id: string;
+  dog_id: string;
+  booking_id: string | null;
+  trainer_id: string | null;
+  author_name: string;
+  day: string;
+  lesson: string;
+  work: string;
+  comment: string;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Account con cui un trainer entra nell'app (lo collega il proprietario con l'email). */
+export type TrainerAccount = { trainer_id: string; email: string; user_id: string | null };
 
 export type Penalty = {
   id: string;

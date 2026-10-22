@@ -1,7 +1,7 @@
 // Finto Supabase in memoria per la demo nel browser: risponde alle chiamate dell'app senza server.
 (function () {
   var BASE = 'https://demo.supabase.co';
-  var KEY = 'campo-demo-db-v4';
+  var KEY = 'campo-demo-db-v5';
   try { history.replaceState(null, '', '/'); } catch (e) {}
 
   function pad(n) { return String(n).padStart(2, '0'); }
@@ -37,7 +37,7 @@
         { id: 'p2', name: '5 lezioni base', lesson_type: 'base', lessons: 5, price_cents: 6500, valid_days: 90, sort: 2, active: true }
       ],
       client_packages: [],
-      profiles: [], dogs: [], availability: [], trainer_availability: [], bookings: [], penalties: [], passwords: {}
+      profiles: [], dogs: [], availability: [], trainer_availability: [], trainer_accounts: [], dog_notes: [], bookings: [], penalties: [], passwords: {}
     };
     function person(id, first, last, phone, email, role, cf) {
       db.profiles.push({ id: id, first_name: first, last_name: last, phone: phone, email: email, role: role,
@@ -45,6 +45,9 @@
       db.passwords[email] = 'demo1234';
     }
     person('owner', 'Edo', 'Proprietario', '333 000 0000', 'proprietario@demo.it', 'owner');
+    // Luca entra nell'app come trainer, collegato al trainer t1.
+    person('tr1', 'Luca', 'Ferri', '347 900 1122', 'luca@demo.it', 'trainer');
+    db.trainer_accounts.push({ trainer_id: 't1', email: 'luca@demo.it', user_id: 'tr1' });
     person('c1', 'Giulia', 'Rossi', '347 111 2233', 'cliente@demo.it', 'client', 'RSSGLI90C41A944Q');
     person('c2', 'Marco', 'Bianchi', '349 555 7788', 'marco@demo.it', 'client', 'BNCMRC85M12A944S');
     person('c3', 'Sara', 'Verdi', '338 222 4466', 'sara@demo.it', 'client', 'VRDSRA92E50A944C');
@@ -112,6 +115,22 @@
       }
     }
     db.client_packages.push({ id: 'cp0', user_id: 'c3', package_id: 'p1', name: '10 lezioni IGP', lesson_type: 'igp', lessons_total: 10, lessons_used: 10, price_cents: 22000, status: 'active', requested_at: addDays(t, -66).toISOString(), activated_at: addDays(t, -65).toISOString(), expires_at: addDays(t, 115).toISOString() });
+    // Diario: i trainer hanno scritto qualcosa dopo molte delle lezioni passate.
+    var lavori = {
+      Pista: ['Pista di 300 passi con due angoli, oggetti finali trovati', 'Pista invecchiata 30 minuti su prato', 'Pista su terreno misto, un oggetto mancato'],
+      Obbedienza: ['Condotta e seduta in movimento, riporto su piano', 'Terra a distanza e richiamo con fermo', 'Riporto in salto, presa ancora incerta'],
+      Attacco: ['Lavoro sulla manica: presa piena e lascia al comando', 'Ricerca nei nascondigli, abbaio fermo', 'Difesa del conduttore, buon controllo'],
+      base: ['Richiamo con distrazioni e guinzaglio lungo', 'Seduto e terra con il cibo, poi senza', 'Passeggiata al guinzaglio senza tirare', 'Resta: 30 secondi a 5 metri', 'Socializzazione con altri due cani']
+    };
+    var commenti = ['Molto concentrato, bravo!', 'Si distrae dopo 20 minuti: meglio sessioni brevi.', 'Grande progresso rispetto alla volta scorsa.', 'A casa ripetete il richiamo 5 minuti al giorno.', 'Un po\' agitato all\'inizio, poi ottimo.', ''];
+    db.bookings.forEach(function (b, i) {
+      if (!b.checked_in_at || !b.trainer_id || b.day >= dk(t) || i % 10 > 6) return;
+      var tr = db.trainers.filter(function (x) { return x.id === b.trainer_id; })[0];
+      var lt0 = db.lesson_types.filter(function (x) { return x.id === b.lesson_type; })[0];
+      db.dog_notes.push({ id: uid(), dog_id: b.dog_id, booking_id: b.id, trainer_id: b.trainer_id, author_name: tr.name, day: b.day,
+        lesson: lt0.label + (b.lesson_option ? ' · ' + b.lesson_option : ''), work: (lavori[b.lesson_type] || lavori[b.lesson_option])[i % (b.lesson_type === 'base' ? 5 : 3)], comment: commenti[i % commenti.length],
+        created_at: b.checked_in_at, updated_at: b.checked_in_at });
+    });
     var late = book(-1, 600, 'c3', 'd4', 'igp', 'Obbedienza');
     if (late) db.penalties.push({ id: uid(), dog_id: 'd4', booking_id: late.id, reason: 'Ritardo', created_at: addDays(t, -1).toISOString() });
     addInvoices(db, t);
@@ -156,9 +175,9 @@
 
   // ---- relazioni per i select annidati ----
   var REL = {
-    bookings: { fields: ['one', 'fields', 'field_id', 'id'], trainers: ['one', 'trainers', 'trainer_id', 'id'], profiles: ['one', 'profiles', 'user_id', 'id'], dogs: ['one', 'dogs', 'dog_id', 'id'], lesson_types: ['one', 'lesson_types', 'lesson_type', 'id'], penalties: ['many', 'penalties', 'id', 'booking_id'] },
+    bookings: { fields: ['one', 'fields', 'field_id', 'id'], trainers: ['one', 'trainers', 'trainer_id', 'id'], profiles: ['one', 'profiles', 'user_id', 'id'], dogs: ['one', 'dogs', 'dog_id', 'id'], lesson_types: ['one', 'lesson_types', 'lesson_type', 'id'], penalties: ['many', 'penalties', 'id', 'booking_id'], dog_notes: ['one', 'dog_notes', 'id', 'booking_id'] },
     profiles: { dogs: ['many', 'dogs', 'id', 'owner_id'], client_packages: ['many', 'client_packages', 'id', 'user_id'] },
-    dogs: { penalties: ['many', 'penalties', 'id', 'dog_id'] }
+    dogs: { penalties: ['many', 'penalties', 'id', 'dog_id'], profiles: ['one', 'profiles', 'owner_id', 'id'] }
   };
   function splitTop(s) {
     var out = [], depth = 0, cur = '';
@@ -216,8 +235,25 @@
     return rows;
   }
   // Regole di accesso semplificate, come nel database vero.
+  function trainerOf(who) {
+    var acc = who && db.trainer_accounts.filter(function (x) { return x.user_id === who.id; })[0];
+    return acc ? acc.trainer_id : null;
+  }
   function visible(table, rows, who) {
     if (who && who.role === 'owner') return rows;
+    if (who && who.role === 'trainer') {
+      // Il trainer vede le sue lezioni e i clienti e i cani che ha avuto a lezione.
+      var tid = trainerOf(who);
+      var mine = db.bookings.filter(function (b) { return tid && b.trainer_id === tid; });
+      var users = mine.map(function (b) { return b.user_id; }), seen = mine.map(function (b) { return b.dog_id; });
+      if (table === 'bookings') return rows.filter(function (r) { return tid && r.trainer_id === tid; });
+      if (table === 'profiles') return rows.filter(function (r) { return r.id === who.id || users.indexOf(r.id) >= 0; });
+      if (table === 'dogs') return rows.filter(function (r) { return seen.indexOf(r.id) >= 0; });
+      if (table === 'dog_notes') return rows.filter(function (r) { return seen.indexOf(r.dog_id) >= 0; });
+      if (table === 'trainer_accounts') return rows.filter(function (r) { return r.user_id === who.id; });
+      if (['penalties', 'client_packages', 'invoices', 'invoice_settings'].indexOf(table) >= 0) return [];
+      return rows;
+    }
     var id = who && who.id;
     var myDogs = db.dogs.filter(function (d) { return d.owner_id === id; }).map(function (d) { return d.id; });
     if (table === 'profiles') return rows.filter(function (r) { return r.id === id; });
@@ -225,7 +261,8 @@
     if (table === 'bookings') return rows.filter(function (r) { return r.user_id === id; });
     if (table === 'penalties') return rows.filter(function (r) { return myDogs.indexOf(r.dog_id) >= 0; });
     if (table === 'client_packages' || table === 'invoices') return rows.filter(function (r) { return r.user_id === id; });
-    if (table === 'invoice_settings') return [];
+    if (table === 'dog_notes') return rows.filter(function (r) { return myDogs.indexOf(r.dog_id) >= 0; });
+    if (table === 'invoice_settings' || table === 'trainer_accounts') return [];
     return rows;
   }
   var PK = { availability: ['field_id', 'day'], trainer_availability: ['trainer_id', 'day'] };
@@ -296,8 +333,9 @@
         if (table === 'profiles' && who.role !== 'owner') r.role = old.role;
       });
     } else if (method === 'POST') {
-      if (table !== 'dogs' && (!who || who.role !== 'owner')) return fail('Permesso negato', 403);
       var list = Array.isArray(body) ? body : [body];
+      var ownHours = table === 'trainer_availability' && who && who.role === 'trainer' && list.every(function (x) { return x.trainer_id === trainerOf(who); });
+      if (table !== 'dogs' && !ownHours && (!who || who.role !== 'owner')) return fail('Permesso negato', 403);
       out = list.map(function (b) {
         var r = defaults(table, b, who);
         var existing = prefer.indexOf('merge-duplicates') >= 0 && rows.filter(function (x) { return sameKey(table, x, r); })[0];
@@ -329,6 +367,54 @@
     var who = me(headers);
     if (!who) return fail('Accesso richiesto', 401);
     var s = db.settings[0];
+    if (name === 'link_trainer') {
+      if (who.role !== 'owner') return fail('Solo il proprietario');
+      var e = (a.p_email || '').trim().toLowerCase();
+      var old = db.trainer_accounts.filter(function (x) { return x.trainer_id === a.p_trainer; })[0];
+      if (old && old.user_id) db.profiles.forEach(function (p) { if (p.id === old.user_id && p.role === 'trainer') p.role = 'client'; });
+      db.trainer_accounts = db.trainer_accounts.filter(function (x) { return x.trainer_id !== a.p_trainer; });
+      if (e) {
+        if (db.trainer_accounts.some(function (x) { return x.email === e; })) return fail('Questa email è già collegata a un altro trainer');
+        var pr = db.profiles.filter(function (p) { return p.email === e; })[0];
+        if (pr && pr.role === 'owner') return fail("Questa è l'email del proprietario");
+        if (pr) pr.role = 'trainer';
+        db.trainer_accounts.push({ trainer_id: a.p_trainer, email: e, user_id: pr ? pr.id : null });
+      }
+      save();
+      return new Response(null, { status: 204 });
+    }
+    if (name === 'trainer_check_in') {
+      var cb = db.bookings.filter(function (b) { return b.id === a.p_booking && b.status === 'active'; })[0];
+      if (!cb) return fail('Lezione non trovata');
+      if (who.role !== 'owner') {
+        if (!cb.trainer_id || cb.trainer_id !== trainerOf(who)) return fail('Non è una tua lezione');
+        if (cb.day !== dk(new Date())) return fail('Il cane si fa entrare il giorno della lezione');
+      }
+      var cd = db.dogs.filter(function (d) { return d.id === cb.dog_id; })[0];
+      if (a.p_in !== false && cd && cd.blocked) return fail(cd.name + ' è sospeso: non può entrare in campo');
+      cb.checked_in_at = a.p_in === false ? null : (cb.checked_in_at || nowIso());
+      save();
+      return json(200, cb);
+    }
+    if (name === 'save_dog_note') {
+      var nb = db.bookings.filter(function (b) { return b.id === a.p_booking && b.status === 'active'; })[0];
+      if (!nb) return fail('Lezione non trovata');
+      if (who.role !== 'owner' && (!nb.trainer_id || nb.trainer_id !== trainerOf(who))) return fail('Non è una tua lezione');
+      var work = (a.p_work || '').trim(), comment = (a.p_comment || '').trim();
+      if (!work && !comment) return fail('Scrivi cosa avete fatto o un commento');
+      var ntr = db.trainers.filter(function (x) { return x.id === nb.trainer_id; })[0];
+      var nlt = db.lesson_types.filter(function (x) { return x.id === nb.lesson_type; })[0];
+      var author = who.role === 'owner' ? ((who.first_name + ' ' + who.last_name).trim() || 'Il campo') : (ntr ? ntr.name : '');
+      var note = db.dog_notes.filter(function (x) { return x.booking_id === nb.id; })[0];
+      if (note) { note.work = work; note.comment = comment; note.author_name = author; note.updated_at = nowIso(); }
+      else {
+        note = { id: uid(), dog_id: nb.dog_id, booking_id: nb.id, trainer_id: nb.trainer_id, author_name: author, day: nb.day,
+          lesson: (nlt ? nlt.label : nb.lesson_type) + (nb.lesson_option ? ' · ' + nb.lesson_option : ''), work: work, comment: comment, created_at: nowIso(), updated_at: nowIso() };
+        db.dog_notes.push(note);
+      }
+      save();
+      return json(200, note);
+    }
     if (name === 'busy_slots') {
       return json(200, db.bookings.filter(function (b) { return b.status === 'active' && b.day >= a.from_day && b.day <= a.to_day; })
         .map(function (b) { return { field_id: b.field_id, day: b.day, start_min: b.start_min, dur_min: b.dur_min, mine: b.user_id === who.id }; }));
@@ -447,6 +533,8 @@
         tax_code: d.tax_code || '', billing_street: d.billing_street || '', billing_zip: d.billing_zip || '', billing_city: d.billing_city || '', billing_province: d.billing_province || '', rules_ver: d.rules_ver, privacy_ver: d.privacy_ver, rules_accepted_at: nowIso(), privacy_accepted_at: nowIso(), created_at: nowIso() };
       db.profiles.push(np);
       db.passwords[email] = body.password;
+      // Come nel database vero: chi si iscrive con l'email di un trainer diventa trainer.
+      db.trainer_accounts.forEach(function (x) { if (x.email === email && !x.user_id) { x.user_id = np.id; np.role = 'trainer'; } });
       (d.dogs || []).forEach(function (g) { db.dogs.push({ id: uid(), owner_id: np.id, name: g.name, breed: g.breed || '', birth: g.birth || null, blocked: false, archived: false }); });
       save();
       return json(200, sessionFor(np));

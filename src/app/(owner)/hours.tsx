@@ -1,14 +1,12 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { Body, Button, Card, Chips, ErrorText, H1, Muted, Row, Screen, Step } from '@/components/ui';
-import { addDays, cap, dayKey, fromKey, hm, longDay, monthShort, STEP, today, weekdayShort } from '@/lib/format';
+import { SlotEditor, editableDays } from '@/components/slot-editor';
+import { Body, Button, Chips, H1, Muted, Screen } from '@/components/ui';
+import { hm, STEP } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
-
-const DAYS_AHEAD = 56;
 
 export default function OwnerHours() {
   const c = useColors();
@@ -19,15 +17,10 @@ export default function OwnerHours() {
   const [trainerPick, setTrainerPick] = useState<string | null>(null);
   const [open, setOpen] = useState<Record<string, number[]>>({});
   const [booked, setBooked] = useState<Record<string, number[]>>({});
-  const [day, setDay] = useState(dayKey(today()));
-  const [draft, setDraft] = useState<number[] | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [err, setErr] = useState('');
 
-  const from = dayKey(today());
-  const to = dayKey(addDays(today(), DAYS_AHEAD - 1));
-  const days = Array.from({ length: DAYS_AHEAD }, (_, i) => dayKey(addDays(today(), i)));
+  const days = editableDays();
+  const from = days[0];
+  const to = days[days.length - 1];
 
   const load = useCallback(async () => {
     const [a, t, b] = await Promise.all([
@@ -63,46 +56,18 @@ export default function OwnerHours() {
   // Il campo o il trainer di cui si stanno guardando gli orari.
   const subject = forTrainer ? { id: trainer.id, name: trainer.name } : field;
   if (!settings || !subject) return null;
-  const key = (k: string) => `${subject.id}|${k}`;
   const neverSet = forTrainer && !Object.keys(open).some((k) => k.startsWith(`${subject.id}|`));
-  const grid: number[] = [];
-  for (let m = settings.open_min; m < settings.close_min; m += STEP) grid.push(m);
+  const only = (src: Record<string, number[]>) =>
+    Object.fromEntries(Object.entries(src).filter(([k]) => k.startsWith(`${subject.id}|`)).map(([k, v]) => [k.split('|')[1], v]));
 
-  const current = draft ?? open[key(day)] ?? [];
-  const takenNow = booked[key(day)] ?? [];
-  const pick = (k: string) => {
-    setDay(k);
-    setDraft(null);
-    setMsg('');
-  };
-  const toggle = (m: number) => {
-    const set = new Set(current);
-    if (set.has(m)) set.delete(m);
-    else set.add(m);
-    setDraft([...set].sort((a, b) => a - b));
-    setMsg('');
-  };
-
-  async function save(targets: string[], slots: number[], ids = [subject!.id]) {
-    setErr('');
-    setSaving(true);
+  async function upsert(targets: string[], slots: number[], ids = [subject!.id]) {
     const { error } = forTrainer
       ? await supabase.from('trainer_availability').upsert(ids.flatMap((id) => targets.map((d) => ({ trainer_id: id, day: d, slots }))))
       : await supabase.from('availability').upsert(ids.flatMap((id) => targets.map((d) => ({ field_id: id, day: d, slots }))));
-    setSaving(false);
-    if (error) return setErr(errorText(error));
-    setDraft(null);
-    setMsg(
-      ids.length > 1
-        ? `Orari copiati su tutti i ${ids.length} ${forTrainer ? 'trainer' : 'campi'}.`
-        : targets.length > 1
-          ? `Orari copiati su ${targets.length} giorni.`
-          : 'Orari salvati.',
-    );
+    if (error) return errorText(error);
     load();
+    return null;
   }
-
-  const sameWeekdayNext = [1, 2, 3, 4].map((w) => dayKey(addDays(fromKey(day), 7 * w)));
 
   return (
     <Screen>
@@ -114,41 +79,19 @@ export default function OwnerHours() {
             { value: 'trainer', label: 'Trainer' },
           ]}
           value={kind}
-          onChange={(v) => {
-            setKind(v);
-            setDraft(null);
-            setMsg('');
-          }}
+          onChange={setKind}
         />
       )}
       <Muted>
         {forTrainer
-          ? 'Scegli un giorno e tocca le mezz\'ore in cui il trainer è disponibile. Le mezz\'ore in cui ha già una lezione sono segnate in oro.'
-          : 'Scegli un giorno e tocca le mezz\'ore per aprirle o chiuderle. I clienti vedono solo quelle aperte. Le mezz\'ore già prenotate sono segnate in oro.'}
+          ? "Scegli un giorno e tocca le mezz'ore in cui il trainer è disponibile. Le mezz'ore in cui ha già una lezione sono segnate in oro. Il trainer può cambiarle anche dalla sua app."
+          : "Scegli un giorno e tocca le mezz'ore per aprirle o chiuderle. I clienti vedono solo quelle aperte. Le mezz'ore già prenotate sono segnate in oro."}
       </Muted>
 
       {!forTrainer && fields.length > 1 && (
-        <Chips
-          items={fields.map((f) => ({ value: f.id, label: f.name }))}
-          value={subject.id}
-          onChange={(v) => {
-            setFieldPick(v);
-            setDraft(null);
-            setMsg('');
-          }}
-        />
+        <Chips items={fields.map((f) => ({ value: f.id, label: f.name }))} value={subject.id} onChange={setFieldPick} />
       )}
-      {forTrainer && (
-        <Chips
-          items={trainers.map((t) => ({ value: t.id, label: t.name }))}
-          value={subject.id}
-          onChange={(v) => {
-            setTrainerPick(v);
-            setDraft(null);
-            setMsg('');
-          }}
-        />
-      )}
+      {forTrainer && <Chips items={trainers.map((t) => ({ value: t.id, label: t.name }))} value={subject.id} onChange={setTrainerPick} />}
       {neverSet && (
         <Body style={{ color: c.brassText }}>
           Per {subject.name} non hai ancora impostato orari, quindi è disponibile sempre. Appena salvi un giorno, potrà avere lezioni solo nelle
@@ -156,77 +99,25 @@ export default function OwnerHours() {
         </Body>
       )}
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-        {days.map((k) => {
-          const d = fromKey(k);
-          const on = k === day;
-          const n = (open[key(k)] ?? []).length;
-          return (
-            <Pressable
-              key={k}
-              accessibilityRole="button"
-              accessibilityState={{ selected: on }}
-              onPress={() => pick(k)}
-              style={{
-                width: 58,
-                paddingVertical: 8,
-                alignItems: 'center',
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: on ? c.pitch : c.line,
-                backgroundColor: on ? c.pitch : c.surface,
-              }}>
-              <Text style={{ color: on ? c.onPitchMuted : c.muted, fontSize: 12, fontWeight: '700' }}>{weekdayShort(d)}</Text>
-              <Text style={{ color: on ? c.onPitch : c.text, fontSize: 20, fontWeight: '800' }}>{d.getDate()}</Text>
-              <Text style={{ color: on ? c.onPitchMuted : c.muted, fontSize: 11 }}>{monthShort(d)}</Text>
-              <View style={{ width: 6, height: 6, borderRadius: 3, marginTop: 3, backgroundColor: n ? c.accent : 'transparent' }} />
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-
-      <Step title={forTrainer || fields.length > 1 ? `${subject.name} · ${cap(longDay(day))}` : cap(longDay(day))} />
-      <Card>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-          {grid.map((m) => {
-            const on = current.includes(m);
-            const taken = takenNow.includes(m);
-            return (
-              <Pressable
-                key={m}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-                onPress={() => toggle(m)}
-                style={{
-                  width: 66,
-                  paddingVertical: 9,
-                  alignItems: 'center',
-                  borderRadius: 6,
-                  borderWidth: 1,
-                  borderColor: taken ? c.brass : on ? c.accent : c.line,
-                  backgroundColor: taken ? c.brassSoft : on ? c.accentSoft : c.off,
-                }}>
-                <Text style={{ color: taken ? c.brassText : on ? c.accent : c.offText, fontWeight: '700' }}>{hm(m)}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <Row>
-          <Button small kind="ghost" title="Apri tutto" onPress={() => setDraft(grid)} />
-          <Button small kind="ghost" title="Chiudi tutto" onPress={() => setDraft([])} />
-        </Row>
-        <ErrorText>{err}</ErrorText>
-        {!!msg && <Muted>{msg}</Muted>}
-        <Button title="Salva questo giorno" onPress={() => save([day], current)} loading={saving} disabled={!draft} />
-        <Button
-          kind="ghost"
-          title={`Copia sui prossimi 4 ${longDay(day).split(' ')[0]}`}
-          onPress={() => save([day, ...sameWeekdayNext], current)}
-        />
-        {!forTrainer && fields.length > 1 && (
-          <Button kind="ghost" title="Usa questi orari su tutti i campi" onPress={() => save([day], current, fields.map((f) => f.id))} />
-        )}
-      </Card>
+      <SlotEditor
+        key={`${kind}-${subject.id}`}
+        title={forTrainer || fields.length > 1 ? subject.name : undefined}
+        openMin={settings.open_min}
+        closeMin={settings.close_min}
+        open={only(open)}
+        booked={only(booked)}
+        onSave={(targets, slots) => upsert(targets, slots)}
+        extra={(day, slots, save) =>
+          !forTrainer &&
+          fields.length > 1 && (
+            <Button
+              kind="ghost"
+              title="Usa questi orari su tutti i campi"
+              onPress={() => save(() => upsert([day], slots, fields.map((f) => f.id)), `Orari copiati su tutti i ${fields.length} campi.`)}
+            />
+          )
+        }
+      />
       <Muted style={{ fontSize: 13 }}>
         La griglia va dalle {hm(settings.open_min)} alle {hm(settings.close_min)}: puoi cambiarla in Impostazioni. Chiudere una mezz&apos;ora non
         cancella le prenotazioni già fatte.

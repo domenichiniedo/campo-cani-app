@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 
 import { BillingFields } from '@/components/billing-fields';
-import { Body, Button, Card, Check, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
+import { Body, Button, Card, Check, Chips, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingColumns, billingError, emptyBilling, type BillingDraft } from '@/lib/billing';
 import { isDayKey } from '@/lib/format';
 import { usePlan } from '@/lib/plans';
@@ -27,6 +27,8 @@ export default function Register() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [sent, setSent] = useState(false);
+  // Il trainer non porta cani e non paga: servono solo i suoi dati e i consensi.
+  const [asTrainer, setAsTrainer] = useState(false);
 
   const setDog = (i: number, patch: Partial<DogDraft>) => setDogs(dogs.map((d, j) => (j === i ? { ...d, ...patch } : d)));
 
@@ -34,16 +36,16 @@ export default function Register() {
     setErr('');
     const cleanDogs = dogs.filter((d) => d.name.trim());
     if (!first.trim() || !last.trim() || !phone.trim()) return setErr('Inserisci nome, cognome e telefono.');
-    const bErr = billingError(billing);
+    const bErr = asTrainer ? null : billingError(billing);
     if (bErr) return setErr(bErr);
-    if (!cleanDogs.length) return setErr('Inserisci almeno un cane.');
+    if (!asTrainer && !cleanDogs.length) return setErr('Inserisci almeno un cane.');
     if (cleanDogs.some((d) => d.birth && !isDayKey(d.birth))) return setErr('Scrivi la data di nascita come AAAA-MM-GG, per esempio 2024-03-15.');
     if (password.length < 8) return setErr('La password deve avere almeno 8 caratteri.');
     if (!rulesOk || !privacyOk) return setErr('Per iscriverti devi accettare il regolamento e l’informativa privacy.');
     if (!settings) return setErr('Impossibile leggere il regolamento. Controlla la connessione.');
 
     setBusy(true);
-    if (plan.maxClients !== null) {
+    if (!asTrainer && plan.maxClients !== null) {
       const { data: count } = await supabase.rpc('client_count');
       if (typeof count === 'number' && count >= plan.maxClients) {
         setBusy(false);
@@ -58,10 +60,10 @@ export default function Register() {
           first_name: first.trim(),
           last_name: last.trim(),
           phone: phone.trim(),
-          ...billingColumns(billing),
+          ...(asTrainer ? {} : billingColumns(billing)),
           rules_ver: settings.rules_ver,
           privacy_ver: settings.privacy_ver,
-          dogs: cleanDogs.map((d) => ({ name: d.name.trim(), breed: d.breed.trim(), birth: d.birth || null })),
+          dogs: asTrainer ? [] : cleanDogs.map((d) => ({ name: d.name.trim(), breed: d.breed.trim(), birth: d.birth || null })),
         },
       },
     });
@@ -84,7 +86,19 @@ export default function Register() {
   return (
     <Screen>
       <H1>Iscriviti</H1>
-      <Muted>Servono i tuoi dati, quelli del cane e il consenso al regolamento e alla privacy.</Muted>
+      <Muted>
+        {asTrainer
+          ? 'Usa l\'email che hai dato al centro: entrerai nell\'area trainer con le tue lezioni.'
+          : 'Servono i tuoi dati, quelli del cane e il consenso al regolamento e alla privacy.'}
+      </Muted>
+      <Chips
+        items={[
+          { value: 'client', label: 'Sono un cliente' },
+          { value: 'trainer', label: 'Sono un trainer del centro' },
+        ]}
+        value={asTrainer ? 'trainer' : 'client'}
+        onChange={(v) => setAsTrainer(v === 'trainer')}
+      />
 
       <Step n="1" title="I tuoi dati" />
       <Card>
@@ -97,13 +111,17 @@ export default function Register() {
         <Field label="Password (almeno 8 caratteri)" value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
       </Card>
 
-      <Step n="2" title="Fatturazione" />
-      <Card>
-        <BillingFields value={billing} onChange={setBilling} />
-      </Card>
+      {!asTrainer && (
+        <>
+          <Step n="2" title="Fatturazione" />
+          <Card>
+            <BillingFields value={billing} onChange={setBilling} />
+          </Card>
 
-      <Step n="3" title={dogs.length > 1 ? 'I tuoi cani' : 'Il tuo cane'} />
-      {dogs.map((d, i) => (
+          <Step n="3" title={dogs.length > 1 ? 'I tuoi cani' : 'Il tuo cane'} />
+        </>
+      )}
+      {!asTrainer && dogs.map((d, i) => (
         <Card key={i}>
           <Field label="Nome del cane" value={d.name} onChangeText={(v) => setDog(i, { name: v })} />
           <Field label="Razza" value={d.breed} onChangeText={(v) => setDog(i, { breed: v })} />
@@ -111,9 +129,11 @@ export default function Register() {
           {dogs.length > 1 && <Button title="Togli questo cane" kind="danger" small onPress={() => setDogs(dogs.filter((_, j) => j !== i))} />}
         </Card>
       ))}
-      <Button title="+ Aggiungi un altro cane" kind="ghost" onPress={() => setDogs([...dogs, { name: '', breed: '', birth: '' }])} />
+      {!asTrainer && (
+        <Button title="+ Aggiungi un altro cane" kind="ghost" onPress={() => setDogs([...dogs, { name: '', breed: '', birth: '' }])} />
+      )}
 
-      <Step n="4" title="Consensi" />
+      <Step n={asTrainer ? '2' : '4'} title="Consensi" />
       <Card>
         {settings && <Expandable title="il regolamento" lines={rulesLines(settings, lessonTypes)} />}
         <Check value={rulesOk} onChange={setRulesOk}>

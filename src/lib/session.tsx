@@ -17,6 +17,9 @@ type Ctx = {
   /** Trainer attivi, in ordine (nessuno se il piano non li prevede). */
   trainers: Trainer[];
   isOwner: boolean;
+  isTrainer: boolean;
+  /** Il trainer collegato all'account, se chi è entrato è un trainer. */
+  myTrainer: Trainer | null;
   needsTerms: boolean;
   /** Cliente senza codice fiscale o indirizzo di fatturazione (iscritto prima che servissero). */
   needsBilling: boolean;
@@ -35,6 +38,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [lessonTypes, setLessonTypes] = useState<LessonType[]>([]);
   const [fields, setFields] = useState<Field[]>([]);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
+  const [myTrainerId, setMyTrainerId] = useState<string | null>(null);
   // Utente per cui profilo e impostazioni sono già caricati (null = nessuno connesso).
   const [loadedFor, setLoadedFor] = useState<string | null | undefined>(undefined);
 
@@ -53,6 +57,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (uid) {
       const p = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle();
       setProfile((p.data as Profile) ?? null);
+      if ((p.data as Profile | null)?.role === 'trainer') {
+        const a = await supabase.from('trainer_accounts').select('trainer_id').eq('user_id', uid).maybeSingle();
+        setMyTrainerId((a.data as { trainer_id: string } | null)?.trainer_id ?? null);
+      } else {
+        setMyTrainerId(null);
+      }
     } else {
       setProfile(null);
     }
@@ -79,17 +89,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const dataReady = loadedFor === uid;
 
   const isOwner = profile?.role === 'owner';
+  const isTrainer = profile?.role === 'trainer';
+  const myTrainer = isTrainer ? (trainers.find((t) => t.id === myTrainerId) ?? null) : null;
+  // Regolamento e dati di fatturazione servono ai clienti, non a proprietario e trainer.
   const needsTerms =
-    !!session && !!profile && !!settings && !isOwner &&
+    !!session && !!profile && !!settings && !isOwner && !isTrainer &&
     (profile.rules_ver !== settings.rules_ver || profile.privacy_ver !== settings.privacy_ver);
-  const needsBilling = !!session && !!profile && !isOwner && !hasBilling(profile);
+  const needsBilling = !!session && !!profile && !isOwner && !isTrainer && !hasBilling(profile);
   const logoUrl = settings?.logo_path
     ? supabase.storage.from('branding').getPublicUrl(settings.logo_path).data.publicUrl
     : null;
 
   return (
     <SessionContext.Provider
-      value={{ ready: authReady && dataReady, session, profile, settings, lessonTypes, fields, trainers, isOwner, needsTerms, needsBilling, logoUrl, refresh }}>
+      value={{ ready: authReady && dataReady, session, profile, settings, lessonTypes, fields, trainers, isOwner, isTrainer, myTrainer, needsTerms, needsBilling, logoUrl, refresh }}>
       {children}
     </SessionContext.Provider>
   );

@@ -2,6 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
+import { DogDiary } from '@/components/dog-diary';
 import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Field, H1, Muted, Row, Screen } from '@/components/ui';
 import { billingLine } from '@/lib/billing';
 import { euro, shortDate } from '@/lib/format';
@@ -203,6 +204,8 @@ export default function OwnerClients() {
 
 /** Scheda del cliente: contatti, dati di fatturazione, pacchetti e cani con penalità. */
 function ClientDetail({ p, act }: { p: Client; act: Act }) {
+  const { trainers } = useSession();
+  const [diary, setDiary] = useState<string | null>(null);
   return (
     <View style={{ gap: 10 }}>
       <View style={{ gap: 2 }}>
@@ -246,12 +249,18 @@ function ClientDetail({ p, act }: { p: Client; act: Act }) {
               <ConfirmButton title="Togli" onConfirm={() => act(() => supabase.from('penalties').delete().eq('id', pen.id))} />
             </Row>
           ))}
-          <Button
-            small
-            kind={d.blocked ? 'primary' : 'danger'}
-            title={d.blocked ? 'Riattiva prenotazioni' : 'Sospendi prenotazioni'}
-            onPress={() => act(() => supabase.from('dogs').update({ blocked: !d.blocked }).eq('id', d.id))}
-          />
+          <Row>
+            {trainers.length > 0 && (
+              <Button small kind="ghost" title={diary === d.id ? 'Chiudi diario' : 'Diario'} onPress={() => setDiary(diary === d.id ? null : d.id)} />
+            )}
+            <Button
+              small
+              kind={d.blocked ? 'primary' : 'danger'}
+              title={d.blocked ? 'Riattiva prenotazioni' : 'Sospendi prenotazioni'}
+              onPress={() => act(() => supabase.from('dogs').update({ blocked: !d.blocked }).eq('id', d.id))}
+            />
+          </Row>
+          {diary === d.id && <DogDiary dogId={d.id} limit={10} empty={`Il diario di ${d.name} è ancora vuoto.`} />}
         </View>
       ))}
     </View>
