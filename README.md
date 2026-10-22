@@ -18,8 +18,9 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
    (fatture dei pagamenti online), `0007_scontrini.sql` (scontrino elettronico in alternativa alla fattura) e
    `0008_licenza.sql` (licenza per l'app venduta ad altri centri), `0009_piani.sql` (piani Base, Professional e Pro),
    `0010_prenota_proprietario.sql` (il proprietario prenota per i clienti), `0011_disponibilita_trainer.sql` (orari dei
-   trainer), `0012_documento_pacchetti.sql` (fattura o scontrino all'incasso dei pacchetti) e `0013_area_trainer.sql`
-   (app dei trainer e diario di allenamento dei cani).
+   trainer), `0012_documento_pacchetti.sql` (fattura o scontrino all'incasso dei pacchetti), `0013_area_trainer.sql`
+   (app dei trainer e diario di allenamento dei cani) e `0014_foto_e_penalita.sql` (foto di trainer e clienti,
+   penalità date dal trainer).
    Ogni file va eseguito una volta sola.
 3. In **Project Settings → API Keys** copia l'URL del progetto e la **Publishable key** (inizia con `sb_publishable_`).
    Non usare mai la Secret key nell'app.
@@ -171,7 +172,7 @@ firmato con una chiave privata che resta sul tuo computer: chi non ce l'ha non p
 **Per ogni centro che compra**
 
 1. Crea il suo progetto Supabase (meglio sul suo account, così i dati dei suoi clienti sono suoi) ed esegui le
-   migrazioni, dalla `0001` alla `0013`, come al punto 1.
+   migrazioni, dalla `0001` alla `0014`, come al punto 1.
 2. Genera la licenza con il piano, l'indirizzo e la **publishable key** del suo progetto:
    ```sh
    node tools/licenza.mjs genera --campo "Centro Cinofilo Le Querce" --id querce --piano professional \
@@ -241,7 +242,8 @@ né schermate dei clienti), con la stessa licenza e la stampa sul registratore E
 - Pacchetti: vede quelli offerti e li richiede; paga al campo e il proprietario lo attiva. Da lì ogni prenotazione di quel
   tipo scala una lezione, e una lezione annullata torna nel pacchetto.
 - Diario: per ogni cane, cosa si è fatto a ogni lezione e i commenti del trainer.
-- Profilo: dati, cani, penalità ricevute, regolamento e privacy.
+- Profilo: foto (fotocamera o galleria), dati, cani, penalità ricevute, regolamento e privacy.
+- Le mie lezioni mostrano il trainer con la sua foto.
 - Se il proprietario cambia regolamento o privacy, al prossimo accesso deve accettare il nuovo testo prima di prenotare.
 
 **Proprietario**
@@ -253,7 +255,8 @@ né schermate dei clienti), con la stessa licenza e la stampa sul registratore E
   tutti i campi. Un trainer senza orari impostati è sempre disponibile.
 - Incassi: incassato, da incassare e previsto per settimana, mese o anno, con grafico e lezioni per tipo, campo, trainer e
   pagamento.
-- Trainer: elenco con lezioni della settimana, ore disponibili, diari scritti e collegamento dell'app con la loro email.
+- Trainer: elenco con foto (fotocamera o galleria), lezioni della settimana, ore disponibili, diari scritti e collegamento
+  dell'app con la loro email.
 - Clienti: lista in ordine alfabetico con filtri, diario di ogni cane, ricerca anche per codice fiscale, dati di fatturazione, pacchetti da attivare e lezioni rimaste, penalità per cane, sospensione e riattivazione. Alla penalità numero N (scelta in Impostazioni) il cane
   viene sospeso da solo; 0 spegne la sospensione automatica.
 - Impostazioni: nome del centro, logo, numero di campi (ognuno con nome e indirizzo, anche uguale), trainer con le
@@ -266,6 +269,9 @@ né schermate dei clienti), con la stessa licenza e la stampa sul registratore E
 - Lezioni: le sue lezioni del giorno con cane, cliente e telefono; il giorno della lezione fa entrare il cane in campo.
 - Diario: dopo la lezione scrive cosa si è fatto e i commenti; li leggono il cliente e il proprietario.
 - Disponibilità: segna le mezz'ore in cui può fare lezione.
+- Penalità: il giorno della lezione o dopo dà una penalità al cane (stessi motivi del proprietario) e può toglierla se
+  sbaglia. Alla soglia il cane viene sospeso; lo riattiva il proprietario.
+- Profilo: cambia la sua foto; nome e lezioni che segue li decide il centro.
 
 **Pagamento online.** È predisposto ma spento: i clienti pagano al campo. Per accenderlo serve collegare un conto Stripe e un
 piccolo servizio lato server, da fare a parte.

@@ -42,7 +42,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Serve per scegliere il logo del campo dalla galleria."
+          "photosPermission": "Serve per scegliere dalla galleria il logo del campo e le foto di trainer e clienti.",
+          "cameraPermission": "Serve per scattare le foto di trainer e clienti."
         }
       ],
       [

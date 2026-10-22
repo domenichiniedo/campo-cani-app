@@ -1,6 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
+import { Avatar } from '@/components/photo';
 import { Badge, Body, Card, ConfirmButton, ErrorText, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { dayKey, euro, hm, longDay, slotDate, today } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -14,7 +15,7 @@ type BookingRow = Booking & {
 };
 
 export default function MyBookings() {
-  const { profile, settings, fields } = useSession();
+  const { profile, settings, fields, trainers } = useSession();
   const [rows, setRows] = useState<BookingRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
@@ -52,6 +53,7 @@ export default function MyBookings() {
       {rows.map((b) => {
         const startsAt = slotDate(b.day, b.start_min);
         const canCancel = startsAt.getTime() - now >= limitMs;
+        const trainer = trainers.find((t) => t.id === b.trainer_id);
         return (
           <Card key={b.id}>
             <Step title={`${longDay(b.day)} · ${hm(b.start_min)}`} />
@@ -64,6 +66,12 @@ export default function MyBookings() {
                 {b.fields.name}
                 {b.fields.address ? ` · ${b.fields.address}` : ''}
               </Muted>
+            )}
+            {trainer && (
+              <Row>
+                <Avatar name={trainer.name} path={trainer.photo_path} size={32} />
+                <Muted>{`Con ${trainer.name}`}</Muted>
+              </Row>
             )}
             <Row>
               <Badge>{`${b.dur_min} min`}</Badge>

@@ -2,6 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 
+import { PhotoEditor } from '@/components/photo';
 import { Badge, Body, Button, Card, ErrorText, Field, H1, Muted, Row, Screen, Stat } from '@/components/ui';
 import { addDays, dayKey, today } from '@/lib/format';
 import { mondayOf } from '@/lib/owner';
@@ -13,7 +14,7 @@ type Stats = { week: number; today: number; notes: number; hours: number | null 
 
 /** Elenco dei trainer: cosa seguono, lezioni, orari, diario e account per l'app. */
 export default function OwnerTrainers() {
-  const { trainers, lessonTypes } = useSession();
+  const { trainers, lessonTypes, refresh } = useSession();
   const [accounts, setAccounts] = useState<Record<string, TrainerAccount>>({});
   const [stats, setStats] = useState<Record<string, Stats>>({});
   const [emails, setEmails] = useState<Record<string, string>>({});
@@ -74,7 +75,7 @@ export default function OwnerTrainers() {
       <H1>Trainer</H1>
       <Muted>
         Ogni trainer entra nell&apos;app con la sua email: vede le sue lezioni, fa entrare i cani in campo, segna la sua disponibilità e scrive il
-        diario dei cani. Per aggiungere o rinominare un trainer vai in Impostazioni.
+        diario dei cani. La foto la vedono i clienti nelle loro lezioni e nel diario. Per aggiungere o rinominare un trainer vai in Impostazioni.
       </Muted>
       <ErrorText>{err}</ErrorText>
       {trainers.length === 0 && <Muted>Non hai ancora trainer. Aggiungili in Impostazioni.</Muted>}
@@ -90,6 +91,17 @@ export default function OwnerTrainers() {
               {a?.user_id ? <Badge tone="ok">App collegata</Badge> : a ? <Badge tone="warn">In attesa di iscrizione</Badge> : <Badge>Senza app</Badge>}
             </Row>
             <Muted>{`Segue: ${follows}`}</Muted>
+            <PhotoEditor
+              name={t.name}
+              path={t.photo_path}
+              prefix={`trainer-${t.id}-`}
+              save={async (path) => {
+                const { error } = await supabase.from('trainers').update({ photo_path: path }).eq('id', t.id);
+                if (error) return errorText(error);
+                await refresh();
+                return null;
+              }}
+            />
             {st && (
               <Row>
                 <Stat label="Oggi" value={st.today} />

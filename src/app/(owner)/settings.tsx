@@ -1,5 +1,4 @@
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 
@@ -9,6 +8,7 @@ import { LimitNote } from '@/components/limit-note';
 import { PackagesEditor } from '@/components/packages-editor';
 import { Body, Button, Card, ErrorText, Field, H1, Muted, Row, Screen, Step, Toggle } from '@/components/ui';
 import { hm, parseHm, STEP } from '@/lib/format';
+import { pickAndUpload, removeImage, type Source } from '@/lib/images';
 import { licensingEnabled } from '@/lib/license';
 import { planWith, usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
@@ -147,22 +147,16 @@ export default function OwnerSettings() {
   const typesFull = plan.maxLessonTypes !== null && activeTypes >= plan.maxLessonTypes;
   const setType = (i: number, patch: Partial<TypeDraft>) => setTypes(types.map((t, j) => (j === i ? { ...t, ...patch } : t)));
 
-  async function pickLogo() {
+  async function pickLogo(source: Source) {
     setErr('');
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
-    if (res.canceled) return;
-    const asset = res.assets[0];
     setUploading(true);
     try {
-      const body = await (await fetch(asset.uri)).arrayBuffer();
-      const ext = (asset.mimeType ?? 'image/jpeg').split('/')[1] ?? 'jpg';
-      const path = `logo-${Date.now()}.${ext}`;
-      const up = await supabase.storage.from('branding').upload(path, body, { contentType: asset.mimeType ?? 'image/jpeg' });
-      if (up.error) throw up.error;
+      const path = await pickAndUpload('branding', 'logo-', source);
+      if (!path) return setUploading(false);
       const old = settings?.logo_path;
       const { error } = await supabase.from('settings').update({ logo_path: path }).eq('id', 1);
       if (error) throw error;
-      if (old) await supabase.storage.from('branding').remove([old]);
+      await removeImage('branding', old);
       await refresh();
       setMsg('Logo aggiornato.');
     } catch (e) {
@@ -174,7 +168,7 @@ export default function OwnerSettings() {
   async function removeLogo() {
     if (!settings?.logo_path) return;
     await supabase.from('settings').update({ logo_path: null }).eq('id', 1);
-    await supabase.storage.from('branding').remove([settings.logo_path]);
+    await removeImage('branding', settings.logo_path);
     refresh();
   }
 
@@ -264,7 +258,8 @@ export default function OwnerSettings() {
             {logoUrl && <Image source={{ uri: logoUrl }} style={{ width: '100%', height: '100%' }} contentFit="contain" />}
           </View>
           <View style={{ gap: 8, flex: 1 }}>
-            <Button small title={logoUrl ? 'Cambia logo' : 'Carica logo'} onPress={pickLogo} loading={uploading} />
+            <Button small title={logoUrl ? 'Cambia logo' : 'Carica logo'} onPress={() => pickLogo('library')} loading={uploading} />
+            <Button small kind="ghost" title="Scatta foto del logo" onPress={() => pickLogo('camera')} disabled={uploading} />
             {logoUrl && <Button small kind="ghost" title="Togli logo" onPress={removeLogo} />}
           </View>
         </Row>

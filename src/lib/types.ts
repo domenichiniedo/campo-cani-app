@@ -29,6 +29,8 @@ export type Trainer = {
   lessons: string[];
   sort: number;
   active: boolean;
+  /** Foto nello spazio pubblico "branding"; null = iniziali al posto della foto. */
+  photo_path: string | null;
 };
 
 export type LessonType = {
@@ -61,6 +63,8 @@ export type Profile = {
   billing_zip: string;
   billing_city: string;
   billing_province: string;
+  /** Foto nello spazio "foto", messa dal cliente; null = iniziali. */
+  photo_path: string | null;
 };
 
 export type Dog = {

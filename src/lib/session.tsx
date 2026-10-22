@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import { hasBilling } from '@/lib/billing';
+import { imageUrl } from '@/lib/images';
 import { upTo, usePlan } from '@/lib/plans';
 import { supabase } from '@/lib/supabase';
 import type { Field, LessonType, Profile, Settings, Trainer } from '@/lib/types';
@@ -96,9 +97,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     !!session && !!profile && !!settings && !isOwner && !isTrainer &&
     (profile.rules_ver !== settings.rules_ver || profile.privacy_ver !== settings.privacy_ver);
   const needsBilling = !!session && !!profile && !isOwner && !isTrainer && !hasBilling(profile);
-  const logoUrl = settings?.logo_path
-    ? supabase.storage.from('branding').getPublicUrl(settings.logo_path).data.publicUrl
-    : null;
+  const logoUrl = imageUrl('branding', settings?.logo_path);
 
   return (
     <SessionContext.Provider

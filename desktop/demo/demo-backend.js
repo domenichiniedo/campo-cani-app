@@ -1,7 +1,7 @@
 // Finto Supabase in memoria per la demo nel browser: risponde alle chiamate dell'app senza server.
 (function () {
   var BASE = 'https://demo.supabase.co';
-  var KEY = 'campo-demo-db-v5';
+  var KEY = 'campo-demo-db-v6';
   try { history.replaceState(null, '', '/'); } catch (e) {}
 
   function pad(n) { return String(n).padStart(2, '0'); }
@@ -29,16 +29,23 @@
         { id: 'f2', name: 'Campo B', address: 'Via dei Campi 12, Bologna', sort: 2, active: true }
       ],
       trainers: [
-        { id: 't1', name: 'Luca', lessons: ['igp'], sort: 1, active: true },
-        { id: 't2', name: 'Paola', lessons: [], sort: 2, active: true }
+        { id: 't1', name: 'Luca', lessons: ['igp'], sort: 1, active: true, photo_path: 'trainer-t1-demo.svg' },
+        { id: 't2', name: 'Paola', lessons: [], sort: 2, active: true, photo_path: 'trainer-t2-demo.svg' }
       ],
       packages: [
         { id: 'p1', name: '10 lezioni IGP', lesson_type: 'igp', lessons: 10, price_cents: 22000, valid_days: 180, sort: 1, active: true },
         { id: 'p2', name: '5 lezioni base', lesson_type: 'base', lessons: 5, price_cents: 6500, valid_days: 90, sort: 2, active: true }
       ],
       client_packages: [],
-      profiles: [], dogs: [], availability: [], trainer_availability: [], trainer_accounts: [], dog_notes: [], bookings: [], penalties: [], passwords: {}
+      profiles: [], dogs: [], availability: [], trainer_availability: [], trainer_accounts: [], dog_notes: [], bookings: [], penalties: [], passwords: {},
+      // Foto di esempio dei trainer: sagome disegnate, si possono cambiare dalla pagina Trainer.
+      files: { 'foto/trainer-t1-demo.svg': avatar('#cfe3d6', '#e8b994', '#3b2a20'), 'foto/trainer-t2-demo.svg': avatar('#f1dcc0', '#f0c7a4', '#8a4b2a') }
     };
+    function avatar(bg, skin, hair) {
+      return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">' +
+        '<rect width="120" height="120" fill="' + bg + '"/><path d="M16 120c4-30 22-42 44-42s40 12 44 42z" fill="' + hair + '" opacity=".8"/>' +
+        '<circle cx="60" cy="52" r="25" fill="' + skin + '"/><path d="M34 50a26 26 0 0 1 52 0c-7-11-15-15-26-15s-19 4-26 15z" fill="' + hair + '"/></svg>');
+    }
     function person(id, first, last, phone, email, role, cf) {
       db.profiles.push({ id: id, first_name: first, last_name: last, phone: phone, email: email, role: role,
         tax_code: cf || '', billing_street: cf ? 'Via Saragozza 15' : '', billing_zip: cf ? '40123' : '', billing_city: cf ? 'Bologna' : '', billing_province: cf ? 'BO' : '', doc_pref: id === 'c3' ? 'receipt' : 'invoice', rules_ver: 1, privacy_ver: 1, rules_accepted_at: nowIso(), privacy_accepted_at: nowIso(), created_at: addDays(t, -40).toISOString() });
@@ -251,7 +258,8 @@
       if (table === 'dogs') return rows.filter(function (r) { return seen.indexOf(r.id) >= 0; });
       if (table === 'dog_notes') return rows.filter(function (r) { return seen.indexOf(r.dog_id) >= 0; });
       if (table === 'trainer_accounts') return rows.filter(function (r) { return r.user_id === who.id; });
-      if (['penalties', 'client_packages', 'invoices', 'invoice_settings'].indexOf(table) >= 0) return [];
+      if (table === 'penalties') return rows.filter(function (r) { return seen.indexOf(r.dog_id) >= 0; });
+      if (['client_packages', 'invoices', 'invoice_settings'].indexOf(table) >= 0) return [];
       return rows;
     }
     var id = who && who.id;
@@ -414,6 +422,38 @@
       }
       save();
       return json(200, note);
+    }
+    if (name === 'set_my_photo') {
+      var mine = db.trainers.filter(function (x) { return x.id === trainerOf(who); })[0];
+      if (!mine) return fail('Solo un trainer collegato può cambiare la sua foto.');
+      if (a.p_path && a.p_path.indexOf('trainer-' + mine.id + '-') !== 0) return fail('Foto non valida.');
+      mine.photo_path = a.p_path || null;
+      save();
+      return json(200, null);
+    }
+    if (name === 'trainer_penalty') {
+      var pb = db.bookings.filter(function (b) { return b.id === a.p_booking && b.status === 'active'; })[0];
+      if (!pb) return fail('Lezione non trovata.');
+      if (who.role !== 'owner') {
+        if (!pb.trainer_id || pb.trainer_id !== trainerOf(who)) return fail('Non è una tua lezione.');
+        if (pb.day > dk(new Date())) return fail('La penalità si dà il giorno della lezione o dopo.');
+      }
+      if (!(a.p_reason || '').trim()) return fail('Scegli il motivo della penalità.');
+      var pen = { id: uid(), dog_id: pb.dog_id, booking_id: pb.id, reason: a.p_reason.trim(), created_at: nowIso() };
+      db.penalties.push(pen);
+      var lim = db.settings[0].penalty_limit;
+      if (lim > 0 && db.penalties.filter(function (x) { return x.dog_id === pb.dog_id; }).length >= lim)
+        db.dogs.forEach(function (d) { if (d.id === pb.dog_id) d.blocked = true; });
+      save();
+      return json(200, pen);
+    }
+    if (name === 'trainer_remove_penalty') {
+      var rp = db.penalties.filter(function (x) { return x.id === a.p_id; })[0];
+      var rb = rp && db.bookings.filter(function (b) { return b.id === rp.booking_id; })[0];
+      if (!rp || (who.role !== 'owner' && (!rb || rb.trainer_id !== trainerOf(who)))) return fail('Non è una penalità di una tua lezione.');
+      db.penalties = db.penalties.filter(function (x) { return x.id !== a.p_id; });
+      save();
+      return json(200, null);
     }
     if (name === 'busy_slots') {
       return json(200, db.bookings.filter(function (b) { return b.status === 'active' && b.day >= a.from_day && b.day <= a.to_day; })
@@ -578,7 +618,7 @@
 
   // Logo: senza server il file resta nel browser, rimpicciolito, e le immagini che puntano
   // all'indirizzo pubblico finto vengono girate sulla copia salvata.
-  var PUBLIC = BASE + '/storage/v1/object/public/branding/';
+  var PUBLIC = BASE + '/storage/v1/object/public/';
   function shrink(blob) {
     return new Promise(function (ok, ko) {
       var src = URL.createObjectURL(blob), img = new Image();
@@ -596,18 +636,21 @@
   }
   async function storage(method, path, raw, body) {
     db.files = db.files || {};
-    if (path.indexOf('object/branding/') === 0 && (method === 'POST' || method === 'PUT')) {
-      var name = decodeURIComponent(path.slice(16));
+    // I file si salvano come "bucket/nome": branding per il logo, foto per trainer e clienti.
+    var up = /^object\/(branding|foto)\/(.+)$/.exec(path);
+    if (up && (method === 'POST' || method === 'PUT')) {
+      var name = up[1] + '/' + decodeURIComponent(up[2]);
       var blob = raw;
       if (typeof FormData !== 'undefined' && raw instanceof FormData) raw.forEach(function (v) { if (v instanceof Blob) blob = v; });
       if (!(blob instanceof Blob)) blob = new Blob([raw]);
       try { db.files[name] = await shrink(blob); } catch (e) { return json(400, { statusCode: '400', error: 'invalid', message: e.message }); }
       save();
       fixImages(document);
-      return json(200, { Key: 'branding/' + name, Id: name });
+      return json(200, { Key: name, Id: name });
     }
-    if (path === 'object/branding' && method === 'DELETE') {
-      ((body && body.prefixes) || []).forEach(function (n) { delete db.files[n]; });
+    var del = /^object\/(branding|foto)$/.exec(path);
+    if (del && method === 'DELETE') {
+      ((body && body.prefixes) || []).forEach(function (n) { delete db.files[del[1] + '/' + n]; });
       save();
       return json(200, []);
     }

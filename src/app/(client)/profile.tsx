@@ -2,6 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
 import { BillingFields } from '@/components/billing-fields';
+import { PhotoEditor } from '@/components/photo';
 import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingColumns, billingError, billingFromProfile } from '@/lib/billing';
 import { euro, isDayKey, shortDate } from '@/lib/format';
@@ -95,6 +96,19 @@ export default function Profile() {
 
       <Step title="I tuoi dati" />
       <Card>
+        {profile && (
+          <PhotoEditor
+            name={`${first} ${last}`}
+            path={profile.photo_path}
+            prefix={`cliente-${profile.id}-`}
+            save={async (path) => {
+              const { error } = await supabase.from('profiles').update({ photo_path: path }).eq('id', profile.id);
+              if (error) return errorText(error);
+              await refresh();
+              return null;
+            }}
+          />
+        )}
         <Row>
           <Field label="Nome" value={first} onChangeText={setFirst} style={{ flex: 1, minWidth: 140 }} />
           <Field label="Cognome" value={last} onChangeText={setLast} style={{ flex: 1, minWidth: 140 }} />
