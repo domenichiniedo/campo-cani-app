@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Modal, ScrollView, Text, View } from 'react-native';
 
+import { Avatar } from '@/components/photo';
 import { Button, ErrorText, Field, H1, Muted, Row } from '@/components/ui';
 import { cap, longDay } from '@/lib/format';
+import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
 import type { DogNote } from '@/lib/types';
@@ -24,13 +26,18 @@ export function useDogNotes(dogId: string | null) {
 /** Una pagina del diario: giorno, lezione, chi l'ha scritta, cosa si è fatto e il commento. */
 export function NoteItem({ n }: { n: DogNote }) {
   const c = useColors();
+  const { trainers } = useSession();
+  const trainer = trainers.find((t) => t.id === n.trainer_id);
   return (
     <View style={{ gap: 4, borderLeftWidth: 3, borderLeftColor: c.accent, paddingLeft: 10 }}>
       <Text style={{ color: c.text, fontWeight: '800' }}>{cap(longDay(n.day))}</Text>
-      <Muted style={{ fontSize: 13 }}>
-        {n.lesson}
-        {n.author_name ? ` · ${n.author_name}` : ''}
-      </Muted>
+      <Row>
+        {trainer && <Avatar name={trainer.name} path={trainer.photo_path} size={24} />}
+        <Muted style={{ fontSize: 13, flex: 1 }}>
+          {n.lesson}
+          {n.author_name ? ` · ${n.author_name}` : ''}
+        </Muted>
+      </Row>
       {!!n.work && (
         <Text style={{ color: c.text, lineHeight: 20 }}>
           <Text style={{ fontWeight: '700' }}>Cosa abbiamo fatto: </Text>

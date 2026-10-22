@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 
+import { LimitNote } from '@/components/limit-note';
 import { Button, Card, Chips, ErrorText, Field, Muted, Row, Toggle } from '@/components/ui';
+import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import type { Package } from '@/lib/types';
@@ -20,6 +22,7 @@ const toDraft = (p: Package): Draft => ({
 /** Pacchetti di lezioni che i clienti possono richiedere. Si salvano a parte dalle altre impostazioni. */
 export function PackagesEditor() {
   const { lessonTypes } = useSession();
+  const plan = usePlan();
   const [list, setList] = useState<Draft[]>([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
@@ -36,6 +39,9 @@ export function PackagesEditor() {
     load();
   }, []);
 
+  // Il piano conta i pacchetti richiedibili: quelli spenti non pesano.
+  const activeCount = list.filter((d) => d.active).length;
+  const full = plan.maxPackages !== null && activeCount >= plan.maxPackages;
   const setAt = (i: number, patch: Partial<Draft>) => setList(list.map((d, j) => (j === i ? { ...d, ...patch } : d)));
 
   async function save() {
@@ -83,14 +89,16 @@ export function PackagesEditor() {
             <Field label="Prezzo (€)" value={d.price} onChangeText={(v) => setAt(i, { price: v })} keyboardType="decimal-pad" style={{ flex: 1, minWidth: 90 }} />
             <Field label="Validità (giorni)" value={d.validDays} onChangeText={(v) => setAt(i, { validDays: v })} keyboardType="number-pad" placeholder="sempre" style={{ flex: 1, minWidth: 110 }} />
           </Row>
-          <Toggle label="Richiedibile dai clienti" value={d.active} onChange={(v) => setAt(i, { active: v })} />
+          <Toggle label="Richiedibile dai clienti" value={d.active} onChange={(v) => setAt(i, { active: v })} disabled={!d.active && full} />
         </Card>
       ))}
       <Button
         title="+ Aggiungi pacchetto"
         kind="ghost"
+        disabled={full}
         onPress={() => setList([...list, { name: '', lessonType: lessonTypes[0]?.id ?? '', lessons: '10', price: '0', validDays: '180', active: true }])}
       />
+      <LimitNote kind="maxPackages" count={activeCount} what="pacchetti richiedibili" />
       <ErrorText>{err}</ErrorText>
       {!!msg && <Muted>{msg}</Muted>}
       {list.length > 0 && <Button title="Salva pacchetti" onPress={save} loading={saving} />}

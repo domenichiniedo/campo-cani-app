@@ -3,9 +3,11 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import { DogDiary } from '@/components/dog-diary';
+import { Avatar } from '@/components/photo';
 import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Field, H1, Muted, Row, Screen } from '@/components/ui';
 import { billingLine } from '@/lib/billing';
 import { euro, shortDate } from '@/lib/format';
+import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
@@ -22,6 +24,7 @@ const initial = (p: Client) => (p.last_name || p.first_name).charAt(0).toUpperCa
 export default function OwnerClients() {
   const c = useColors();
   const { settings } = useSession();
+  const plan = usePlan();
   // Sul PC la scheda del cliente sta a destra della lista; sul telefono si apre sotto il nome.
   const { width, height } = useWindowDimensions();
   const wide = width >= 900;
@@ -114,6 +117,7 @@ export default function OwnerClients() {
                 borderTopColor: c.line,
                 backgroundColor: on ? c.accentSoft : pressed ? c.surface2 : c.surface,
               })}>
+              <Avatar name={fullName(p) || p.email} path={p.photo_path} size={32} />
               <View style={{ flex: 1, gap: 1 }}>
                 <Text style={{ color: c.text, fontWeight: '700', fontSize: 15 }} numberOfLines={1}>
                   {sortName(p) || p.email}
@@ -154,14 +158,16 @@ export default function OwnerClients() {
       {requests.length > 0 && (
         <Card accent>
           <Body bold>{requests.length === 1 ? '1 pacchetto da attivare' : `${requests.length} pacchetti da attivare`}</Body>
-          <Muted style={{ fontSize: 13 }}>Attivalo quando il cliente paga: parte la fattura o lo scontrino, come per le lezioni.</Muted>
+          <Muted style={{ fontSize: 13 }}>
+            {plan.invoices ? 'Attivalo quando il cliente paga: parte la fattura o lo scontrino, come per le lezioni.' : 'Attivalo quando il cliente paga.'}
+          </Muted>
           {requests.map(({ p, cp }) => (
             <View key={cp.id} style={{ gap: 6 }}>
               <Muted>
                 {fullName(p)}: {cp.name}, {euro(cp.price_cents)}
               </Muted>
               <Row>
-                <Button small title="Incassato, attiva" onPress={() => activate(cp)} />
+                <Button small title={plan.payments ? 'Incassato, attiva' : 'Attiva'} onPress={() => activate(cp)} />
                 <ConfirmButton title="Rifiuta" onConfirm={() => reject(cp)} />
               </Row>
             </View>
@@ -208,11 +214,16 @@ function ClientDetail({ p, act }: { p: Client; act: Act }) {
   const [diary, setDiary] = useState<string | null>(null);
   return (
     <View style={{ gap: 10 }}>
+      <Row>
+        <Avatar name={fullName(p) || p.email} path={p.photo_path} size={56} />
+        <View style={{ gap: 2, flex: 1 }}>
+          <Body bold>{fullName(p)}</Body>
+          <Muted>
+            {p.phone} · {p.email}
+          </Muted>
+        </View>
+      </Row>
       <View style={{ gap: 2 }}>
-        <Body bold>{fullName(p)}</Body>
-        <Muted>
-          {p.phone} · {p.email}
-        </Muted>
         <Muted style={{ fontSize: 13 }}>{p.tax_code ? `CF ${p.tax_code} · ${billingLine(p)}` : 'Dati di fatturazione mancanti'}</Muted>
         <Muted style={{ fontSize: 12 }}>
           Iscritto il {shortDate(p.created_at)} · consensi regolamento v{p.rules_ver ?? '–'}, privacy v{p.privacy_ver ?? '–'}

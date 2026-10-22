@@ -3,20 +3,22 @@ import { useCallback, useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { NoteEditor, type NoteTarget } from '@/components/dog-diary';
-import { Badge, Body, Button, Card, ErrorText, H1, Muted, Row, Screen, Stat } from '@/components/ui';
+import { Avatar } from '@/components/photo';
+import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, H1, Muted, Row, Screen, Stat } from '@/components/ui';
 import { addDays, cap, dayKey, fromKey, hm, longDay, timeOf, today } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
-import { fullName, type Booking } from '@/lib/types';
+import { fullName, PENALTY_REASONS, type Booking } from '@/lib/types';
 
 type Lesson = Booking & {
-  profiles: { first_name: string; last_name: string; phone: string } | null;
+  profiles: { first_name: string; last_name: string; phone: string; photo_path: string | null } | null;
   dogs: { name: string; breed: string; blocked: boolean } | null;
   lesson_types: { label: string } | null;
   fields: { name: string } | null;
   // Un solo diario per lezione: a seconda del server arriva come oggetto o come lista.
   dog_notes: { id: string } | { id: string }[] | null;
+  penalties: { id: string; reason: string }[];
 };
 
 /** Le lezioni del trainer, giorno per giorno: fa entrare il cane e scrive il diario. */
@@ -27,6 +29,8 @@ export default function TrainerLessons() {
   const [rows, setRows] = useState<Lesson[]>([]);
   const [note, setNote] = useState<NoteTarget | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [penaltyFor, setPenaltyFor] = useState<string | null>(null);
+  const [reason, setReason] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
@@ -35,7 +39,7 @@ export default function TrainerLessons() {
     setLoading(true);
     const { data, error } = await supabase
       .from('bookings')
-      .select('*, profiles(first_name, last_name, phone), dogs(name, breed, blocked), lesson_types(label), fields(name), dog_notes(id)')
+      .select('*, profiles(first_name, last_name, phone, photo_path), dogs(name, breed, blocked), lesson_types(label), fields(name), dog_notes(id), penalties(id, reason)')
       .eq('trainer_id', myTrainer.id)
       .eq('status', 'active')
       .eq('day', day)
@@ -55,6 +59,8 @@ export default function TrainerLessons() {
   if (!myTrainer) return null;
 
   const isToday = day === dayKey(today());
+  // Le penalità si danno il giorno della lezione o dopo, non in anticipo.
+  const canPenalize = day <= dayKey(today());
   const move = (n: number) => setDay(dayKey(addDays(fromKey(day), n)));
   const arrived = rows.filter((b) => b.checked_in_at).length;
 
@@ -63,6 +69,24 @@ export default function TrainerLessons() {
     setBusy(b.id);
     const { error } = await supabase.rpc('trainer_check_in', { p_booking: b.id, p_in: !b.checked_in_at });
     setBusy(null);
+    if (error) setErr(errorText(error));
+    load();
+  }
+
+  async function penalize(b: Lesson) {
+    setErr('');
+    setBusy(b.id);
+    const { error } = await supabase.rpc('trainer_penalty', { p_booking: b.id, p_reason: reason });
+    setBusy(null);
+    if (error) return setErr(errorText(error));
+    setPenaltyFor(null);
+    setReason(null);
+    load();
+  }
+
+  async function removePenalty(id: string) {
+    setErr('');
+    const { error } = await supabase.rpc('trainer_remove_penalty', { p_id: id });
     if (error) setErr(errorText(error));
     load();
   }
@@ -102,10 +126,19 @@ export default function TrainerLessons() {
                 {b.dogs?.breed ? ` (${b.dogs.breed})` : ''}
               </Body>
               <Muted>{lesson}</Muted>
-              <Muted>
-                {fullName(b.profiles)} · {b.profiles?.phone}
-              </Muted>
+              <Row>
+                <Avatar name={fullName(b.profiles)} path={b.profiles?.photo_path} size={24} />
+                <Muted>
+                  {fullName(b.profiles)} · {b.profiles?.phone}
+                </Muted>
+              </Row>
             </View>
+            {(b.penalties ?? []).map((p) => (
+              <Row key={p.id}>
+                <Badge tone="bad">{`Penalità: ${p.reason}`}</Badge>
+                <ConfirmButton title="Togli" onConfirm={() => removePenalty(p.id)} />
+              </Row>
+            ))}
             <Row>
               {isToday && (
                 <Button
@@ -123,7 +156,17 @@ export default function TrainerLessons() {
                 title={(Array.isArray(b.dog_notes) ? b.dog_notes.length > 0 : !!b.dog_notes) ? 'Diario ✓' : 'Scrivi il diario'}
                 onPress={() => setNote({ bookingId: b.id, dogId: b.dog_id, dogName: b.dogs?.name ?? '', day: b.day, lesson })}
               />
+              {canPenalize && (
+                <Button small kind="ghost" title="Penalità" onPress={() => setPenaltyFor(penaltyFor === b.id ? null : b.id)} />
+              )}
             </Row>
+            {penaltyFor === b.id && (
+              <View style={{ gap: 8 }}>
+                <Chips items={PENALTY_REASONS.map((r) => ({ value: r, label: r }))} value={reason} onChange={setReason} />
+                <Button small kind="danger" title="Dai penalità" disabled={!reason} loading={busy === b.id} onPress={() => penalize(b)} />
+                <Muted style={{ fontSize: 13 }}>La vedono il cliente e il centro. Alla soglia del regolamento il cane viene sospeso.</Muted>
+              </View>
+            )}
           </Card>
         );
       })}
