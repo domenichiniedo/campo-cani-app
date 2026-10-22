@@ -184,6 +184,21 @@ firmato con una chiave privata che resta sul tuo computer: chi non ce l'ha non p
   licenze brevi (per esempio mensili).
 - `node tools/licenza.mjs verifica <codice>` mostra cosa c'è in un codice e se la firma è tua.
 
+## 8. Programma per Windows
+
+La stessa app esiste anche come programma da installare sul PC del campo, con le stesse schermate, la stessa licenza e
+la stampa sul registratore Epson RT della rete del campo.
+
+- **Scaricarlo**: su GitHub apri **Actions → App per Windows → Run workflow**. Finita l'esecuzione, in fondo alla pagina
+  trovi **CampoCani-Windows** con il file `CampoCani-Setup-x.y.z.exe`. Lo stesso succede quando crei un tag `v1.0.0`.
+- **Quale database usa**: se in **Settings → Secrets and variables → Actions → Variables** imposti
+  `EXPO_PUBLIC_SUPABASE_URL` ed `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, il programma è collegato al tuo campo. Altrimenti
+  chiede il codice di licenza al primo avvio, come l'app sugli store (serve la chiave pubblica, punto 7).
+- **Avviso di Windows**: il programma non è firmato, quindi al primo avvio Windows SmartScreen mostra "Windows ha protetto
+  il PC": premi **Ulteriori informazioni → Esegui comunque**. Per toglierlo serve un certificato di firma del codice
+  (a pagamento), da aggiungere quando lo vendi.
+- **Provarlo sul tuo computer**: nella cartella `desktop` esegui `npm install`, `npm run web` e `npm start`.
+
 ## Cosa fa l'app
 
 **Cliente**

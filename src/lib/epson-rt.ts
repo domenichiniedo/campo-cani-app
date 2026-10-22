@@ -1,6 +1,10 @@
 // Scontrino sul registratore telematico del campo, con il protocollo Epson ePOS-Print XML
 // (fpmate.cgi) dei registratori Epson FP-81 II RT, FP-90 III RT e compatibili.
-// La chiamata parte dal telefono, che deve essere sulla stessa rete Wi-Fi del registratore.
+// La chiamata parte dal telefono o dal PC, che devono essere sulla stessa rete del registratore.
+// Nel programma Windows passa dal programma stesso (desktop/main.js), non dalla pagina.
+
+type DesktopBridge = { printerPost: (url: string, body: string) => Promise<{ status: number; text: string }> };
+const desktop = (globalThis as { campoCaniDesktop?: DesktopBridge }).campoCaniDesktop;
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const amount = (cents: number) => (cents / 100).toFixed(2).replace('.', ',');
@@ -42,10 +46,15 @@ export async function printEpsonReceipt(printerUrl: string, description: string,
   const url = `${/^https?:\/\//.test(base) ? base : `http://${base}`}/cgi-bin/fpmate.cgi?devid=local_printer&timeout=10000`;
   let text: string;
   try {
-    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/xml; charset=utf-8' }, body: epsonReceiptXml(description, cents) });
-    text = await res.text();
+    const body = epsonReceiptXml(description, cents);
+    if (desktop) {
+      text = (await desktop.printerPost(url, body)).text;
+    } else {
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/xml; charset=utf-8' }, body });
+      text = await res.text();
+    }
   } catch {
-    throw new Error('Registratore non raggiungibile: il telefono deve essere sulla stessa rete Wi-Fi e l\'indirizzo giusto.');
+    throw new Error('Registratore non raggiungibile: controlla l\'indirizzo e che il telefono o il PC siano sulla stessa rete.');
   }
   const r = parseEpsonResponse(text);
   if (!r.ok) throw new Error(`Il registratore ha rifiutato lo scontrino${r.code ? ` (${r.code})` : ''}.`);

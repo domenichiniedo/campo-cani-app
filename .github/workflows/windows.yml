@@ -1,0 +1,44 @@
+# Costruisce il programma di installazione per Windows (CampoCani-Setup-x.y.z.exe).
+# Lo trovi in GitHub → Actions → "App per Windows" → l'ultima esecuzione → Artifacts.
+# Partenza: a mano (Run workflow), con un tag v1.2.3, o quando una PR cambia il programma Windows.
+#
+# Facoltativo, in Settings → Secrets and variables → Actions → Variables:
+#   EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+# per una versione collegata al database del tuo campo. Senza, il programma chiede il codice
+# di licenza (serve la chiave pubblica in src/lib/license-key.ts).
+name: App per Windows
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+  pull_request:
+    paths: ['desktop/**', 'app.config.js', '.github/workflows/windows.yml']
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: desktop
+      - run: npm run web
+        working-directory: desktop
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      - run: npm run dist
+        working-directory: desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CampoCani-Windows
+          path: desktop/release/*.exe
+          if-no-files-found: error

@@ -21,8 +21,8 @@ const RECEIPT_MODES: { value: InvoiceSettings['receipt_mode']; label: string; he
   },
   {
     value: 'device',
-    label: 'Registratore al campo (Wi-Fi)',
-    help: 'Il telefono lo stampa sul registratore Epson RT del campo: devi essere sulla sua stessa rete Wi-Fi.',
+    label: 'Registratore al campo',
+    help: 'Il telefono o il PC Windows lo stampa sul registratore Epson RT del campo: devono essere sulla sua stessa rete.',
   },
 ];
 
