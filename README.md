@@ -205,8 +205,8 @@ iscriversi e il titolare lo vede in Impostazioni → Licenza. I limiti sono in `
 
 ## 8. Programma per Windows
 
-La stessa app esiste anche come programma da installare sul PC del campo, con le stesse schermate, la stessa licenza e
-la stampa sul registratore Epson RT della rete del campo.
+La stessa app esiste anche come programma da installare sul PC del campo, **solo per il proprietario** (niente iscrizione
+né schermate dei clienti), con la stessa licenza e la stampa sul registratore Epson RT della rete del campo.
 
 - **Scaricarlo**: su GitHub apri **Actions → App per Windows → Run workflow**. Finita l'esecuzione, in fondo alla pagina
   trovi **CampoCani-Windows** con il file `CampoCani-Setup-x.y.z.exe`. Lo stesso succede quando crei un tag `v1.0.0`.

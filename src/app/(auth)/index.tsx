@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Text } from 'react-native';
 
 import { Button, Card, ErrorText, Field, H1, Muted, Screen } from '@/components/ui';
+import { ownerOnly } from '@/lib/edition';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
 
@@ -24,7 +25,11 @@ export default function Login() {
   return (
     <Screen>
       <H1>Accedi</H1>
-      <Muted>Entra con l&apos;email e la password che hai scelto quando ti sei iscritto.</Muted>
+      <Muted>
+        {ownerOnly
+          ? 'Programma del proprietario: entra con l\'email e la password del tuo account da proprietario.'
+          : 'Entra con l\'email e la password che hai scelto quando ti sei iscritto.'}
+      </Muted>
       <Card accent>
         <Field label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
         <Field label="Password" value={password} onChangeText={setPassword} secureTextEntry autoComplete="current-password" />
@@ -34,11 +39,13 @@ export default function Login() {
           Password dimenticata?
         </Link>
       </Card>
-      <Card>
-        <Text style={{ color: c.text, fontSize: 16, fontWeight: '700' }}>Prima volta qui?</Text>
-        <Muted>Iscriviti con i tuoi dati e quelli del tuo cane per prenotare il campo.</Muted>
-        <Button title="Iscriviti" kind="ghost" onPress={() => router.push('/register')} />
-      </Card>
+      {!ownerOnly && (
+        <Card>
+          <Text style={{ color: c.text, fontSize: 16, fontWeight: '700' }}>Prima volta qui?</Text>
+          <Muted>Iscriviti con i tuoi dati e quelli del tuo cane per prenotare il campo.</Muted>
+          <Button title="Iscriviti" kind="ghost" onPress={() => router.push('/register')} />
+        </Card>
+      )}
     </Screen>
   );
 }
