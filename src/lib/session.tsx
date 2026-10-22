@@ -24,6 +24,8 @@ type Ctx = {
   needsTerms: boolean;
   /** Cliente senza codice fiscale o indirizzo di fatturazione (iscritto prima che servissero). */
   needsBilling: boolean;
+  /** Cliente o trainer collegato senza foto: la mette prima di entrare. */
+  needsPhoto: boolean;
   logoUrl: string | null;
   refresh: () => Promise<void>;
 };
@@ -97,11 +99,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     !!session && !!profile && !!settings && !isOwner && !isTrainer &&
     (profile.rules_ver !== settings.rules_ver || profile.privacy_ver !== settings.privacy_ver);
   const needsBilling = !!session && !!profile && !isOwner && !isTrainer && !hasBilling(profile);
+  const needsPhoto = !!session && !!profile && !isOwner && (isTrainer ? !!myTrainer && !myTrainer.photo_path : !profile.photo_path);
   const logoUrl = imageUrl('branding', settings?.logo_path);
 
   return (
     <SessionContext.Provider
-      value={{ ready: authReady && dataReady, session, profile, settings, lessonTypes, fields, trainers, isOwner, isTrainer, myTrainer, needsTerms, needsBilling, logoUrl, refresh }}>
+      value={{ ready: authReady && dataReady, session, profile, settings, lessonTypes, fields, trainers, isOwner, isTrainer, myTrainer, needsTerms, needsBilling, needsPhoto, logoUrl, refresh }}>
       {children}
     </SessionContext.Provider>
   );

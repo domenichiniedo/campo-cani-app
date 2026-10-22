@@ -1,7 +1,7 @@
 // Finto Supabase in memoria per la demo nel browser: risponde alle chiamate dell'app senza server.
 (function () {
   var BASE = 'https://demo.supabase.co';
-  var KEY = 'campo-demo-db-v6';
+  var KEY = 'campo-demo-db-v7';
   try { history.replaceState(null, '', '/'); } catch (e) {}
 
   function pad(n) { return String(n).padStart(2, '0'); }
@@ -38,7 +38,7 @@
       ],
       client_packages: [],
       profiles: [], dogs: [], availability: [], trainer_availability: [], trainer_accounts: [], dog_notes: [], bookings: [], penalties: [], passwords: {},
-      // Foto di esempio dei trainer: sagome disegnate, si possono cambiare dalla pagina Trainer.
+      // Foto di esempio di trainer e clienti: sagome disegnate, si possono cambiare dall'app.
       files: { 'foto/trainer-t1-demo.svg': avatar('#cfe3d6', '#e8b994', '#3b2a20'), 'foto/trainer-t2-demo.svg': avatar('#f1dcc0', '#f0c7a4', '#8a4b2a') }
     };
     function avatar(bg, skin, hair) {
@@ -46,8 +46,12 @@
         '<rect width="120" height="120" fill="' + bg + '"/><path d="M16 120c4-30 22-42 44-42s40 12 44 42z" fill="' + hair + '" opacity=".8"/>' +
         '<circle cx="60" cy="52" r="25" fill="' + skin + '"/><path d="M34 50a26 26 0 0 1 52 0c-7-11-15-15-26-15s-19 4-26 15z" fill="' + hair + '"/></svg>');
     }
+    // Sei sagome per i clienti, a giro; ognuno ha il suo file perché cambiando foto il vecchio si cancella.
+    var looks = [['#d9e4f2', '#f0c7a4', '#5a3a22'], ['#f2e0d9', '#e8b994', '#1f1a17'], ['#e3efd9', '#c98f68', '#2b1d14'], ['#efe6cf', '#f3d2b3', '#b7742e'], ['#e6dcef', '#d9a37f', '#4a2f1e'], ['#dcefed', '#f0c7a4', '#8a8a8a']];
     function person(id, first, last, phone, email, role, cf) {
-      db.profiles.push({ id: id, first_name: first, last_name: last, phone: phone, email: email, role: role,
+      var look = looks[db.profiles.length % looks.length], photo = role === 'client' ? 'cliente-' + id + '-demo.svg' : null;
+      if (photo) db.files['foto/' + photo] = avatar(look[0], look[1], look[2]);
+      db.profiles.push({ id: id, first_name: first, last_name: last, phone: phone, email: email, role: role, photo_path: photo,
         tax_code: cf || '', billing_street: cf ? 'Via Saragozza 15' : '', billing_zip: cf ? '40123' : '', billing_city: cf ? 'Bologna' : '', billing_province: cf ? 'BO' : '', doc_pref: id === 'c3' ? 'receipt' : 'invoice', rules_ver: 1, privacy_ver: 1, rules_accepted_at: nowIso(), privacy_accepted_at: nowIso(), created_at: addDays(t, -40).toISOString() });
       db.passwords[email] = 'demo1234';
     }

@@ -9,11 +9,11 @@ export type Source = 'camera' | 'library';
 export const imageUrl = (bucket: Bucket, path: string | null | undefined) =>
   path ? supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl : null;
 
-/**
- * Fa scattare o scegliere un'immagine quadrata e la carica con un nome che inizia con `prefix`.
- * Null se l'utente rinuncia.
- */
-export async function pickAndUpload(bucket: Bucket, prefix: string, source: Source = 'library'): Promise<string | null> {
+/** Un'immagine scelta sul telefono, non ancora caricata. */
+export type Picked = { uri: string; mimeType: string };
+
+/** Fa scattare o scegliere un'immagine quadrata. Null se l'utente rinuncia. */
+export async function pickImage(source: Source = 'library'): Promise<Picked | null> {
   const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 };
   let res: ImagePicker.ImagePickerResult;
   if (source === 'camera') {
@@ -25,12 +25,23 @@ export async function pickAndUpload(bucket: Bucket, prefix: string, source: Sour
   }
   if (res.canceled) return null;
   const asset = res.assets[0];
-  const body = await (await fetch(asset.uri)).arrayBuffer();
-  const ext = (asset.mimeType ?? 'image/jpeg').split('/')[1] ?? 'jpg';
+  return { uri: asset.uri, mimeType: asset.mimeType ?? 'image/jpeg' };
+}
+
+/** Carica un'immagine scelta con un nome che inizia con `prefix` e torna il percorso. */
+export async function uploadImage(bucket: Bucket, prefix: string, picked: Picked): Promise<string> {
+  const body = await (await fetch(picked.uri)).arrayBuffer();
+  const ext = picked.mimeType.split('/')[1] ?? 'jpg';
   const path = `${prefix}${Date.now()}.${ext}`;
-  const up = await supabase.storage.from(bucket).upload(path, body, { contentType: asset.mimeType ?? 'image/jpeg' });
+  const up = await supabase.storage.from(bucket).upload(path, body, { contentType: picked.mimeType });
   if (up.error) throw up.error;
   return path;
+}
+
+/** Fa scattare o scegliere un'immagine e la carica. Null se l'utente rinuncia. */
+export async function pickAndUpload(bucket: Bucket, prefix: string, source: Source = 'library'): Promise<string | null> {
+  const picked = await pickImage(source);
+  return picked ? uploadImage(bucket, prefix, picked) : null;
 }
 
 export const removeImage = (bucket: Bucket, path: string | null | undefined) =>
