@@ -90,7 +90,7 @@ export function LicensePanel() {
         small
         kind="ghost"
         title="Manda il link di attivazione ai clienti"
-        onPress={() => Share.share({ message: `Scarica l'app Campo Cani e attivala per ${license.campo} con questo link: ${link}` })}
+        onPress={() => Share.share({ message: `Scarica l'app K9 Manager e attivala per ${license.campo} con questo link: ${link}` })}
       />
       <Field
         label="Nuovo codice (rinnovo o cambio piano)"
