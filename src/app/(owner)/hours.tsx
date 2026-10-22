@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { Button, Card, Chips, ErrorText, H1, Muted, Row, Screen, Step } from '@/components/ui';
+import { Body, Button, Card, Chips, ErrorText, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { addDays, cap, dayKey, fromKey, hm, longDay, monthShort, STEP, today, weekdayShort } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
@@ -12,8 +12,11 @@ const DAYS_AHEAD = 56;
 
 export default function OwnerHours() {
   const c = useColors();
-  const { settings, fields } = useSession();
+  const { settings, fields, trainers } = useSession();
+  // Orari dei campi o disponibilità dei trainer: stessa griglia, tabelle diverse.
+  const [kind, setKind] = useState<'field' | 'trainer'>('field');
   const [fieldPick, setFieldPick] = useState<string | null>(null);
+  const [trainerPick, setTrainerPick] = useState<string | null>(null);
   const [open, setOpen] = useState<Record<string, number[]>>({});
   const [booked, setBooked] = useState<Record<string, number[]>>({});
   const [day, setDay] = useState(dayKey(today()));
@@ -27,17 +30,24 @@ export default function OwnerHours() {
   const days = Array.from({ length: DAYS_AHEAD }, (_, i) => dayKey(addDays(today(), i)));
 
   const load = useCallback(async () => {
-    const [a, b] = await Promise.all([
+    const [a, t, b] = await Promise.all([
       supabase.from('availability').select('*').gte('day', from).lte('day', to),
-      supabase.from('bookings').select('field_id, day, start_min, dur_min').eq('status', 'active').gte('day', from).lte('day', to),
+      supabase.from('trainer_availability').select('*').gte('day', from).lte('day', to),
+      supabase.from('bookings').select('field_id, trainer_id, day, start_min, dur_min').eq('status', 'active').gte('day', from).lte('day', to),
     ]);
-    // Chiavi "campo|giorno": ogni campo ha i suoi orari e le sue prenotazioni.
+    // Chiavi "id|giorno": ogni campo e ogni trainer ha i suoi orari e le sue lezioni.
     setOpen(
-      Object.fromEntries(((a.data ?? []) as { field_id: string; day: string; slots: number[] }[]).map((r) => [`${r.field_id}|${r.day}`, r.slots])),
+      Object.fromEntries([
+        ...((a.data ?? []) as { field_id: string; day: string; slots: number[] }[]).map((r) => [`${r.field_id}|${r.day}`, r.slots]),
+        ...((t.data ?? []) as { trainer_id: string; day: string; slots: number[] }[]).map((r) => [`${r.trainer_id}|${r.day}`, r.slots]),
+      ]),
     );
     const taken: Record<string, number[]> = {};
-    for (const r of (b.data ?? []) as { field_id: string; day: string; start_min: number; dur_min: number }[])
-      for (let m = r.start_min; m < r.start_min + r.dur_min; m += STEP) (taken[`${r.field_id}|${r.day}`] ??= []).push(m);
+    for (const r of (b.data ?? []) as { field_id: string; trainer_id: string | null; day: string; start_min: number; dur_min: number }[])
+      for (let m = r.start_min; m < r.start_min + r.dur_min; m += STEP) {
+        (taken[`${r.field_id}|${r.day}`] ??= []).push(m);
+        if (r.trainer_id) (taken[`${r.trainer_id}|${r.day}`] ??= []).push(m);
+      }
     setBooked(taken);
   }, [from, to]);
 
@@ -48,8 +58,13 @@ export default function OwnerHours() {
   );
 
   const field = fields.find((f) => f.id === fieldPick) ?? fields[0] ?? null;
-  if (!settings || !field) return null;
-  const key = (k: string) => `${field.id}|${k}`;
+  const trainer = trainers.find((t) => t.id === trainerPick) ?? trainers[0] ?? null;
+  const forTrainer = kind === 'trainer' && !!trainer;
+  // Il campo o il trainer di cui si stanno guardando gli orari.
+  const subject = forTrainer ? { id: trainer.id, name: trainer.name } : field;
+  if (!settings || !subject) return null;
+  const key = (k: string) => `${subject.id}|${k}`;
+  const neverSet = forTrainer && !Object.keys(open).some((k) => k.startsWith(`${subject.id}|`));
   const grid: number[] = [];
   for (let m = settings.open_min; m < settings.close_min; m += STEP) grid.push(m);
 
@@ -68,17 +83,18 @@ export default function OwnerHours() {
     setMsg('');
   };
 
-  async function save(targets: string[], slots: number[], fieldIds = [field!.id]) {
+  async function save(targets: string[], slots: number[], ids = [subject!.id]) {
     setErr('');
     setSaving(true);
-    const rows = fieldIds.flatMap((f) => targets.map((d) => ({ field_id: f, day: d, slots })));
-    const { error } = await supabase.from('availability').upsert(rows);
+    const { error } = forTrainer
+      ? await supabase.from('trainer_availability').upsert(ids.flatMap((id) => targets.map((d) => ({ trainer_id: id, day: d, slots }))))
+      : await supabase.from('availability').upsert(ids.flatMap((id) => targets.map((d) => ({ field_id: id, day: d, slots }))));
     setSaving(false);
     if (error) return setErr(errorText(error));
     setDraft(null);
     setMsg(
-      fieldIds.length > 1
-        ? `Orari copiati su tutti i ${fieldIds.length} campi.`
+      ids.length > 1
+        ? `Orari copiati su tutti i ${ids.length} ${forTrainer ? 'trainer' : 'campi'}.`
         : targets.length > 1
           ? `Orari copiati su ${targets.length} giorni.`
           : 'Orari salvati.',
@@ -90,22 +106,54 @@ export default function OwnerHours() {
 
   return (
     <Screen>
-      <H1>Orari di apertura</H1>
+      <H1>{forTrainer ? 'Orari dei trainer' : 'Orari di apertura'}</H1>
+      {trainers.length > 0 && (
+        <Chips
+          items={[
+            { value: 'field', label: 'Campi' },
+            { value: 'trainer', label: 'Trainer' },
+          ]}
+          value={kind}
+          onChange={(v) => {
+            setKind(v);
+            setDraft(null);
+            setMsg('');
+          }}
+        />
+      )}
       <Muted>
-        Scegli un giorno e tocca le mezz&apos;ore per aprirle o chiuderle. I clienti vedono solo quelle aperte. Le mezz&apos;ore già prenotate
-        sono segnate in oro.
+        {forTrainer
+          ? 'Scegli un giorno e tocca le mezz\'ore in cui il trainer è disponibile. Le mezz\'ore in cui ha già una lezione sono segnate in oro.'
+          : 'Scegli un giorno e tocca le mezz\'ore per aprirle o chiuderle. I clienti vedono solo quelle aperte. Le mezz\'ore già prenotate sono segnate in oro.'}
       </Muted>
 
-      {fields.length > 1 && (
+      {!forTrainer && fields.length > 1 && (
         <Chips
           items={fields.map((f) => ({ value: f.id, label: f.name }))}
-          value={field.id}
+          value={subject.id}
           onChange={(v) => {
             setFieldPick(v);
             setDraft(null);
             setMsg('');
           }}
         />
+      )}
+      {forTrainer && (
+        <Chips
+          items={trainers.map((t) => ({ value: t.id, label: t.name }))}
+          value={subject.id}
+          onChange={(v) => {
+            setTrainerPick(v);
+            setDraft(null);
+            setMsg('');
+          }}
+        />
+      )}
+      {neverSet && (
+        <Body style={{ color: c.brassText }}>
+          Per {subject.name} non hai ancora impostato orari, quindi è disponibile sempre. Appena salvi un giorno, potrà avere lezioni solo nelle
+          mezz&apos;ore segnate.
+        </Body>
       )}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
@@ -137,7 +185,7 @@ export default function OwnerHours() {
         })}
       </ScrollView>
 
-      <Step title={fields.length > 1 ? `${field.name} · ${cap(longDay(day))}` : cap(longDay(day))} />
+      <Step title={forTrainer || fields.length > 1 ? `${subject.name} · ${cap(longDay(day))}` : cap(longDay(day))} />
       <Card>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
           {grid.map((m) => {
@@ -175,7 +223,7 @@ export default function OwnerHours() {
           title={`Copia sui prossimi 4 ${longDay(day).split(' ')[0]}`}
           onPress={() => save([day, ...sameWeekdayNext], current)}
         />
-        {fields.length > 1 && (
+        {!forTrainer && fields.length > 1 && (
           <Button kind="ghost" title="Usa questi orari su tutti i campi" onPress={() => save([day], current, fields.map((f) => f.id))} />
         )}
       </Card>

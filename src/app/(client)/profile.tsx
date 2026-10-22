@@ -104,7 +104,7 @@ export default function Profile() {
         <BillingFields value={billing} onChange={setBilling} />
         {plan.invoices && (
           <>
-            <Muted style={{ fontSize: 13 }}>Per i pagamenti online vuoi</Muted>
+            <Muted style={{ fontSize: 13 }}>Per pacchetti e pagamenti online vuoi</Muted>
             <Chips
               items={[
                 { value: 'invoice', label: 'Fattura' },

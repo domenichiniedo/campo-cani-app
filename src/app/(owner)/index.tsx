@@ -2,6 +2,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 
 import { OwnerBookingCard } from '@/components/booking-card';
+import { OwnerBook, type BookStart } from '@/components/owner-book';
 import { Button, Chips, ErrorText, H1, Muted, Row, Screen, Stat } from '@/components/ui';
 import { addDays, cap, dayKey, euro, fromKey, isDayKey, longDay, today } from '@/lib/format';
 import { ownerBookings, type OwnerBooking } from '@/lib/owner';
@@ -13,7 +14,8 @@ export default function OwnerDay() {
   // Il giorno sta nell'indirizzo, così la Settimana può aprire un giorno preciso.
   const day = params.day && isDayKey(params.day) ? params.day : dayKey(today());
   const setDay = (k: string) => router.setParams({ day: k });
-  const { fields, trainers } = useSession();
+  const { fields, trainers, settings } = useSession();
+  const [booking, setBooking] = useState<BookStart | null>(null);
   const [fieldFilter, setFieldFilter] = useState('');
   const [rows, setRows] = useState<OwnerBooking[]>([]);
   const [loading, setLoading] = useState(false);
@@ -50,6 +52,10 @@ export default function OwnerDay() {
         <Button small kind="ghost" title="Oggi" onPress={() => setDay(dayKey(today()))} />
         <Button small kind="ghost" title="Dopo ›" onPress={() => move(1)} />
       </Row>
+      <Button
+        title="+ Prenota per un cliente"
+        onPress={() => setBooking({ day, start: settings?.open_min ?? 540, fieldId: fieldFilter || undefined })}
+      />
       <Row>
         <Stat label="Lezioni" value={rows.length} />
         <Stat label="Entrati" value={`${arrived}/${rows.length}`} />
@@ -70,6 +76,14 @@ export default function OwnerDay() {
       {shown.map((b) => (
         <OwnerBookingCard key={b.id} b={b} onChange={load} showField={fields.length > 1} />
       ))}
+      <OwnerBook
+        start={booking}
+        onClose={() => setBooking(null)}
+        onDone={() => {
+          setBooking(null);
+          load();
+        }}
+      />
     </Screen>
   );
 }

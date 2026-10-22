@@ -3,22 +3,25 @@ import { useCallback, useState } from 'react';
 import { Pressable, Text, useWindowDimensions, View } from 'react-native';
 
 import { Badge, Button, Card, ErrorText, H1, Muted, Row, Screen, Stat } from '@/components/ui';
+import { OwnerBook, type BookStart } from '@/components/owner-book';
 import { WeekGrid } from '@/components/week-grid';
-import { addDays, cap, dayKey, euro, hm, longDay, monthShort, today } from '@/lib/format';
+import { addDays, cap, dayKey, hm, longDay, monthShort, today } from '@/lib/format';
 import { useLessonColors } from '@/lib/lesson-colors';
 import { mondayOf, ownerBookings, type OwnerBooking } from '@/lib/owner';
 import { useSession } from '@/lib/session';
-import { errorText } from '@/lib/supabase';
+import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
 
 export default function OwnerWeek() {
   const c = useColors();
-  const { fields } = useSession();
+  const { fields, settings } = useSession();
   const color = useLessonColors();
   // Sul PC (finestra larga) la settimana è a colonne; sul telefono resta la lista dei giorni.
   const wide = useWindowDimensions().width >= 900;
   const [monday, setMonday] = useState(mondayOf(today()));
   const [rows, setRows] = useState<OwnerBooking[]>([]);
+  const [open, setOpen] = useState<Record<string, number[]>>({});
+  const [booking, setBooking] = useState<BookStart | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
@@ -29,7 +32,12 @@ export default function OwnerWeek() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setRows(await ownerBookings(from, to));
+      const [b, a] = await Promise.all([
+        ownerBookings(from, to),
+        supabase.from('availability').select('field_id, day, slots').gte('day', from).lte('day', to),
+      ]);
+      setRows(b);
+      setOpen(Object.fromEntries(((a.data ?? []) as { field_id: string; day: string; slots: number[] }[]).map((r) => [`${r.field_id}|${r.day}`, r.slots])));
       setErr('');
     } catch (e) {
       setErr(errorText(e));
@@ -44,7 +52,6 @@ export default function OwnerWeek() {
   );
 
   const sunday = addDays(monday, 6);
-  const revenue = rows.reduce((s, b) => s + b.price_cents, 0);
   const todayKey = dayKey(today());
 
   return (
@@ -57,12 +64,23 @@ export default function OwnerWeek() {
         <Button small kind="ghost" title="Questa" onPress={() => setMonday(mondayOf(today()))} />
         <Button small kind="ghost" title="Dopo ›" onPress={() => setMonday(addDays(monday, 7))} />
       </Row>
+      <Button
+        title="+ Prenota per un cliente"
+        onPress={() => setBooking({ day: days.includes(todayKey) ? todayKey : from, start: settings?.open_min ?? 540 })}
+      />
       <Row>
         <Stat label="Lezioni" value={rows.length} />
-        <Stat label="Valore" value={euro(revenue)} />
       </Row>
       <ErrorText>{err}</ErrorText>
-      {wide && <WeekGrid days={days} rows={rows} />}
+      {wide && <WeekGrid days={days} rows={rows} open={open} onSlot={(day, fieldId, start) => setBooking({ day, fieldId, start })} />}
+      <OwnerBook
+        start={booking}
+        onClose={() => setBooking(null)}
+        onDone={() => {
+          setBooking(null);
+          load();
+        }}
+      />
       {!wide && days.map((k) => {
         const list = rows.filter((b) => b.day === k);
         return (

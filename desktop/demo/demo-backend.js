@@ -1,7 +1,7 @@
 // Finto Supabase in memoria per la demo nel browser: risponde alle chiamate dell'app senza server.
 (function () {
   var BASE = 'https://demo.supabase.co';
-  var KEY = 'campo-demo-db-v3';
+  var KEY = 'campo-demo-db-v4';
   try { history.replaceState(null, '', '/'); } catch (e) {}
 
   function pad(n) { return String(n).padStart(2, '0'); }
@@ -37,7 +37,7 @@
         { id: 'p2', name: '5 lezioni base', lesson_type: 'base', lessons: 5, price_cents: 6500, valid_days: 90, sort: 2, active: true }
       ],
       client_packages: [],
-      profiles: [], dogs: [], availability: [], bookings: [], penalties: [], passwords: {}
+      profiles: [], dogs: [], availability: [], trainer_availability: [], bookings: [], penalties: [], passwords: {}
     };
     function person(id, first, last, phone, email, role, cf) {
       db.profiles.push({ id: id, first_name: first, last_name: last, phone: phone, email: email, role: role,
@@ -53,6 +53,17 @@
     dog('d2', 'c1', 'Luna', 'Malinois', '2025-06-02');
     dog('d3', 'c2', 'Kira', 'Pastore belga', '2021-09-15');
     dog('d4', 'c3', 'Rex', 'Rottweiler', '2023-01-20');
+    // Altri iscritti, per vedere la lista clienti piena.
+    var nomi = ['Alessandro', 'Chiara', 'Davide', 'Elena', 'Francesco', 'Giorgia', 'Luca', 'Martina', 'Nicola', 'Paola', 'Riccardo', 'Silvia', 'Tommaso', 'Valentina'];
+    var cognomi = ['Bassi', 'Conti', 'De Luca', 'Esposito', 'Ferrari', 'Galli', 'Lombardi', 'Marchi', 'Neri', 'Orlandi', 'Pellegrini', 'Russo', 'Serra', 'Testa', 'Villa', 'Zanetti'];
+    var cani = ['Fido', 'Birba', 'Thor', 'Maya', 'Zeus', 'Nala', 'Rocky', 'Lilli', 'Ares', 'Molly', 'Buck', 'Kim', 'Odino', 'Pepe', 'Sally'];
+    var razze = ['Labrador', 'Border collie', 'Pastore tedesco', 'Meticcio', 'Malinois', 'Golden retriever', 'Jack Russell'];
+    for (var k = 0; k < 42; k++) {
+      var fn = nomi[(k * 5) % nomi.length], ln = cognomi[(k * 7 + 3) % cognomi.length], cid = 'x' + k;
+      person(cid, fn, ln, '3' + String(40 + k % 9) + ' ' + String(100 + k * 17).slice(-3) + ' ' + String(1000 + k * 113).slice(-4), fn.toLowerCase() + '.' + ln.toLowerCase().replace(' ', '') + k + '@demo.it', 'client', k % 6 ? 'XXXXXX90A01A944' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.charAt(k % 26) : '');
+      dog('dx' + k, cid, cani[k % cani.length], razze[k % razze.length], (2016 + k % 9) + '-0' + (1 + k % 9) + '-15');
+      if (k % 9 === 4) dog('dy' + k, cid, cani[(k + 7) % cani.length], razze[(k + 3) % razze.length], '2024-03-10');
+    }
     for (var i = -7; i < 28; i++) {
       var d = addDays(t, i);
       if (d.getDay() === 0) continue;
@@ -85,6 +96,22 @@
     book(3, 630, 'c2', 'd3', 'igp', 'Pista');
     db.client_packages.push({ id: 'cp1', user_id: 'c1', package_id: 'p2', name: '5 lezioni base', lesson_type: 'base', lessons_total: 5, lessons_used: 2, price_cents: 6500, status: 'active', requested_at: addDays(t, -20).toISOString(), activated_at: addDays(t, -20).toISOString(), expires_at: addDays(t, 70).toISOString() });
     db.client_packages.push({ id: 'cp2', user_id: 'c2', package_id: 'p1', name: '10 lezioni IGP', lesson_type: 'igp', lessons_total: 10, lessons_used: 0, price_cents: 22000, status: 'requested', requested_at: addDays(t, -1).toISOString(), activated_at: null, expires_at: null });
+    // Due mesi di storico, per vedere qualcosa negli incassi e nelle statistiche.
+    var seedN = 7;
+    function rnd() { seedN = (seedN * 16807) % 2147483647; return seedN / 2147483647; }
+    var who = [['c1', 'd1'], ['c1', 'd2'], ['c2', 'd3'], ['c3', 'd4']];
+    var times = [540, 630, 900, 1020];
+    for (var h = -75; h <= -2; h++) {
+      var n = 1 + Math.floor(rnd() * 4);
+      for (var j = 0; j < n; j++) {
+        var w = who[Math.floor(rnd() * who.length)], igp = rnd() < 0.55;
+        var opts = igp ? ['Pista', 'Obbedienza', 'Attacco'] : ['Cucciolo (meno di 1,5 anni)', 'Adulto (più di 1,5 anni)'];
+        var x = rnd(), at = new Date(addDays(t, h).getTime() + (times[j] - 3) * 60000).toISOString();
+        var ex = x < 0.08 ? { status: 'cancelled', cancelled_at: at } : x < 0.14 ? { paid: false } : { paid: true, checked_in_at: at };
+        book(h, times[j], w[0], w[1], igp ? 'igp' : 'base', opts[Math.floor(rnd() * opts.length)], ex, j % 2 ? 'f2' : 'f1', igp ? 't1' : (rnd() < 0.5 ? 't2' : null));
+      }
+    }
+    db.client_packages.push({ id: 'cp0', user_id: 'c3', package_id: 'p1', name: '10 lezioni IGP', lesson_type: 'igp', lessons_total: 10, lessons_used: 10, price_cents: 22000, status: 'active', requested_at: addDays(t, -66).toISOString(), activated_at: addDays(t, -65).toISOString(), expires_at: addDays(t, 115).toISOString() });
     var late = book(-1, 600, 'c3', 'd4', 'igp', 'Obbedienza');
     if (late) db.penalties.push({ id: uid(), dog_id: 'd4', booking_id: late.id, reason: 'Ritardo', created_at: addDays(t, -1).toISOString() });
     addInvoices(db, t);
@@ -110,6 +137,7 @@
   var db;
   try { db = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
   if (!db) db = seed();
+  if (!db.trainer_availability) db.trainer_availability = [];
   if (db.invoices && !db.invoices.some(function (x) { return x.kind; })) delete db.invoices;
   if (!db.invoices) { var t0 = new Date(); t0.setHours(0, 0, 0, 0); addInvoices(db, t0); }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} }
@@ -162,7 +190,7 @@
   function cmp(a, b) { if (typeof a === 'number') b = Number(b); return a < b ? -1 : a > b ? 1 : 0; }
   function applyFilters(rows, params) {
     params.forEach(function (val, key) {
-      if (['select', 'order', 'on_conflict', 'columns', 'limit'].indexOf(key) >= 0) return;
+      if (['select', 'order', 'on_conflict', 'columns', 'limit', 'offset'].indexOf(key) >= 0) return;
       var dot = val.indexOf('.'), op = val.slice(0, dot), arg = val.slice(dot + 1);
       rows = rows.filter(function (r) {
         var x = r[key];
@@ -200,7 +228,7 @@
     if (table === 'invoice_settings') return [];
     return rows;
   }
-  var PK = { availability: ['field_id', 'day'] };
+  var PK = { availability: ['field_id', 'day'], trainer_availability: ['trainer_id', 'day'] };
   function pk(table) { return PK[table] || ['id']; }
   function sameKey(table, a, b) { return pk(table).every(function (k) { return a[k] === b[k]; }); }
 
@@ -257,6 +285,12 @@
           var pk = db.packages.filter(function (x) { return x.id === r.package_id; })[0];
           r.activated_at = nowIso();
           r.expires_at = pk && pk.valid_days ? new Date(Date.now() + pk.valid_days * 86400000).toISOString() : null;
+          // Come nel database vero: all'incasso del pacchetto parte fattura o scontrino.
+          var buyer = db.profiles.filter(function (x) { return x.id === r.user_id; })[0];
+          if (r.price_cents > 0 && buyer && !db.invoices.some(function (x) { return x.package_id === r.id; })) {
+            db.invoices.unshift({ id: uid(), kind: buyer.doc_pref === 'receipt' ? 'receipt' : 'invoice', receipt_number: null, year: new Date().getFullYear(), number: null, issued_on: dk(new Date()), user_id: r.user_id, booking_id: null, package_id: r.id,
+              buyer_name: (buyer.first_name + ' ' + buyer.last_name).trim(), description: 'Pacchetto ' + r.name + ' · ' + r.lessons_total + ' lezioni', total_cents: r.price_cents, status: 'pending', error: null, sent_at: null, created_at: nowIso() });
+          }
         }
         if (table === 'bookings' && old.status === 'active' && r.status === 'cancelled') refund(r);
         if (table === 'profiles' && who.role !== 'owner') r.role = old.role;
@@ -372,6 +406,29 @@
       save();
       return json(200, nb);
     }
+    if (name === 'owner_book') {
+      if (who.role !== 'owner') return fail('Solo il proprietario può prenotare per un cliente');
+      var fld2 = db.fields.filter(function (f) { return f.id === a.p_field && f.active; })[0];
+      if (!fld2) return fail('Campo non disponibile');
+      var dog2 = db.dogs.filter(function (d) { return d.id === a.p_dog && d.owner_id === a.p_user; })[0];
+      if (!dog2) return fail('Cane non trovato per questo cliente');
+      var lt2 = db.lesson_types.filter(function (t) { return t.id === a.p_type; })[0];
+      if (!lt2) return fail('Tipo di lezione non valido');
+      if (lt2.options.length && lt2.options.indexOf(a.p_option) < 0) return fail('Specialità non valida');
+      var end2 = a.p_start + lt2.duration_min;
+      if (db.bookings.some(function (b) { return b.status === 'active' && b.field_id === a.p_field && b.day === a.p_day && a.p_start < b.start_min + b.dur_min && b.start_min < end2; }))
+        return fail('Il campo è già occupato a quell\'ora');
+      if (a.p_trainer && db.bookings.some(function (b) { return b.status === 'active' && b.trainer_id === a.p_trainer && b.day === a.p_day && a.p_start < b.start_min + b.dur_min && b.start_min < end2; }))
+        return fail('Il trainer ha già una lezione in questo orario');
+      var nb2 = { id: uid(), user_id: a.p_user, dog_id: dog2.id, field_id: fld2.id, trainer_id: a.p_trainer || null, lesson_type: lt2.id, lesson_option: a.p_option || '', day: a.p_day, start_min: a.p_start, dur_min: lt2.duration_min, price_cents: lt2.price_cents, pay: 'onsite', paid: false, checked_in_at: null, note: '', status: 'active', cancelled_at: null, created_at: nowIso() };
+      var cps2 = db.client_packages.filter(function (cp) {
+        return cp.user_id === a.p_user && cp.status === 'active' && cp.lessons_used < cp.lessons_total && (!cp.lesson_type || cp.lesson_type === lt2.id) && (!cp.expires_at || new Date(cp.expires_at) > new Date());
+      }).sort(function (x, y) { return (x.expires_at || '9999').localeCompare(y.expires_at || '9999'); });
+      if (cps2[0]) { cps2[0].lessons_used++; nb2.package_id = cps2[0].id; nb2.pay = 'package'; nb2.paid = true; nb2.price_cents = 0; }
+      db.bookings.push(nb2);
+      save();
+      return json(200, nb2);
+    }
     return fail('Funzione sconosciuta', 404);
   }
 
@@ -427,7 +484,62 @@
     if (path.indexOf('/rest/v1/') === 0) return rest(method, path.slice(9), u.searchParams, headers, body);
     // Nella demo Fatture in Cloud non è collegato.
     if (path.indexOf('/functions/v1/') === 0) return json(500, { error: 'Manca il secret FIC_ACCESS_TOKEN' });
-    if (path.indexOf('/storage/v1/') === 0) return json(200, { Key: 'branding/demo', Id: 'demo' });
+    if (path.indexOf('/storage/v1/') === 0) return storage(method, path.slice(12), init.body, body);
     return json(404, {});
   };
+
+  // Logo: senza server il file resta nel browser, rimpicciolito, e le immagini che puntano
+  // all'indirizzo pubblico finto vengono girate sulla copia salvata.
+  var PUBLIC = BASE + '/storage/v1/object/public/branding/';
+  function shrink(blob) {
+    return new Promise(function (ok, ko) {
+      var src = URL.createObjectURL(blob), img = new Image();
+      img.onload = function () {
+        var k = Math.min(1, 256 / Math.max(img.width, img.height));
+        var c = document.createElement('canvas');
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(src);
+        ok(c.toDataURL('image/png'));
+      };
+      img.onerror = function () { URL.revokeObjectURL(src); ko(new Error('Immagine non leggibile')); };
+      img.src = src;
+    });
+  }
+  async function storage(method, path, raw, body) {
+    db.files = db.files || {};
+    if (path.indexOf('object/branding/') === 0 && (method === 'POST' || method === 'PUT')) {
+      var name = decodeURIComponent(path.slice(16));
+      var blob = raw;
+      if (typeof FormData !== 'undefined' && raw instanceof FormData) raw.forEach(function (v) { if (v instanceof Blob) blob = v; });
+      if (!(blob instanceof Blob)) blob = new Blob([raw]);
+      try { db.files[name] = await shrink(blob); } catch (e) { return json(400, { statusCode: '400', error: 'invalid', message: e.message }); }
+      save();
+      fixImages(document);
+      return json(200, { Key: 'branding/' + name, Id: name });
+    }
+    if (path === 'object/branding' && method === 'DELETE') {
+      ((body && body.prefixes) || []).forEach(function (n) { delete db.files[n]; });
+      save();
+      return json(200, []);
+    }
+    return json(200, {});
+  }
+  function fixImg(el) {
+    var s = el.getAttribute && el.getAttribute('src');
+    if (s && s.indexOf(PUBLIC) === 0) {
+      var f = db.files && db.files[decodeURIComponent(s.slice(PUBLIC.length).split('?')[0])];
+      if (f) el.setAttribute('src', f);
+    }
+  }
+  function fixImages(root) {
+    if (root.tagName === 'IMG') fixImg(root);
+    if (root.querySelectorAll) root.querySelectorAll('img').forEach(fixImg);
+  }
+  new MutationObserver(function (list) {
+    list.forEach(function (m) {
+      if (m.type === 'attributes') fixImg(m.target);
+      else m.addedNodes.forEach(function (n) { if (n.nodeType === 1) fixImages(n); });
+    });
+  }).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['src'] });
 })();

@@ -42,7 +42,7 @@ export default function Packages() {
     setMsg('');
     const { error } = await supabase.rpc('request_package', { p_package: p.id });
     if (error) return setErr(errorText(error));
-    setMsg(`Richiesta inviata. Paga ${euro(p.price_cents)} al campo: il pacchetto si attiva appena il campo conferma l'incasso.`);
+    setMsg(`Richiesta inviata. Paga ${euro(p.price_cents)} al campo: il pacchetto si attiva appena il campo conferma l'incasso e ricevi fattura o scontrino.`);
     load();
   }
 
