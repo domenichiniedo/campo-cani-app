@@ -1,9 +1,11 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, useWindowDimensions, View } from 'react-native';
 
 import { Badge, Button, Card, ErrorText, H1, Muted, Row, Screen, Stat } from '@/components/ui';
+import { WeekGrid } from '@/components/week-grid';
 import { addDays, cap, dayKey, euro, hm, longDay, monthShort, today } from '@/lib/format';
+import { useLessonColors } from '@/lib/lesson-colors';
 import { mondayOf, ownerBookings, type OwnerBooking } from '@/lib/owner';
 import { useSession } from '@/lib/session';
 import { errorText } from '@/lib/supabase';
@@ -12,6 +14,9 @@ import { useColors } from '@/lib/theme';
 export default function OwnerWeek() {
   const c = useColors();
   const { fields } = useSession();
+  const color = useLessonColors();
+  // Sul PC (finestra larga) la settimana è a colonne; sul telefono resta la lista dei giorni.
+  const wide = useWindowDimensions().width >= 900;
   const [monday, setMonday] = useState(mondayOf(today()));
   const [rows, setRows] = useState<OwnerBooking[]>([]);
   const [loading, setLoading] = useState(false);
@@ -57,17 +62,19 @@ export default function OwnerWeek() {
         <Stat label="Valore" value={euro(revenue)} />
       </Row>
       <ErrorText>{err}</ErrorText>
-      {days.map((k) => {
+      {wide && <WeekGrid days={days} rows={rows} />}
+      {!wide && days.map((k) => {
         const list = rows.filter((b) => b.day === k);
         return (
           <Pressable key={k} accessibilityRole="button" onPress={() => router.navigate({ pathname: '/', params: { day: k } })}>
             <Card accent={k === todayKey}>
               <Row style={{ justifyContent: 'space-between' }}>
                 <Text style={{ color: c.text, fontSize: 16, fontWeight: '800' }}>{cap(longDay(k))}</Text>
-                <Badge tone={list.length ? 'ok' : 'neutral'}>{list.length ? `${list.length} lezioni` : 'Libero'}</Badge>
+                <Badge tone={list.length ? 'ok' : 'neutral'}>{list.length ? (list.length === 1 ? '1 lezione' : `${list.length} lezioni`) : 'Libero'}</Badge>
               </Row>
               {list.map((b) => (
-                <View key={b.id} style={{ flexDirection: 'row', gap: 10 }}>
+                <View key={b.id} style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                  <View style={{ width: 4, alignSelf: 'stretch', borderRadius: 2, backgroundColor: color(b.lesson_type).bar }} />
                   <Text style={{ color: c.text, fontWeight: '700', width: 48 }}>{hm(b.start_min)}</Text>
                   <Text style={{ color: c.text, flex: 1 }} numberOfLines={1}>
                     {b.dogs?.name} · {b.lesson_types?.label ?? b.lesson_type}
