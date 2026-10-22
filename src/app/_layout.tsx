@@ -6,7 +6,10 @@ import { useColorScheme, View } from 'react-native';
 
 import { Body, H1, Muted } from '@/components/ui';
 import { SessionProvider, useSession } from '@/lib/session';
-import { isConfigured } from '@/lib/supabase';
+import { Activate } from '@/components/activate';
+import { licensingEnabled } from '@/lib/license';
+import { LicenseGate } from '@/lib/license-gate';
+import { hasEnvConfig } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -23,6 +26,7 @@ function Navigator() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="attiva" />
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
@@ -64,10 +68,12 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
       <StatusBar style="light" />
-      {isConfigured ? (
-        <SessionProvider>
-          <Navigator />
-        </SessionProvider>
+      {licensingEnabled || hasEnvConfig ? (
+        <LicenseGate activation={(reason) => <Activate reason={reason} />}>
+          <SessionProvider>
+            <Navigator />
+          </SessionProvider>
+        </LicenseGate>
       ) : (
         <NotConfigured />
       )}

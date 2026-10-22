@@ -15,7 +15,8 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
    Se avevi già eseguito il primo file, esegui solo il secondo: orari e prenotazioni esistenti passano al primo campo.
    Poi, in ordine, `0003_fatturazione.sql` (codice fiscale e indirizzo di fatturazione), `0004_pacchetti.sql` (pacchetti
    di lezioni), `0005_cancellazione_account.sql` (il cliente può cancellare il proprio account), `0006_fatture.sql`
-   (fatture dei pagamenti online) e `0007_scontrini.sql` (scontrino elettronico in alternativa alla fattura). Ogni file va eseguito una volta sola.
+   (fatture dei pagamenti online), `0007_scontrini.sql` (scontrino elettronico in alternativa alla fattura) e
+   `0008_licenza.sql` (licenza per l'app venduta ad altri centri). Ogni file va eseguito una volta sola.
 3. In **Project Settings → API Keys** copia l'URL del progetto e la **Publishable key** (inizia con `sb_publishable_`).
    Non usare mai la Secret key nell'app.
 4. Copia il file `.env.example` in `.env.local` e incolla i due valori:
@@ -144,6 +145,44 @@ Fatture** scegli come emettere lo scontrino:
   Openapi lavora in differita: lo scontrino passa a "emesso" con il suo numero quando la trasmissione è fatta (premi
   **Invia ora** per controllare). Openapi ha annunciato un nuovo servizio scontrini che sostituirà questo: prima di
   attivarlo chiedi a loro quale usare.
+
+## 7. Vendere l'app ad altri centri
+
+Sugli store c'è una sola app, gratuita. Ogni centro la attiva con un **codice di licenza** che generi tu: il codice dice
+a quale database collegarsi (quello del centro, con i suoi dati separati da tutti gli altri) e fino a quando vale. È
+firmato con una chiave privata che resta sul tuo computer: chi non ce l'ha non può crearne né modificarne uno.
+
+**Una volta sola**
+
+1. Crea le chiavi:
+   ```sh
+   node tools/licenza.mjs chiavi
+   ```
+   La chiave privata finisce in `~/.campo-cani/licenza-privata.pem`: fanne una copia sicura (chiavetta, gestore di
+   password). Se la perdi, non potrai più rinnovare le licenze date. La riga che il comando stampa va incollata in
+   `src/lib/license-key.ts`.
+2. Pubblica l'app sugli store (punto 4) **senza** `.env.local`: così chiede il codice al primo avvio. Anche il tuo campo
+   userà un suo codice. Nelle note per la revisione di Apple e Google metti un codice di prova e un utente di prova.
+
+**Per ogni centro che compra**
+
+1. Crea il suo progetto Supabase (meglio sul suo account, così i dati dei suoi clienti sono suoi) ed esegui le
+   migrazioni, dalla `0001` alla `0008`, come al punto 1.
+2. Genera la licenza con l'indirizzo e la **publishable key** del suo progetto:
+   ```sh
+   node tools/licenza.mjs genera --campo "Centro Cinofilo Le Querce" --id querce \
+     --scadenza 2027-12-31 --url https://xxxx.supabase.co --chiave sb_publishable_xxxx
+   ```
+3. Manda il codice al centro. Il titolare installa l'app, incolla il codice, si iscrive e lo rendi proprietario come al
+   punto 2. Da **Impostazioni → Licenza** manda ai suoi clienti il link di attivazione.
+
+**Rinnovo e sospensione**
+
+- Per rinnovare genera un codice con lo **stesso `--id`** e una scadenza più lontana. Il centro lo incolla in
+  Impostazioni → Licenza e vale subito anche per i suoi clienti, senza che facciano niente.
+- Per sospendere un centro basta non rinnovare: alla scadenza l'app non si apre più. Se vuoi più controllo, fai
+  licenze brevi (per esempio mensili).
+- `node tools/licenza.mjs verifica <codice>` mostra cosa c'è in un codice e se la firma è tua.
 
 ## Cosa fa l'app
 
