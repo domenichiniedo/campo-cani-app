@@ -14,12 +14,13 @@ const DAYS_AHEAD = 21;
 
 export default function Book() {
   const c = useColors();
-  const { profile, settings, lessonTypes } = useSession();
+  const { profile, settings, lessonTypes, fields } = useSession();
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [open, setOpen] = useState<Record<string, number[]>>({});
   const [busy, setBusy] = useState<BusySlot[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const [fieldPick, setFieldPick] = useState<string | null>(null);
   const [dogId, setDogId] = useState<string | null>(null);
   const [typeId, setTypeId] = useState<string | null>(null);
   const [option, setOption] = useState<string | null>(null);
@@ -44,7 +45,9 @@ export default function Book() {
     const list = (d.data ?? []) as Dog[];
     setDogs(list);
     setDogId((cur) => cur ?? list.find((x) => !x.blocked)?.id ?? null);
-    setOpen(Object.fromEntries(((a.data ?? []) as { day: string; slots: number[] }[]).map((r) => [r.day, r.slots])));
+    setOpen(
+      Object.fromEntries(((a.data ?? []) as { field_id: string; day: string; slots: number[] }[]).map((r) => [`${r.field_id}|${r.day}`, r.slots])),
+    );
     setBusy((b.data ?? []) as BusySlot[]);
     setLoading(false);
   }, [profile, days]);
@@ -57,15 +60,23 @@ export default function Book() {
 
   const type = lessonTypes.find((t) => t.id === typeId) ?? null;
   const dog = dogs.find((d) => d.id === dogId) ?? null;
-  const starts = day && type ? startsFor(day, open[day] ?? [], busy, type.duration_min) : [];
-  const openDays = days.filter((k) => type && startsFor(k, open[k] ?? [], busy, type.duration_min).some((s) => s.state === 'free'));
-  const ready = !!(dog && !dog.blocked && type && (!type.options.length || option) && day && start != null);
+  const field = fields.find((f) => f.id === fieldPick) ?? fields[0] ?? null;
+  const fieldBusy = busy.filter((b) => b.field_id === field?.id);
+  const openOn = (k: string) => open[`${field?.id}|${k}`] ?? [];
+  const starts = day && type ? startsFor(day, openOn(day), fieldBusy, type.duration_min) : [];
+  const openDays = days.filter((k) => type && startsFor(k, openOn(k), fieldBusy, type.duration_min).some((s) => s.state === 'free'));
+  const ready = !!(field && dog && !dog.blocked && type && (!type.options.length || option) && day && start != null);
+  // Il passo "Campo" compare solo se i campi sono più di uno.
+  const manyFields = fields.length > 1;
+  const nWhen = manyFields ? '4' : '3';
+  const nConfirm = manyFields ? '5' : '4';
 
   async function confirm() {
-    if (!ready || !type || !day || start == null || !dog) return;
+    if (!ready || !field || !type || !day || start == null || !dog) return;
     setErr('');
     setSaving(true);
     const { error } = await supabase.rpc('book_slot', {
+      p_field: field.id,
       p_dog: dog.id,
       p_type: type.id,
       p_option: option ?? '',
@@ -79,7 +90,10 @@ export default function Book() {
       load();
       return;
     }
-    setDone(`${type.label}${option ? ` · ${option}` : ''} per ${dog.name}, ${longDay(day)} alle ${hm(start)}.`);
+    setDone(
+      `${type.label}${option ? ` · ${option}` : ''} per ${dog.name}, ${longDay(day)} alle ${hm(start)}` +
+        (manyFields ? `, ${field.name}${field.address ? ` (${field.address})` : ''}.` : '.'),
+    );
     setStart(null);
     load();
   }
@@ -154,9 +168,42 @@ export default function Book() {
         <Chips items={type.options.map((o) => ({ value: o, label: o }))} value={option} onChange={setOption} />
       )}
 
+      {type && manyFields && (
+        <>
+          <Step n="3" title="Campo" />
+          <View style={{ gap: 8 }}>
+            {fields.map((f) => {
+              const on = f.id === field?.id;
+              return (
+                <Pressable
+                  key={f.id}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  onPress={() => {
+                    setFieldPick(f.id);
+                    setDay(null);
+                    setStart(null);
+                  }}
+                  style={{
+                    borderWidth: on ? 2 : 1,
+                    borderColor: on ? c.accent : c.line,
+                    backgroundColor: on ? c.accentSoft : c.surface,
+                    borderRadius: 10,
+                    paddingVertical: 10,
+                    paddingHorizontal: 14,
+                  }}>
+                  <Text style={{ color: c.text, fontSize: 16, fontWeight: '800' }}>{f.name}</Text>
+                  {!!f.address && <Muted style={{ fontSize: 13 }}>{f.address}</Muted>}
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      )}
+
       {type && (
         <>
-          <Step n="3" title="Giorno e ora" />
+          <Step n={nWhen} title="Giorno e ora" />
           {openDays.length === 0 ? (
             <Muted>Nessun orario libero nelle prossime tre settimane. Riprova più avanti.</Muted>
           ) : (
@@ -229,7 +276,7 @@ export default function Book() {
 
       {ready && type && day && start != null && dog && (
         <>
-          <Step n="4" title="Conferma" />
+          <Step n={nConfirm} title="Conferma" />
           <Card accent>
             <Body bold>
               {type.label}
@@ -238,6 +285,12 @@ export default function Book() {
             <Muted>
               {longDay(day)}, dalle {hm(start)} alle {hm(start + type.duration_min)} · {euro(type.price_cents)}
             </Muted>
+            {manyFields && field && (
+              <Muted>
+                {field.name}
+                {field.address ? ` · ${field.address}` : ''}
+              </Muted>
+            )}
             <Chips
               items={[
                 { value: 'onsite', label: 'Pago al campo' },

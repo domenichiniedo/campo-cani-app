@@ -4,13 +4,18 @@ import { Text, View } from 'react-native';
 import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Muted, Row } from '@/components/ui';
 import { euro, hm, timeOf } from '@/lib/format';
 import type { OwnerBooking } from '@/lib/owner';
+import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
 import { fullName, PENALTY_REASONS } from '@/lib/types';
 
 /** Scheda di una prenotazione per il proprietario: ingresso, pagamento, penalità, annullo. */
-export function OwnerBookingCard({ b, onChange }: { b: OwnerBooking; onChange: () => void }) {
+export function OwnerBookingCard({ b, onChange, showField }: { b: OwnerBooking; onChange: () => void; showField?: boolean }) {
   const c = useColors();
+  const { trainers } = useSession();
+  const [trainerOpen, setTrainerOpen] = useState(false);
+  // Solo i trainer che seguono questo tipo di lezione (lista vuota = tutti).
+  const fit = trainers.filter((t) => !t.lessons.length || t.lessons.includes(b.lesson_type));
   const [busy, setBusy] = useState(false);
   const [penaltyOpen, setPenaltyOpen] = useState(false);
   const [reason, setReason] = useState<string | null>(null);
@@ -36,6 +41,7 @@ export function OwnerBookingCard({ b, onChange }: { b: OwnerBooking; onChange: (
           <Text style={{ color: c.muted, fontSize: 14, fontWeight: '600' }}> – {hm(b.start_min + b.dur_min)}</Text>
         </Text>
         <Row>
+          {showField && b.fields && <Badge>{b.fields.name}</Badge>}
           {arrived && <Badge tone="ok">{`Entrato ${timeOf(b.checked_in_at!)}`}</Badge>}
           {b.dogs?.blocked && <Badge tone="bad">Sospeso</Badge>}
           {penalized && <Badge tone="bad">Penalità</Badge>}
@@ -53,6 +59,11 @@ export function OwnerBookingCard({ b, onChange }: { b: OwnerBooking; onChange: (
         <Muted>
           {fullName(b.profiles)} · {b.profiles?.phone}
         </Muted>
+        {trainers.length > 0 && (
+          <Text style={{ color: b.trainers ? c.accent : c.brassText, fontSize: 14, fontWeight: '700' }}>
+            {b.trainers ? `Trainer: ${b.trainers.name}` : 'Trainer da assegnare'}
+          </Text>
+        )}
       </View>
       <Row>
         <Button
@@ -70,6 +81,9 @@ export function OwnerBookingCard({ b, onChange }: { b: OwnerBooking; onChange: (
           title={b.paid ? `Pagato ${euro(b.price_cents)} ✓` : `Incassa ${euro(b.price_cents)}`}
           onPress={() => run(() => supabase.from('bookings').update({ paid: !b.paid }).eq('id', b.id))}
         />
+        {trainers.length > 0 && (
+          <Button small kind="ghost" title={b.trainers ? 'Cambia trainer' : 'Assegna trainer'} onPress={() => setTrainerOpen(!trainerOpen)} />
+        )}
         <Button small kind="ghost" title="Penalità" onPress={() => setPenaltyOpen(!penaltyOpen)} />
         <ConfirmButton
           title="Annulla lezione"
@@ -78,6 +92,19 @@ export function OwnerBookingCard({ b, onChange }: { b: OwnerBooking; onChange: (
           }
         />
       </Row>
+      {trainerOpen && (
+        <View style={{ gap: 8 }}>
+          {fit.length === 0 && <Muted>Nessun trainer segue questo tipo di lezione. Controlla in Impostazioni.</Muted>}
+          <Chips
+            items={[...fit.map((t) => ({ value: t.id, label: t.name })), { value: '', label: 'Nessuno' }]}
+            value={b.trainer_id ?? ''}
+            onChange={async (v) => {
+              await run(() => supabase.from('bookings').update({ trainer_id: v || null }).eq('id', b.id));
+              setTrainerOpen(false);
+            }}
+          />
+        </View>
+      )}
       {penaltyOpen && (
         <View style={{ gap: 8 }}>
           <Chips items={PENALTY_REASONS.map((r) => ({ value: r, label: r }))} value={reason} onChange={setReason} />

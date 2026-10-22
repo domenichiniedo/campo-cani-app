@@ -1,16 +1,19 @@
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { Body, Button, Card, ErrorText, Field, H1, Muted, Row, Screen, Step, Toggle } from '@/components/ui';
 import { hm, parseHm, STEP } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
-import type { LessonType } from '@/lib/types';
+import type { Field as FieldRow, LessonType, Trainer } from '@/lib/types';
 
 type TypeDraft = { id: string; label: string; description: string; duration: string; price: string; options: string; active: boolean };
+
+type FieldDraft = { id?: string; name: string; address: string };
+type TrainerDraft = { id?: string; name: string; lessons: string[] };
 
 const toDraft = (t: LessonType): TypeDraft => ({
   id: t.id,
@@ -34,6 +37,12 @@ export default function OwnerSettings() {
   const [rules, setRules] = useState(settings?.rules ?? '');
   const [privacy, setPrivacy] = useState(settings?.privacy ?? '');
   const [types, setTypes] = useState<TypeDraft[]>([]);
+  const [fieldList, setFieldList] = useState<FieldDraft[]>([]);
+  // Campi disattivati in passato: se il numero risale li riusiamo, con il loro storico.
+  const [spareFields, setSpareFields] = useState<FieldDraft[]>([]);
+  const [activeFieldIds, setActiveFieldIds] = useState<string[]>([]);
+  const [trainerList, setTrainerList] = useState<TrainerDraft[]>([]);
+  const [activeTrainerIds, setActiveTrainerIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg] = useState('');
@@ -46,7 +55,75 @@ export default function OwnerSettings() {
       .select('*')
       .order('sort')
       .then(({ data }) => setTypes(((data ?? []) as LessonType[]).map(toDraft)));
+    supabase
+      .from('fields')
+      .select('*')
+      .order('sort')
+      .then(({ data }) => {
+        const all = (data ?? []) as FieldRow[];
+        const pick = (f: FieldRow): FieldDraft => ({ id: f.id, name: f.name, address: f.address });
+        setFieldList(all.filter((f) => f.active).map(pick));
+        setSpareFields(all.filter((f) => !f.active).map(pick));
+        setActiveFieldIds(all.filter((f) => f.active).map((f) => f.id));
+      });
+    supabase
+      .from('trainers')
+      .select('*')
+      .eq('active', true)
+      .order('sort')
+      .then(({ data }) => {
+        const all = (data ?? []) as Trainer[];
+        setTrainerList(all.map((t) => ({ id: t.id, name: t.name, lessons: t.lessons })));
+        setActiveTrainerIds(all.map((t) => t.id));
+      });
   }, []);
+
+  const setFieldAt = (i: number, patch: Partial<FieldDraft>) => setFieldList(fieldList.map((f, j) => (j === i ? { ...f, ...patch } : f)));
+  const setTrainerAt = (i: number, patch: Partial<TrainerDraft>) =>
+    setTrainerList(trainerList.map((t, j) => (j === i ? { ...t, ...patch } : t)));
+
+  function setFieldCount(n: number) {
+    if (n < 1) return;
+    if (n < fieldList.length) {
+      const removed = fieldList.slice(n).filter((f) => f.id);
+      setSpareFields([...removed, ...spareFields]);
+      setFieldList(fieldList.slice(0, n));
+      return;
+    }
+    const added: FieldDraft[] = [];
+    const spare = [...spareFields];
+    for (let i = fieldList.length; i < n; i++) {
+      added.push(spare.shift() ?? { name: `Campo ${i + 1}`, address: fieldList[0]?.address ?? address });
+    }
+    setSpareFields(spare);
+    setFieldList([...fieldList, ...added]);
+  }
+
+  /** Salva campi e trainer: chi viene tolto è disattivato, non cancellato. */
+  async function saveFieldsAndTrainers() {
+    const keptFields = fieldList.filter((f) => f.id).map((f) => f.id!);
+    const fieldOps = [
+      ...fieldList.map((f, i) =>
+        f.id
+          ? supabase.from('fields').update({ name: f.name.trim(), address: f.address.trim(), sort: i + 1, active: true }).eq('id', f.id)
+          : supabase.from('fields').insert({ name: f.name.trim(), address: f.address.trim(), sort: i + 1, active: true }),
+      ),
+      ...activeFieldIds.filter((id) => !keptFields.includes(id)).map((id) => supabase.from('fields').update({ active: false }).eq('id', id)),
+    ];
+    const keptTrainers = trainerList.filter((t) => t.id).map((t) => t.id!);
+    const trainerOps = [
+      ...trainerList.map((t, i) =>
+        t.id
+          ? supabase.from('trainers').update({ name: t.name.trim(), lessons: t.lessons, sort: i + 1, active: true }).eq('id', t.id)
+          : supabase.from('trainers').insert({ name: t.name.trim(), lessons: t.lessons, sort: i + 1, active: true }),
+      ),
+      ...activeTrainerIds
+        .filter((id) => !keptTrainers.includes(id))
+        .map((id) => supabase.from('trainers').update({ active: false }).eq('id', id)),
+    ];
+    const results = await Promise.all([...fieldOps, ...trainerOps]);
+    return results.find((r) => r.error)?.error ?? null;
+  }
 
   const setType = (i: number, patch: Partial<TypeDraft>) => setTypes(types.map((t, j) => (j === i ? { ...t, ...patch } : t)));
 
@@ -91,6 +168,9 @@ export default function OwnerSettings() {
     if (!Number.isInteger(ch) || ch < 0) return setErr('Le ore per la disdetta devono essere un numero intero.');
     if (!Number.isInteger(pl) || pl < 0) return setErr('Il limite di penalità deve essere un numero intero (0 = spento).');
 
+    if (fieldList.some((f) => !f.name.trim())) return setErr('Ogni campo deve avere un nome.');
+    if (trainerList.some((t) => !t.name.trim())) return setErr('Ogni trainer deve avere un nome.');
+
     const typeRows = [];
     for (const [i, t] of types.entries()) {
       const dur = Number(t.duration), price = Math.round(Number(t.price.replace(',', '.')) * 100);
@@ -124,9 +204,22 @@ export default function OwnerSettings() {
       })
       .eq('id', 1);
     const t = s.error ? s : await supabase.from('lesson_types').upsert(typeRows);
+    const ft = t.error ? t.error : await saveFieldsAndTrainers();
     setSaving(false);
-    if (t.error) return setErr(errorText(t.error));
+    if (ft) return setErr(errorText(ft));
     await refresh();
+    // Ricarica gli id dei campi e trainer appena creati.
+    const [f2, t2] = await Promise.all([
+      supabase.from('fields').select('*').order('sort'),
+      supabase.from('trainers').select('*').eq('active', true).order('sort'),
+    ]);
+    const allF = (f2.data ?? []) as FieldRow[];
+    setFieldList(allF.filter((f) => f.active).map((f) => ({ id: f.id, name: f.name, address: f.address })));
+    setSpareFields(allF.filter((f) => !f.active).map((f) => ({ id: f.id, name: f.name, address: f.address })));
+    setActiveFieldIds(allF.filter((f) => f.active).map((f) => f.id));
+    const allT = (t2.data ?? []) as Trainer[];
+    setTrainerList(allT.map((x) => ({ id: x.id, name: x.name, lessons: x.lessons })));
+    setActiveTrainerIds(allT.map((x) => x.id));
     setMsg('Impostazioni salvate.');
   }
 
@@ -137,7 +230,7 @@ export default function OwnerSettings() {
     <Screen>
       <H1>Impostazioni</H1>
 
-      <Step title="Campo e logo" />
+      <Step title="Centro e logo" />
       <Card>
         <Row>
           <View style={{ width: 72, height: 72, borderRadius: 36, overflow: 'hidden', backgroundColor: c.pitch }}>
@@ -148,9 +241,56 @@ export default function OwnerSettings() {
             {logoUrl && <Button small kind="ghost" title="Togli logo" onPress={removeLogo} />}
           </View>
         </Row>
-        <Field label="Nome del campo" value={name} onChangeText={setName} />
-        <Field label="Indirizzo" value={address} onChangeText={setAddress} />
+        <Field label="Nome del centro" value={name} onChangeText={setName} />
+        <Field label="Indirizzo della sede" value={address} onChangeText={setAddress} />
       </Card>
+
+      <Step title="Campi" />
+      <Card>
+        <Row style={{ justifyContent: 'space-between' }}>
+          <Body bold>Numero di campi</Body>
+          <Row>
+            <Button small kind="ghost" title="−" onPress={() => setFieldCount(fieldList.length - 1)} disabled={fieldList.length <= 1} />
+            <Text style={{ color: c.text, fontSize: 22, fontWeight: '800', minWidth: 28, textAlign: 'center' }}>{fieldList.length}</Text>
+            <Button small kind="ghost" title="+" onPress={() => setFieldCount(fieldList.length + 1)} />
+          </Row>
+        </Row>
+        <Muted style={{ fontSize: 13 }}>
+          Ogni campo ha orari e prenotazioni suoi. Più campi possono stare allo stesso indirizzo. Se togli un campo, le
+          prenotazioni già fatte restano nel piano.
+        </Muted>
+      </Card>
+      {fieldList.map((f, i) => (
+        <Card key={f.id ?? `new-${i}`}>
+          <Field label={`Campo ${i + 1}: nome`} value={f.name} onChangeText={(v) => setFieldAt(i, { name: v })} />
+          <Field label="Indirizzo" value={f.address} onChangeText={(v) => setFieldAt(i, { address: v })} />
+        </Card>
+      ))}
+
+      <Step title="Trainer" />
+      <Muted>Assegni il trainer a ogni lezione dal piano del giorno. Un trainer non può avere due lezioni alla stessa ora.</Muted>
+      {trainerList.map((t, i) => (
+        <Card key={t.id ?? `new-${i}`}>
+          <Field label="Nome" value={t.name} onChangeText={(v) => setTrainerAt(i, { name: v })} />
+          <Muted style={{ fontSize: 13 }}>Lezioni che segue (nessuna scelta = tutte)</Muted>
+          <Row>
+            {types.map((lt) => {
+              const on = t.lessons.includes(lt.id);
+              return (
+                <Button
+                  key={lt.id}
+                  small
+                  kind={on ? 'primary' : 'ghost'}
+                  title={lt.label}
+                  onPress={() => setTrainerAt(i, { lessons: on ? t.lessons.filter((x) => x !== lt.id) : [...t.lessons, lt.id] })}
+                />
+              );
+            })}
+          </Row>
+          <Button small kind="danger" title="Togli trainer" onPress={() => setTrainerList(trainerList.filter((_, j) => j !== i))} />
+        </Card>
+      ))}
+      <Button title="+ Aggiungi trainer" kind="ghost" onPress={() => setTrainerList([...trainerList, { name: '', lessons: [] }])} />
 
       <Step title="Orari e regole" />
       <Card>

@@ -14,6 +14,23 @@ export type Settings = {
   privacy_ver: number;
 };
 
+export type Field = {
+  id: string;
+  name: string;
+  address: string;
+  sort: number;
+  active: boolean;
+};
+
+export type Trainer = {
+  id: string;
+  name: string;
+  /** Tipi di lezione che segue; vuoto vuol dire tutti. */
+  lessons: string[];
+  sort: number;
+  active: boolean;
+};
+
 export type LessonType = {
   id: string;
   label: string;
@@ -53,6 +70,8 @@ export type Booking = {
   id: string;
   user_id: string;
   dog_id: string;
+  field_id: string;
+  trainer_id: string | null;
   lesson_type: string;
   lesson_option: string;
   day: string;
@@ -74,7 +93,7 @@ export type Penalty = {
   created_at: string;
 };
 
-export type BusySlot = { day: string; start_min: number; dur_min: number; mine: boolean };
+export type BusySlot = { field_id: string; day: string; start_min: number; dur_min: number; mine: boolean };
 
 export const PENALTY_REASONS = ['Assenza senza disdetta', 'Ritardo', 'Disdetta tardiva', 'Comportamento'];
 
