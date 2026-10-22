@@ -14,6 +14,23 @@ export type Settings = {
   privacy_ver: number;
 };
 
+export type Field = {
+  id: string;
+  name: string;
+  address: string;
+  sort: number;
+  active: boolean;
+};
+
+export type Trainer = {
+  id: string;
+  name: string;
+  /** Tipi di lezione che segue; vuoto vuol dire tutti. */
+  lessons: string[];
+  sort: number;
+  active: boolean;
+};
+
 export type LessonType = {
   id: string;
   label: string;
@@ -37,6 +54,13 @@ export type Profile = {
   rules_accepted_at: string | null;
   privacy_accepted_at: string | null;
   created_at: string;
+  tax_code: string;
+  /** Per i pagamenti online: fattura o scontrino. */
+  doc_pref: 'invoice' | 'receipt';
+  billing_street: string;
+  billing_zip: string;
+  billing_city: string;
+  billing_province: string;
 };
 
 export type Dog = {
@@ -53,18 +77,87 @@ export type Booking = {
   id: string;
   user_id: string;
   dog_id: string;
+  field_id: string;
+  trainer_id: string | null;
   lesson_type: string;
   lesson_option: string;
   day: string;
   start_min: number;
   dur_min: number;
   price_cents: number;
-  pay: 'online' | 'onsite';
+  pay: 'online' | 'onsite' | 'package';
+  package_id: string | null;
   paid: boolean;
   checked_in_at: string | null;
   note: string;
   status: 'active' | 'cancelled';
 };
+
+export type Package = {
+  id: string;
+  name: string;
+  /** Tipo di lezione a cui vale; null = tutte. */
+  lesson_type: string | null;
+  lessons: number;
+  price_cents: number;
+  /** Giorni di validità dall'attivazione; null = non scade. */
+  valid_days: number | null;
+  sort: number;
+  active: boolean;
+};
+
+export type ClientPackage = {
+  id: string;
+  user_id: string;
+  package_id: string | null;
+  name: string;
+  lesson_type: string | null;
+  lessons_total: number;
+  lessons_used: number;
+  price_cents: number;
+  status: 'requested' | 'active' | 'cancelled';
+  requested_at: string;
+  activated_at: string | null;
+  expires_at: string | null;
+};
+
+export type InvoiceSettings = {
+  tax_regime: 'RF01' | 'RF19';
+  vat_rate: number;
+  auto_invoice: boolean;
+  receipt_mode: 'manual' | 'cloud' | 'device';
+  printer_url: string;
+};
+
+export type Invoice = {
+  id: string;
+  kind: 'invoice' | 'receipt';
+  receipt_number: string | null;
+  year: number;
+  number: number | null;
+  issued_on: string;
+  user_id: string | null;
+  booking_id: string | null;
+  buyer_name: string;
+  description: string;
+  total_cents: number;
+  status: 'pending' | 'sent' | 'error';
+  error: string | null;
+  sent_at: string | null;
+};
+
+export const invoiceTitle = (i: Invoice) =>
+  i.kind === 'receipt'
+    ? i.status === 'sent'
+      ? `Scontrino${i.receipt_number ? ` ${i.receipt_number}` : ''}`
+      : 'Scontrino da emettere'
+    : i.number
+      ? `Fattura ${i.number}/${i.year}`
+      : 'Fattura in preparazione';
+
+/** Pacchetto attivo, non scaduto e con lezioni rimaste. */
+export const usable = (cp: ClientPackage, now = Date.now()) =>
+  cp.status === 'active' && cp.lessons_used < cp.lessons_total && (!cp.expires_at || new Date(cp.expires_at).getTime() > now);
 
 export type Penalty = {
   id: string;
@@ -74,7 +167,7 @@ export type Penalty = {
   created_at: string;
 };
 
-export type BusySlot = { day: string; start_min: number; dur_min: number; mine: boolean };
+export type BusySlot = { field_id: string; day: string; start_min: number; dur_min: number; mine: boolean };
 
 export const PENALTY_REASONS = ['Assenza senza disdetta', 'Ritardo', 'Disdetta tardiva', 'Comportamento'];
 

@@ -1,25 +1,45 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
-import { Badge, Body, Button, Card, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
-import { isDayKey, shortDate } from '@/lib/format';
+import { BillingFields } from '@/components/billing-fields';
+import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
+import { billingColumns, billingError, billingFromProfile } from '@/lib/billing';
+import { euro, isDayKey, shortDate } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
-import { rulesLines, type Dog, type Penalty } from '@/lib/types';
+import { invoiceTitle, rulesLines, type Dog, type Invoice, type Penalty } from '@/lib/types';
 
 export default function Profile() {
   const { profile, settings, lessonTypes, refresh } = useSession();
   const [first, setFirst] = useState(profile?.first_name ?? '');
   const [last, setLast] = useState(profile?.last_name ?? '');
   const [phone, setPhone] = useState(profile?.phone ?? '');
+  const [billing, setBilling] = useState(billingFromProfile(profile));
+  const [docPref, setDocPref] = useState(profile?.doc_pref ?? 'invoice');
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [penalties, setPenalties] = useState<Penalty[]>([]);
   const [newDog, setNewDog] = useState({ name: '', breed: '', birth: '' });
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [deleteErr, setDeleteErr] = useState('');
+
+  async function deleteAccount() {
+    setDeleteErr('');
+    const { error } = await supabase.rpc('delete_my_account');
+    if (error) return setDeleteErr(errorText(error));
+    // L'utente non esiste più: chiudiamo solo la sessione su questo telefono.
+    await supabase.auth.signOut({ scope: 'local' });
+  }
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
 
   const load = useCallback(async () => {
     if (!profile) return;
+    supabase
+      .from('invoices')
+      .select('*')
+      .eq('user_id', profile.id)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setInvoices((data ?? []) as Invoice[]));
     const d = await supabase.from('dogs').select('*').eq('owner_id', profile.id).eq('archived', false).order('name');
     const list = (d.data ?? []) as Dog[];
     setDogs(list);
@@ -37,8 +57,13 @@ export default function Profile() {
 
   async function saveMe() {
     if (!profile) return;
+    const bErr = billingError(billing);
+    if (bErr) return setErr(bErr);
     setErr('');
-    const { error } = await supabase.from('profiles').update({ first_name: first.trim(), last_name: last.trim(), phone: phone.trim() }).eq('id', profile.id);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ first_name: first.trim(), last_name: last.trim(), phone: phone.trim(), doc_pref: docPref, ...billingColumns(billing) })
+      .eq('id', profile.id);
     if (error) return setErr(errorText(error));
     setMsg('Dati salvati.');
     refresh();
@@ -74,6 +99,16 @@ export default function Profile() {
         </Row>
         <Field label="Telefono" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
         <Muted>Email: {profile?.email}</Muted>
+        <BillingFields value={billing} onChange={setBilling} />
+        <Muted style={{ fontSize: 13 }}>Per i pagamenti online vuoi</Muted>
+        <Chips
+          items={[
+            { value: 'invoice', label: 'Fattura' },
+            { value: 'receipt', label: 'Scontrino' },
+          ]}
+          value={docPref}
+          onChange={setDocPref}
+        />
         {!!msg && <Muted>{msg}</Muted>}
         <Button title="Salva" onPress={saveMe} small />
       </Card>
@@ -108,6 +143,27 @@ export default function Profile() {
       </Card>
       <ErrorText>{err}</ErrorText>
 
+      {invoices.length > 0 && (
+        <>
+          <Step title="Fatture e scontrini" />
+          {invoices.map((i) => (
+            <Card key={i.id}>
+              <Row style={{ justifyContent: 'space-between' }}>
+                <Body bold>{invoiceTitle(i)}</Body>
+                {i.status === 'sent' ? <Badge tone="ok">Emesso</Badge> : <Badge tone="warn">In preparazione</Badge>}
+              </Row>
+              <Muted>
+                {i.description} · {euro(i.total_cents)}
+              </Muted>
+            </Card>
+          ))}
+          <Muted style={{ fontSize: 13 }}>
+            Le fatture inviate le trovi anche nel tuo cassetto fiscale sul sito dell&apos;Agenzia delle Entrate. Lo scontrino te lo
+            consegna il campo.
+          </Muted>
+        </>
+      )}
+
       <Step title="Documenti" />
       <Card>
         {settings && <Expandable title="il regolamento" lines={rulesLines(settings, lessonTypes)} />}
@@ -118,6 +174,17 @@ export default function Profile() {
       </Card>
 
       <Button title="Esci" kind="ghost" onPress={() => supabase.auth.signOut()} />
+
+      <Step title="Cancella account" />
+      <Card>
+        <Muted>
+          Annulla le tue lezioni in programma e cancella i tuoi dati, i cani e i pacchetti. Le fatture già emesse restano al
+          campo, come chiede la legge. Le lezioni rimaste nei pacchetti non vengono rimborsate dall&apos;app: parlane con il
+          campo prima di procedere.
+        </Muted>
+        <ConfirmButton title="Cancella il mio account" onConfirm={deleteAccount} />
+        <ErrorText>{deleteErr}</ErrorText>
+      </Card>
     </Screen>
   );
 }

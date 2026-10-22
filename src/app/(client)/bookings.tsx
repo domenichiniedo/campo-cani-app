@@ -7,10 +7,14 @@ import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import type { Booking } from '@/lib/types';
 
-type BookingRow = Booking & { dogs: { name: string } | null; lesson_types: { label: string } | null };
+type BookingRow = Booking & {
+  dogs: { name: string } | null;
+  lesson_types: { label: string } | null;
+  fields: { name: string; address: string } | null;
+};
 
 export default function MyBookings() {
-  const { profile, settings } = useSession();
+  const { profile, settings, fields } = useSession();
   const [rows, setRows] = useState<BookingRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
@@ -21,7 +25,7 @@ export default function MyBookings() {
     setLoading(true);
     const { data } = await supabase
       .from('bookings')
-      .select('*, dogs(name), lesson_types(label)')
+      .select('*, dogs(name), lesson_types(label), fields(name, address)')
       .eq('user_id', profile.id)
       .eq('status', 'active')
       .gte('day', dayKey(today()))
@@ -55,9 +59,15 @@ export default function MyBookings() {
               {b.lesson_types?.label ?? b.lesson_type}
               {b.lesson_option ? ` · ${b.lesson_option}` : ''} per {b.dogs?.name}
             </Body>
+            {fields.length > 1 && b.fields && (
+              <Muted>
+                {b.fields.name}
+                {b.fields.address ? ` · ${b.fields.address}` : ''}
+              </Muted>
+            )}
             <Row>
               <Badge>{`${b.dur_min} min`}</Badge>
-              <Badge tone={b.paid ? 'ok' : 'warn'}>{b.paid ? 'Pagato' : b.pay === 'online' ? 'Online' : `Al campo ${euro(b.price_cents)}`}</Badge>
+              <Badge tone={b.paid ? 'ok' : 'warn'}>{b.pay === 'package' ? 'Dal pacchetto' : b.paid ? 'Pagato' : b.pay === 'online' ? 'Online' : `Al campo ${euro(b.price_cents)}`}</Badge>
               {b.checked_in_at && <Badge tone="ok">Entrato</Badge>}
             </Row>
             {canCancel ? (

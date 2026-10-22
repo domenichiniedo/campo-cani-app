@@ -5,11 +5,13 @@ import { Pressable, Text, View } from 'react-native';
 import { Badge, Button, Card, ErrorText, H1, Muted, Row, Screen, Stat } from '@/components/ui';
 import { addDays, cap, dayKey, euro, hm, longDay, monthShort, today } from '@/lib/format';
 import { mondayOf, ownerBookings, type OwnerBooking } from '@/lib/owner';
+import { useSession } from '@/lib/session';
 import { errorText } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
 
 export default function OwnerWeek() {
   const c = useColors();
+  const { fields } = useSession();
   const [monday, setMonday] = useState(mondayOf(today()));
   const [rows, setRows] = useState<OwnerBooking[]>([]);
   const [loading, setLoading] = useState(false);
@@ -70,6 +72,8 @@ export default function OwnerWeek() {
                   <Text style={{ color: c.text, flex: 1 }} numberOfLines={1}>
                     {b.dogs?.name} · {b.lesson_types?.label ?? b.lesson_type}
                     {b.lesson_option ? ` ${b.lesson_option}` : ''}
+                    {b.fields && fields.length > 1 ? ` · ${b.fields.name}` : ''}
+                    {b.trainers ? ` · ${b.trainers.name}` : ''}
                   </Text>
                   {b.checked_in_at && <Text style={{ color: c.accent, fontWeight: '800' }}>✓</Text>}
                 </View>

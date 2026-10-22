@@ -8,18 +8,20 @@ import { useSession } from '@/lib/session';
 import { startsFor } from '@/lib/slots';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
-import type { BusySlot, Dog } from '@/lib/types';
+import { usable, type BusySlot, type ClientPackage, type Dog } from '@/lib/types';
 
 const DAYS_AHEAD = 21;
 
 export default function Book() {
   const c = useColors();
-  const { profile, settings, lessonTypes } = useSession();
+  const { profile, settings, lessonTypes, fields } = useSession();
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [open, setOpen] = useState<Record<string, number[]>>({});
   const [busy, setBusy] = useState<BusySlot[]>([]);
+  const [packs, setPacks] = useState<ClientPackage[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const [fieldPick, setFieldPick] = useState<string | null>(null);
   const [dogId, setDogId] = useState<string | null>(null);
   const [typeId, setTypeId] = useState<string | null>(null);
   const [option, setOption] = useState<string | null>(null);
@@ -29,6 +31,7 @@ export default function Book() {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const [done, setDone] = useState<string | null>(null);
+  const [paidWith, setPaidWith] = useState('');
 
   const days = useMemo(() => Array.from({ length: DAYS_AHEAD }, (_, i) => dayKey(addDays(today(), i))), []);
 
@@ -36,15 +39,19 @@ export default function Book() {
     if (!profile) return;
     setLoading(true);
     const from = days[0], to = days[days.length - 1];
-    const [d, a, b] = await Promise.all([
+    const [d, a, b, p] = await Promise.all([
       supabase.from('dogs').select('*').eq('owner_id', profile.id).eq('archived', false).order('name'),
       supabase.from('availability').select('*').gte('day', from).lte('day', to),
       supabase.rpc('busy_slots', { from_day: from, to_day: to }),
+      supabase.from('client_packages').select('*').eq('user_id', profile.id).eq('status', 'active'),
     ]);
+    setPacks((p.data ?? []) as ClientPackage[]);
     const list = (d.data ?? []) as Dog[];
     setDogs(list);
     setDogId((cur) => cur ?? list.find((x) => !x.blocked)?.id ?? null);
-    setOpen(Object.fromEntries(((a.data ?? []) as { day: string; slots: number[] }[]).map((r) => [r.day, r.slots])));
+    setOpen(
+      Object.fromEntries(((a.data ?? []) as { field_id: string; day: string; slots: number[] }[]).map((r) => [`${r.field_id}|${r.day}`, r.slots])),
+    );
     setBusy((b.data ?? []) as BusySlot[]);
     setLoading(false);
   }, [profile, days]);
@@ -57,15 +64,29 @@ export default function Book() {
 
   const type = lessonTypes.find((t) => t.id === typeId) ?? null;
   const dog = dogs.find((d) => d.id === dogId) ?? null;
-  const starts = day && type ? startsFor(day, open[day] ?? [], busy, type.duration_min) : [];
-  const openDays = days.filter((k) => type && startsFor(k, open[k] ?? [], busy, type.duration_min).some((s) => s.state === 'free'));
-  const ready = !!(dog && !dog.blocked && type && (!type.options.length || option) && day && start != null);
+  const field = fields.find((f) => f.id === fieldPick) ?? fields[0] ?? null;
+  const fieldBusy = busy.filter((b) => b.field_id === field?.id);
+  const openOn = (k: string) => open[`${field?.id}|${k}`] ?? [];
+  const starts = day && type ? startsFor(day, openOn(day), fieldBusy, type.duration_min) : [];
+  const openDays = days.filter((k) => type && startsFor(k, openOn(k), fieldBusy, type.duration_min).some((s) => s.state === 'free'));
+  // Lo stesso criterio di book_slot: il pacchetto che scade prima tra quelli validi per la lezione.
+  const pack = type
+    ? packs
+        .filter((cp) => usable(cp) && (!cp.lesson_type || cp.lesson_type === type.id))
+        .sort((x, y) => (x.expires_at ?? '9999').localeCompare(y.expires_at ?? '9999'))[0]
+    : undefined;
+  const ready = !!(field && dog && !dog.blocked && type && (!type.options.length || option) && day && start != null);
+  // Il passo "Campo" compare solo se i campi sono più di uno.
+  const manyFields = fields.length > 1;
+  const nWhen = manyFields ? '4' : '3';
+  const nConfirm = manyFields ? '5' : '4';
 
   async function confirm() {
-    if (!ready || !type || !day || start == null || !dog) return;
+    if (!ready || !field || !type || !day || start == null || !dog) return;
     setErr('');
     setSaving(true);
     const { error } = await supabase.rpc('book_slot', {
+      p_field: field.id,
       p_dog: dog.id,
       p_type: type.id,
       p_option: option ?? '',
@@ -79,7 +100,11 @@ export default function Book() {
       load();
       return;
     }
-    setDone(`${type.label}${option ? ` · ${option}` : ''} per ${dog.name}, ${longDay(day)} alle ${hm(start)}.`);
+    setPaidWith(pack ? `Lezione scalata dal pacchetto "${pack.name}".` : pay === 'onsite' ? 'Paghi al campo.' : 'Pagamento online registrato.');
+    setDone(
+      `${type.label}${option ? ` · ${option}` : ''} per ${dog.name}, ${longDay(day)} alle ${hm(start)}` +
+        (manyFields ? `, ${field.name}${field.address ? ` (${field.address})` : ''}.` : '.'),
+    );
     setStart(null);
     load();
   }
@@ -91,7 +116,7 @@ export default function Book() {
         <Card accent>
           <Body bold>{done}</Body>
           <Muted>
-            {pay === 'onsite' ? 'Paghi al campo.' : 'Pagamento online registrato.'} Puoi disdire fino a {settings?.cancel_hours ?? 0} ore prima
+            {paidWith} Puoi disdire fino a {settings?.cancel_hours ?? 0} ore prima
             da &quot;Le mie lezioni&quot;.
           </Muted>
         </Card>
@@ -154,9 +179,42 @@ export default function Book() {
         <Chips items={type.options.map((o) => ({ value: o, label: o }))} value={option} onChange={setOption} />
       )}
 
+      {type && manyFields && (
+        <>
+          <Step n="3" title="Campo" />
+          <View style={{ gap: 8 }}>
+            {fields.map((f) => {
+              const on = f.id === field?.id;
+              return (
+                <Pressable
+                  key={f.id}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  onPress={() => {
+                    setFieldPick(f.id);
+                    setDay(null);
+                    setStart(null);
+                  }}
+                  style={{
+                    borderWidth: on ? 2 : 1,
+                    borderColor: on ? c.accent : c.line,
+                    backgroundColor: on ? c.accentSoft : c.surface,
+                    borderRadius: 10,
+                    paddingVertical: 10,
+                    paddingHorizontal: 14,
+                  }}>
+                  <Text style={{ color: c.text, fontSize: 16, fontWeight: '800' }}>{f.name}</Text>
+                  {!!f.address && <Muted style={{ fontSize: 13 }}>{f.address}</Muted>}
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      )}
+
       {type && (
         <>
-          <Step n="3" title="Giorno e ora" />
+          <Step n={nWhen} title="Giorno e ora" />
           {openDays.length === 0 ? (
             <Muted>Nessun orario libero nelle prossime tre settimane. Riprova più avanti.</Muted>
           ) : (
@@ -229,24 +287,37 @@ export default function Book() {
 
       {ready && type && day && start != null && dog && (
         <>
-          <Step n="4" title="Conferma" />
+          <Step n={nConfirm} title="Conferma" />
           <Card accent>
             <Body bold>
               {type.label}
               {option ? ` · ${option}` : ''} per {dog.name}
             </Body>
             <Muted>
-              {longDay(day)}, dalle {hm(start)} alle {hm(start + type.duration_min)} · {euro(type.price_cents)}
+              {longDay(day)}, dalle {hm(start)} alle {hm(start + type.duration_min)}
+              {pack ? '' : ` · ${euro(type.price_cents)}`}
             </Muted>
-            <Chips
-              items={[
-                { value: 'onsite', label: 'Pago al campo' },
-                { value: 'online', label: 'Pago online', disabled: !settings?.online_payments },
-              ]}
-              value={pay}
-              onChange={(v) => setPay(v as 'onsite' | 'online')}
-            />
-            {!settings?.online_payments && <Muted style={{ fontSize: 12 }}>Il pagamento online non è ancora attivo.</Muted>}
+            {manyFields && field && (
+              <Muted>
+                {field.name}
+                {field.address ? ` · ${field.address}` : ''}
+              </Muted>
+            )}
+            {pack ? (
+              <Body>
+                Si scala dal pacchetto &quot;{pack.name}&quot;: {pack.lessons_total - pack.lessons_used - 1} lezioni rimaste dopo questa.
+              </Body>
+            ) : (
+              <Chips
+                items={[
+                  { value: 'onsite', label: 'Pago al campo' },
+                  { value: 'online', label: 'Pago online', disabled: !settings?.online_payments },
+                ]}
+                value={pay}
+                onChange={(v) => setPay(v as 'onsite' | 'online')}
+              />
+            )}
+            {!pack && !settings?.online_payments && <Muted style={{ fontSize: 12 }}>Il pagamento online non è ancora attivo.</Muted>}
             <ErrorText>{err}</ErrorText>
             <Button title="Conferma prenotazione" onPress={confirm} loading={saving} />
           </Card>

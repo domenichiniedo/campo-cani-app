@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { Button, Card, ErrorText, H1, Muted, Row, Screen, Step } from '@/components/ui';
+import { Button, Card, Chips, ErrorText, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { addDays, cap, dayKey, fromKey, hm, longDay, monthShort, STEP, today, weekdayShort } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
@@ -12,7 +12,8 @@ const DAYS_AHEAD = 56;
 
 export default function OwnerHours() {
   const c = useColors();
-  const { settings } = useSession();
+  const { settings, fields } = useSession();
+  const [fieldPick, setFieldPick] = useState<string | null>(null);
   const [open, setOpen] = useState<Record<string, number[]>>({});
   const [booked, setBooked] = useState<Record<string, number[]>>({});
   const [day, setDay] = useState(dayKey(today()));
@@ -28,12 +29,15 @@ export default function OwnerHours() {
   const load = useCallback(async () => {
     const [a, b] = await Promise.all([
       supabase.from('availability').select('*').gte('day', from).lte('day', to),
-      supabase.from('bookings').select('day, start_min, dur_min').eq('status', 'active').gte('day', from).lte('day', to),
+      supabase.from('bookings').select('field_id, day, start_min, dur_min').eq('status', 'active').gte('day', from).lte('day', to),
     ]);
-    setOpen(Object.fromEntries(((a.data ?? []) as { day: string; slots: number[] }[]).map((r) => [r.day, r.slots])));
+    // Chiavi "campo|giorno": ogni campo ha i suoi orari e le sue prenotazioni.
+    setOpen(
+      Object.fromEntries(((a.data ?? []) as { field_id: string; day: string; slots: number[] }[]).map((r) => [`${r.field_id}|${r.day}`, r.slots])),
+    );
     const taken: Record<string, number[]> = {};
-    for (const r of (b.data ?? []) as { day: string; start_min: number; dur_min: number }[])
-      for (let m = r.start_min; m < r.start_min + r.dur_min; m += STEP) (taken[r.day] ??= []).push(m);
+    for (const r of (b.data ?? []) as { field_id: string; day: string; start_min: number; dur_min: number }[])
+      for (let m = r.start_min; m < r.start_min + r.dur_min; m += STEP) (taken[`${r.field_id}|${r.day}`] ??= []).push(m);
     setBooked(taken);
   }, [from, to]);
 
@@ -43,12 +47,14 @@ export default function OwnerHours() {
     }, [load]),
   );
 
-  if (!settings) return null;
+  const field = fields.find((f) => f.id === fieldPick) ?? fields[0] ?? null;
+  if (!settings || !field) return null;
+  const key = (k: string) => `${field.id}|${k}`;
   const grid: number[] = [];
   for (let m = settings.open_min; m < settings.close_min; m += STEP) grid.push(m);
 
-  const current = draft ?? open[day] ?? [];
-  const takenNow = booked[day] ?? [];
+  const current = draft ?? open[key(day)] ?? [];
+  const takenNow = booked[key(day)] ?? [];
   const pick = (k: string) => {
     setDay(k);
     setDraft(null);
@@ -62,14 +68,21 @@ export default function OwnerHours() {
     setMsg('');
   };
 
-  async function save(targets: string[], slots: number[]) {
+  async function save(targets: string[], slots: number[], fieldIds = [field!.id]) {
     setErr('');
     setSaving(true);
-    const { error } = await supabase.from('availability').upsert(targets.map((d) => ({ day: d, slots })));
+    const rows = fieldIds.flatMap((f) => targets.map((d) => ({ field_id: f, day: d, slots })));
+    const { error } = await supabase.from('availability').upsert(rows);
     setSaving(false);
     if (error) return setErr(errorText(error));
     setDraft(null);
-    setMsg(targets.length > 1 ? `Orari copiati su ${targets.length} giorni.` : 'Orari salvati.');
+    setMsg(
+      fieldIds.length > 1
+        ? `Orari copiati su tutti i ${fieldIds.length} campi.`
+        : targets.length > 1
+          ? `Orari copiati su ${targets.length} giorni.`
+          : 'Orari salvati.',
+    );
     load();
   }
 
@@ -83,11 +96,23 @@ export default function OwnerHours() {
         sono segnate in oro.
       </Muted>
 
+      {fields.length > 1 && (
+        <Chips
+          items={fields.map((f) => ({ value: f.id, label: f.name }))}
+          value={field.id}
+          onChange={(v) => {
+            setFieldPick(v);
+            setDraft(null);
+            setMsg('');
+          }}
+        />
+      )}
+
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
         {days.map((k) => {
           const d = fromKey(k);
           const on = k === day;
-          const n = (open[k] ?? []).length;
+          const n = (open[key(k)] ?? []).length;
           return (
             <Pressable
               key={k}
@@ -112,7 +137,7 @@ export default function OwnerHours() {
         })}
       </ScrollView>
 
-      <Step title={cap(longDay(day))} />
+      <Step title={fields.length > 1 ? `${field.name} · ${cap(longDay(day))}` : cap(longDay(day))} />
       <Card>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
           {grid.map((m) => {
@@ -150,6 +175,9 @@ export default function OwnerHours() {
           title={`Copia sui prossimi 4 ${longDay(day).split(' ')[0]}`}
           onPress={() => save([day, ...sameWeekdayNext], current)}
         />
+        {fields.length > 1 && (
+          <Button kind="ghost" title="Usa questi orari su tutti i campi" onPress={() => save([day], current, fields.map((f) => f.id))} />
+        )}
       </Card>
       <Muted style={{ fontSize: 13 }}>
         La griglia va dalle {hm(settings.open_min)} alle {hm(settings.close_min)}: puoi cambiarla in Impostazioni. Chiudere una mezz&apos;ora non
