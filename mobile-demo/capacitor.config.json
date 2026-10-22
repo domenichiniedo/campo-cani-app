@@ -1,0 +1,8 @@
+{
+  "appId": "it.campocani.demo",
+  "appName": "Campo Cani Demo",
+  "webDir": "www",
+  "android": {
+    "adjustMarginsForEdgeToEdge": "force"
+  }
+}
