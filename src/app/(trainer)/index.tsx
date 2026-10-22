@@ -51,14 +51,8 @@ export default function TrainerLessons() {
     }, [load]),
   );
 
-  if (!myTrainer) {
-    return (
-      <Screen>
-        <H1>Le mie lezioni</H1>
-        <Body>Il tuo account non è ancora collegato a un trainer. Chiedi al centro di collegarlo con la tua email.</Body>
-      </Screen>
-    );
-  }
+  // Senza trainer collegato il layout mostra già la spiegazione.
+  if (!myTrainer) return null;
 
   const isToday = day === dayKey(today());
   const move = (n: number) => setDay(dayKey(addDays(fromKey(day), n)));
