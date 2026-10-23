@@ -2,7 +2,8 @@
 # di esempio, senza database, con il bottone "Demo" per entrare come proprietario, cliente o trainer.
 # Si scarica dal telefono da GitHub → Releases → "Demo per Android" (file K9Manager-Demo.apk),
 # oppure da Actions → "Demo per Android" → l'ultima esecuzione → Artifacts.
-# Partenza: a mano (Run workflow) o quando una PR cambia la demo.
+# Partenza: a mano (Run workflow), che la pubblica nelle Releases, o quando una PR cambia la demo:
+# in quel caso si costruisce solo per provarla e l'APK resta negli Artifacts.
 name: Demo per Android
 
 on:
@@ -70,7 +71,10 @@ jobs:
           path: K9Manager-Demo.apk
           if-no-files-found: error
       # Release fissa "demo-android": il link per scaricare l'APK dal telefono resta sempre lo stesso.
+      # Solo le demo costruite a mano: una PR non ancora unita non deve sostituire la demo pubblicata
+      # (e due PR insieme si pestavano i piedi caricando lo stesso file).
       - name: Pubblica nelle Releases
+        if: ${{ github.event_name != 'pull_request' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -78,6 +82,5 @@ jobs:
           gh release view demo-android >/dev/null 2>&1 || gh release create demo-android --prerelease --title "Demo per Android" --notes "$NOTES"
           gh release edit demo-android --title "Demo per Android" --notes "$NOTES"
           gh release upload demo-android K9Manager-Demo.apk --clobber
-          # Il file col vecchio nome (prima di K9 Manager) non si aggiorna più: si toglie per non confondersi
-          # (non dalle prove delle PR, solo dalle demo costruite a mano).
-          if [ "${{ github.event_name }}" != pull_request ]; then gh release delete-asset demo-android CampoCani-Demo.apk -y || true; fi
+          # Il file col vecchio nome (prima di K9 Manager) non si aggiorna più: si toglie per non confondersi.
+          gh release delete-asset demo-android CampoCani-Demo.apk -y || true
