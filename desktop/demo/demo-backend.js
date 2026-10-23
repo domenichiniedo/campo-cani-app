@@ -238,6 +238,7 @@
   if (!db) db = seed();
   if (!db.trainer_availability) db.trainer_availability = [];
   if (!db.classes) db.classes = [];
+  if (!db.owner_emails) db.owner_emails = db.profiles.filter(function (p) { return p.role === 'owner'; }).map(function (p) { return { email: p.email }; });
   if (db.invoices && !db.invoices.some(function (x) { return x.kind; })) delete db.invoices;
   if (!db.invoices) { var t0 = new Date(); t0.setHours(0, 0, 0, 0); addInvoices(db, t0); }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} }
@@ -323,6 +324,7 @@
   }
   function visible(table, rows, who) {
     if (who && who.role === 'owner') return rows;
+    if (table === 'owner_emails') return [];
     if (who && who.role === 'trainer') {
       // Il trainer vede le sue lezioni e i clienti e i cani che ha avuto a lezione.
       var tid = trainerOf(who);
@@ -502,6 +504,22 @@
         if (pr && pr.role === 'owner') return fail("Questa è l'email del proprietario");
         if (pr) pr.role = 'trainer';
         db.trainer_accounts.push({ trainer_id: a.p_trainer, email: e, user_id: pr ? pr.id : null });
+      }
+      save();
+      return new Response(null, { status: 204 });
+    }
+    if (name === 'add_owner' || name === 'remove_owner') {
+      if (who.role !== 'owner') return fail('Solo un proprietario può cambiare i proprietari');
+      var oe = (a.p_email || '').trim().toLowerCase();
+      if (name === 'add_owner') {
+        if (!/.@./.test(oe)) return fail('Email non valida');
+        if (!db.owner_emails.some(function (x) { return x.email === oe; })) db.owner_emails.push({ email: oe });
+        db.profiles.forEach(function (p) { if (p.email === oe) p.role = 'owner'; });
+      } else {
+        if (oe === who.email) return fail('Non puoi togliere te stesso dai proprietari');
+        db.owner_emails = db.owner_emails.filter(function (x) { return x.email !== oe; });
+        var isTrainer = db.trainer_accounts.some(function (x) { return x.email === oe; });
+        db.profiles.forEach(function (p) { if (p.email === oe && p.role === 'owner') p.role = isTrainer ? 'trainer' : 'client'; });
       }
       save();
       return new Response(null, { status: 204 });
@@ -771,6 +789,7 @@
       db.passwords[email] = body.password;
       // Come nel database vero: chi si iscrive con l'email di un trainer diventa trainer.
       db.trainer_accounts.forEach(function (x) { if (x.email === email && !x.user_id) { x.user_id = np.id; np.role = 'trainer'; } });
+      if (db.owner_emails.some(function (x) { return x.email === email; })) np.role = 'owner';
       (d.dogs || []).forEach(function (g) { db.dogs.push({ id: uid(), owner_id: np.id, name: g.name, breed: g.breed || '', birth: g.birth || null, blocked: false, archived: false }); });
       save();
       return json(200, sessionFor(np));

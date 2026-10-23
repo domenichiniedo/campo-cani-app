@@ -10,12 +10,18 @@ import { fileURLToPath } from 'node:url';
 
 const dir = join(import.meta.dirname, '../supabase/migrations');
 
-/** Tutte le migrazioni in ordine, in un unico testo SQL. */
-export function migrationsSql() {
+/** Le migrazioni in ordine: nome del file e SQL. */
+export function migrations() {
   return readdirSync(dir)
     .filter((f) => /^\d{4}_.+\.sql$/.test(f))
     .sort()
-    .map((f) => `-- ===== ${f} =====\n\n${readFileSync(join(dir, f), 'utf8').trim()}\n`)
+    .map((file) => ({ file, sql: readFileSync(join(dir, file), 'utf8').trim() }));
+}
+
+/** Tutte le migrazioni in ordine, in un unico testo SQL. */
+export function migrationsSql() {
+  return migrations()
+    .map((m) => `-- ===== ${m.file} =====\n\n${m.sql}\n`)
     .join('\n');
 }
 
