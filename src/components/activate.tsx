@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
 
 import { Button, Card, ErrorText, Field, H1, Muted } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { useLicense } from '@/lib/license-gate';
 import { useColors } from '@/lib/theme';
 
@@ -29,14 +30,13 @@ export function Activate({ reason }: { reason: string }) {
   return (
     // Qui non c'è ancora un centro collegato: niente intestazione con nome e logo.
     <ScrollView style={{ backgroundColor: c.bg }} contentContainerStyle={{ padding: 20, paddingTop: 64, gap: 16, maxWidth: 560, width: '100%', alignSelf: 'center' }}>
-      <H1>Attiva l&apos;app</H1>
+      <H1>{t("Attiva l'app")}</H1>
       <Card>
         <Muted>
-          Inserisci il codice di attivazione del tuo centro cinofilo. Se sei un cliente, chiedilo al centro: di solito te lo manda
-          come link, e basta aprirlo dal telefono.
+          {t('Inserisci il codice di attivazione del tuo centro cinofilo. Se sei un cliente, chiedilo al centro: di solito te lo manda come link, e basta aprirlo dal telefono.')}
         </Muted>
         <Field
-          label="Codice di attivazione"
+          label={t('Codice di attivazione')}
           value={code}
           onChangeText={setCode}
           placeholder="CC1...."
@@ -46,7 +46,7 @@ export function Activate({ reason }: { reason: string }) {
           style={{ minHeight: 90 }}
         />
         <ErrorText>{err || reason}</ErrorText>
-        <Button title="Attiva" onPress={submit} loading={busy} disabled={!code.trim()} />
+        <Button title={t('Attiva')} onPress={submit} loading={busy} disabled={!code.trim()} />
       </Card>
     </ScrollView>
   );

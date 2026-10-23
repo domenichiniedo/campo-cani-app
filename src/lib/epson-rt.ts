@@ -1,3 +1,5 @@
+import { t } from '@/lib/i18n';
+
 // Scontrino sul registratore telematico del campo, con il protocollo Epson ePOS-Print XML
 // (fpmate.cgi) dei registratori Epson FP-81 II RT, FP-90 III RT e compatibili.
 // La chiamata parte dal telefono o dal PC, che devono essere sulla stessa rete del registratore.
@@ -54,9 +56,9 @@ export async function printEpsonReceipt(printerUrl: string, description: string,
       text = await res.text();
     }
   } catch {
-    throw new Error('Registratore non raggiungibile: controlla l\'indirizzo e che il telefono o il PC siano sulla stessa rete.');
+    throw new Error(t("Registratore non raggiungibile: controlla l'indirizzo e che il telefono o il PC siano sulla stessa rete."));
   }
   const r = parseEpsonResponse(text);
-  if (!r.ok) throw new Error(`Il registratore ha rifiutato lo scontrino${r.code ? ` (${r.code})` : ''}.`);
+  if (!r.ok) throw new Error(r.code ? t('Il registratore ha rifiutato lo scontrino ({codice}).', { codice: r.code }) : t('Il registratore ha rifiutato lo scontrino.'));
   return r.number;
 }

@@ -2,6 +2,7 @@ import * as Linking from 'expo-linking';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import { dayKey, today } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { expiredText, isExpired, licensingEnabled, longer, readLicense, type License } from '@/lib/license';
 import { connectTo, hasEnvConfig, supabase } from '@/lib/supabase';
 
@@ -49,7 +50,7 @@ async function open(code: string): Promise<State & { code?: string }> {
   let best = r.license;
   let bestCode = code;
   if (best.url && best.chiave) connectTo(best.url, best.chiave);
-  else if (!hasEnvConfig) return { kind: 'activate', reason: 'Questa licenza non indica il database del centro.' };
+  else if (!hasEnvConfig) return { kind: 'activate', reason: t('Questa licenza non indica il database del centro.') };
   const { data } = await supabase.from('settings').select('license_code').eq('id', 1).maybeSingle();
   const stored = (data?.license_code as string | undefined) ?? '';
   if (stored && stored !== code) {
@@ -72,7 +73,7 @@ export function LicenseGate({ children, activation }: { children: ReactNode; act
 
   const activate = useCallback(async (code: string) => {
     const next = await open(code.trim());
-    if (next.kind !== 'open') return next.kind === 'activate' ? next.reason : 'Licenza non valida.';
+    if (next.kind !== 'open') return next.kind === 'activate' ? next.reason : t('Licenza non valida.');
     write(next.code ?? code.trim());
     setState({ kind: 'open', license: next.license });
     return null;

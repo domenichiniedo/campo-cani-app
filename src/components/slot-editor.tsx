@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button, Card, ErrorText, Muted, Row, Step } from '@/components/ui';
 import { addDays, cap, dayKey, fromKey, hm, longDay, monthShort, STEP, today, weekdayShort } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { useColors } from '@/lib/theme';
 
 export const DAYS_AHEAD = 56;
@@ -126,21 +127,21 @@ export function SlotEditor({
           })}
         </View>
         <Row>
-          <Button small kind="ghost" title="Apri tutto" onPress={() => setDraft(grid)} />
-          <Button small kind="ghost" title="Chiudi tutto" onPress={() => setDraft([])} />
+          <Button small kind="ghost" title={t('Apri tutto')} onPress={() => setDraft(grid)} />
+          <Button small kind="ghost" title={t('Chiudi tutto')} onPress={() => setDraft([])} />
         </Row>
         <ErrorText>{err}</ErrorText>
         {!!msg && <Muted>{msg}</Muted>}
         <Button
-          title="Salva questo giorno"
-          onPress={() => save(() => onSave([day], current), 'Orari salvati.')}
+          title={t('Salva questo giorno')}
+          onPress={() => save(() => onSave([day], current), t('Orari salvati.'))}
           loading={saving}
           disabled={!draft}
         />
         <Button
           kind="ghost"
-          title={`Copia sui prossimi 4 ${longDay(day).split(' ')[0]}`}
-          onPress={() => save(() => onSave([day, ...sameWeekdayNext], current), 'Orari copiati su 5 giorni.')}
+          title={t('Copia sullo stesso giorno delle prossime 4 settimane')}
+          onPress={() => save(() => onSave([day, ...sameWeekdayNext], current), t('Orari copiati su 5 giorni.'))}
         />
         {extra?.(day, current, save)}
       </Card>

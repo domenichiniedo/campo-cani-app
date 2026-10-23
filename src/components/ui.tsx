@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { LANGS, setLang, t, useLang } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { useColors } from '@/lib/theme';
 
@@ -62,10 +63,10 @@ export function BrandBar() {
       </View>
       <View style={{ flex: 1 }}>
         <Text style={[CONDENSED, { color: c.onPitch, fontSize: 17 }]} numberOfLines={1}>
-          {settings?.field_name ?? 'Il tuo campo'}
+          {settings?.field_name ?? t('Il tuo campo')}
         </Text>
         <Text style={{ color: c.onPitchMuted, fontSize: 12, fontWeight: '600' }} numberOfLines={1}>
-          {settings?.field_address || 'Centro cinofilo · IGP ed educazione'}
+          {settings?.field_address || t('Centro cinofilo · IGP ed educazione')}
         </Text>
       </View>
     </View>
@@ -171,7 +172,7 @@ export function ConfirmButton({ title, onConfirm, small = true }: { title: strin
   const [busy, setBusy] = useState(false);
   return (
     <Button
-      title={armed ? 'Confermi?' : title}
+      title={armed ? t('Confermi?') : title}
       kind="danger"
       small={small}
       loading={busy}
@@ -313,7 +314,7 @@ export function Expandable({ title, lines }: { title: string; lines: string[] })
     <View style={{ gap: 6 }}>
       <Pressable accessibilityRole="button" onPress={() => setOpen(!open)}>
         <Text style={{ color: c.accent, fontWeight: '700', textDecorationLine: 'underline', fontSize: 14 }}>
-          {open ? `Chiudi ${title}` : `Leggi ${title}`}
+          {open ? t('Chiudi {cosa}', { cosa: title }) : t('Leggi {cosa}', { cosa: title })}
         </Text>
       </Pressable>
       {open && (
@@ -357,3 +358,9 @@ export const tabIcon = (glyph: string) =>
   function TabIcon({ color }: { color: ColorValue }) {
     return <Text style={{ color, fontSize: 18, fontWeight: '800' }}>{glyph}</Text>;
   };
+
+/** Scelta della lingua: cambia subito tutti i testi dell'app e resta salvata sul telefono. */
+export function LangPicker() {
+  const l = useLang();
+  return <Chips items={LANGS.map((x) => ({ value: x.id, label: x.label }))} value={l} onChange={setLang} />;
+}

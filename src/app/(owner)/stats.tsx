@@ -3,7 +3,8 @@ import { useCallback, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { Button, Card, Chips, ErrorText, H1, Muted, Row, Screen, Stat, Step } from '@/components/ui';
-import { addDays, cap, dayKey, euro, longDay, today } from '@/lib/format';
+import { addDays, cap, dayKey, euro, longDay, monthName, today } from '@/lib/format';
+import { t, tKey } from '@/lib/i18n';
 import { mondayOf } from '@/lib/owner';
 import { planWith, usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
@@ -15,9 +16,7 @@ type Period = 'week' | 'month' | 'year';
 type Line = Pick<Booking, 'id' | 'user_id' | 'day' | 'price_cents' | 'pay' | 'paid' | 'lesson_type' | 'field_id' | 'trainer_id' | 'checked_in_at' | 'status'>;
 type Sold = Pick<ClientPackage, 'id' | 'name' | 'price_cents' | 'activated_at'>;
 
-const MONTHS = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
-const MONTHS_LONG = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
-const PAY: Record<Booking['pay'], string> = { onsite: 'Al campo', online: 'Online', package: 'Pacchetto' };
+const PAY: Record<Booking['pay'], string> = { onsite: tKey('Al campo'), online: tKey('Online'), package: tKey('Pacchetto') };
 const PAGE = 1000;
 
 /** Primo e ultimo giorno del periodo che contiene il giorno dato. */
@@ -37,8 +36,8 @@ function shift(p: Period, d: Date, n: number) {
 }
 
 function title(p: Period, from: Date, to: Date) {
-  if (p === 'week') return `${from.getDate()} ${MONTHS_LONG[from.getMonth()].slice(0, 3)} – ${to.getDate()} ${MONTHS_LONG[to.getMonth()].slice(0, 3)} ${to.getFullYear()}`;
-  if (p === 'month') return `${cap(MONTHS_LONG[from.getMonth()])} ${from.getFullYear()}`;
+  if (p === 'week') return `${from.getDate()} ${monthName(from.getMonth()).slice(0, 3)} – ${to.getDate()} ${monthName(to.getMonth()).slice(0, 3)} ${to.getFullYear()}`;
+  if (p === 'month') return `${cap(monthName(from.getMonth()))} ${from.getFullYear()}`;
   return String(from.getFullYear());
 }
 
@@ -118,7 +117,7 @@ export default function OwnerStats() {
   // Barre: un giorno per settimana e mese, un mese per l'anno. Pacchetti nel giorno in cui sono stati attivati.
   const byMonth = period === 'year';
   const buckets = byMonth
-    ? MONTHS.map((m, i) => ({ key: `${from.getFullYear()}-${String(i + 1).padStart(2, '0')}`, label: m }))
+    ? Array.from({ length: 12 }, (_, i) => ({ key: `${from.getFullYear()}-${String(i + 1).padStart(2, '0')}`, label: cap(monthName(i).slice(0, 3)) }))
     : Array.from({ length: Math.round((to.getTime() - from.getTime()) / 86400000) + 1 }, (_, i) => {
         const d = addDays(from, i);
         return { key: dayKey(d), label: String(d.getDate()) };
@@ -147,15 +146,19 @@ export default function OwnerStats() {
     return [...m.entries()].map(([k, g]) => ({ label: name(k), ...g })).sort((a, b) => b.n - a.n);
   }
 
+  const byPay = t('Per pagamento');
   const sections = [
-    { title: 'Per tipo di lezione', rows: group((b) => b.lesson_type, (k) => lessonTypes.find((t) => t.id === k)?.label ?? k) },
-    fields.length > 1 && { title: 'Per campo', rows: group((b) => b.field_id, (k) => fields.find((f) => f.id === k)?.name ?? 'Campo tolto') },
-    trainers.length > 0 && { title: 'Per trainer', rows: group((b) => b.trainer_id ?? '', (k) => (k ? trainers.find((t) => t.id === k)?.name ?? 'Trainer tolto' : 'Da assegnare')) },
-    { title: 'Per pagamento', rows: group((b) => b.pay, (k) => PAY[k as Booking['pay']] ?? k) },
+    { title: t('Per tipo di lezione'), rows: group((b) => b.lesson_type, (k) => lessonTypes.find((lt) => lt.id === k)?.label ?? k) },
+    fields.length > 1 && { title: t('Per campo'), rows: group((b) => b.field_id, (k) => fields.find((f) => f.id === k)?.name ?? t('Campo tolto')) },
+    trainers.length > 0 && {
+      title: t('Per trainer'),
+      rows: group((b) => b.trainer_id ?? '', (k) => (k ? trainers.find((tr) => tr.id === k)?.name ?? t('Trainer tolto') : t('Da assegnare'))),
+    },
+    { title: byPay, rows: group((b) => b.pay, (k) => t(PAY[k as Booking['pay']] ?? k)) },
   ]
     .filter((s): s is { title: string; rows: ReturnType<typeof group> } => !!s && s.rows.length > 0)
     // Senza statistiche resta solo come sono state pagate le lezioni.
-    .filter((s) => plan.stats || s.title === 'Per pagamento');
+    .filter((s) => plan.stats || s.title === byPay);
 
   const setP = (p: Period) => {
     setPeriod(p);
@@ -168,43 +171,43 @@ export default function OwnerStats() {
 
   return (
     <Screen onRefresh={load} refreshing={loading}>
-      <H1>{`Incassi · ${title(period, from, to)}`}</H1>
+      <H1>{`${t('Incassi')} · ${title(period, from, to)}`}</H1>
       <Chips
         items={[
-          { value: 'week', label: 'Settimana' },
-          { value: 'month', label: 'Mese' },
-          { value: 'year', label: 'Anno' },
+          { value: 'week', label: t('Settimana') },
+          { value: 'month', label: t('Mese') },
+          { value: 'year', label: t('Anno') },
         ]}
         value={period}
         onChange={setP}
       />
       <Row>
-        <Button small kind="ghost" title="‹ Prima" onPress={() => move(-1)} />
-        <Button small kind="ghost" title="Adesso" onPress={() => setAnchor(today())} />
-        <Button small kind="ghost" title="Dopo ›" onPress={() => move(1)} />
+        <Button small kind="ghost" title={t('‹ Prima')} onPress={() => move(-1)} />
+        <Button small kind="ghost" title={t('Adesso')} onPress={() => setAnchor(today())} />
+        <Button small kind="ghost" title={t('Dopo ›')} onPress={() => move(1)} />
       </Row>
       <ErrorText>{err}</ErrorText>
 
       <Row>
-        <Stat label="Incassato" value={euro(lessonsPaid + packagesPaid)} />
-        <Stat label={sold.length === 1 ? '1 pacchetto venduto' : `${sold.length} pacchetti venduti`} value={euro(packagesPaid)} />
-        <Stat label="Da incassare" value={euro(toCollect)} />
-        <Stat label="Previsto" value={euro(expected)} />
+        <Stat label={t('Incassato')} value={euro(lessonsPaid + packagesPaid)} />
+        <Stat label={sold.length === 1 ? t('1 pacchetto venduto') : t('{n} pacchetti venduti', { n: sold.length })} value={euro(packagesPaid)} />
+        <Stat label={t('Da incassare')} value={euro(toCollect)} />
+        <Stat label={t('Previsto')} value={euro(expected)} />
       </Row>
       <Muted style={{ fontSize: 12 }}>
-        Incassato: lezioni pagate più pacchetti venduti. Da incassare: lezioni già fatte e non ancora pagate. Previsto: lezioni prenotate nei prossimi giorni.
+        {t('Incassato: lezioni pagate più pacchetti venduti. Da incassare: lezioni già fatte e non ancora pagate. Previsto: lezioni prenotate nei prossimi giorni.')}
       </Muted>
 
       {!plan.stats && (
-        <Muted style={{ fontSize: 13 }}>{`Grafico, presenze, disdette e ripartizioni per lezione, campo e trainer sono compresi dal piano ${planWith('stats')}.`}</Muted>
+        <Muted style={{ fontSize: 13 }}>{t('Grafico, presenze, disdette e ripartizioni per lezione, campo e trainer sono compresi dal piano {piano}.', { piano: planWith('stats') })}</Muted>
       )}
 
       {plan.stats && (
         <Card>
           <Text style={{ color: c.text, fontWeight: '800' }}>
             {picked !== null
-              ? `${byMonth ? cap(MONTHS_LONG[picked]) : cap(longDay(buckets[picked].key))}: ${euro(values[picked])}`
-              : `Incassato per ${byMonth ? 'mese' : 'giorno'}`}
+              ? `${byMonth ? cap(monthName(picked)) : cap(longDay(buckets[picked].key))}: ${euro(values[picked])}`
+              : byMonth ? t('Incassato per mese') : t('Incassato per giorno')}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 140, gap: 2 }}>
             {values.map((v, i) => (
@@ -238,16 +241,16 @@ export default function OwnerStats() {
               ) : null,
             )}
           </View>
-          <Muted style={{ fontSize: 12 }}>{"Tocca una barra per vedere l'importo."}</Muted>
+          <Muted style={{ fontSize: 12 }}>{t("Tocca una barra per vedere l'importo.")}</Muted>
         </Card>
       )}
 
       {plan.stats && (
         <Row>
-          <Stat label="Lezioni" value={active.length} />
-          <Stat label="Presenze" value={past.length ? `${Math.round((arrived / past.length) * 100)}%` : '–'} />
-          <Stat label="Disdette" value={cancelled} />
-          <Stat label="Clienti" value={clients} />
+          <Stat label={t('Lezioni')} value={active.length} />
+          <Stat label={t('Presenze')} value={past.length ? `${Math.round((arrived / past.length) * 100)}%` : '–'} />
+          <Stat label={t('Disdette')} value={cancelled} />
+          <Stat label={t('Clienti')} value={clients} />
         </Row>
       )}
 
@@ -264,7 +267,7 @@ export default function OwnerStats() {
                       {r.label}
                     </Text>
                     <Text style={{ color: c.muted }}>
-                      {r.n === 1 ? '1 lezione' : `${r.n} lezioni`}
+                      {r.n === 1 ? t('1 lezione') : t('{n} lezioni', { n: r.n })}
                       {r.cents ? ` · ${euro(r.cents)}` : ''}
                     </Text>
                   </Row>
@@ -277,7 +280,7 @@ export default function OwnerStats() {
           </View>
         );
       })}
-      {!loading && active.length === 0 && <Muted>Nessuna lezione in questo periodo.</Muted>}
+      {!loading && active.length === 0 && <Muted>{t('Nessuna lezione in questo periodo.')}</Muted>}
     </Screen>
   );
 }

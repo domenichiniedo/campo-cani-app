@@ -4,6 +4,7 @@ import { Share } from 'react-native';
 
 import { Badge, Body, Button, Card, ErrorText, Field, Muted, Row } from '@/components/ui';
 import { fromKey, today } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { licensingEnabled, longer, readLicense } from '@/lib/license';
 import { useLicense } from '@/lib/license-gate';
 import { planOf } from '@/lib/plans';
@@ -44,8 +45,8 @@ export function LicensePanel() {
     setMsg('');
     const r = readLicense(code);
     if (!r.ok) return setErr(r.reason);
-    if (!license || r.license.id !== license.id || r.license.url !== license.url) return setErr('Questo codice è di un altro centro.');
-    if (longer(r.license, license) !== r.license) return setErr('Questo codice è più vecchio di quello attivo.');
+    if (!license || r.license.id !== license.id || r.license.url !== license.url) return setErr(t('Questo codice è di un altro centro.'));
+    if (longer(r.license, license) !== r.license) return setErr(t('Questo codice è più vecchio di quello attivo.'));
     setBusy(true);
     const { error } = await supabase.from('settings').update({ license_code: code.trim() }).eq('id', 1);
     if (error) {
@@ -58,8 +59,8 @@ export function LicensePanel() {
     setCode('');
     setMsg(
       r.license.piano && r.license.piano !== license.piano
-        ? `Piano ${planOf(r.license).label} attivo: i tuoi clienti lo ricevono alla prossima apertura dell'app.`
-        : 'Licenza rinnovata: i tuoi clienti la ricevono alla prossima apertura dell\'app.',
+        ? t("Piano {piano} attivo: i tuoi clienti lo ricevono alla prossima apertura dell'app.", { piano: planOf(r.license).label })
+        : t("Licenza rinnovata: i tuoi clienti la ricevono alla prossima apertura dell'app."),
     );
   }
 
@@ -68,32 +69,32 @@ export function LicensePanel() {
       <Row style={{ justifyContent: 'space-between' }}>
         <Body bold>{license.campo}</Body>
         {days === null ? (
-          <Badge tone="ok">Senza scadenza</Badge>
+          <Badge tone="ok">{t('Senza scadenza')}</Badge>
         ) : days < 0 ? (
-          <Badge tone="bad">Scaduta</Badge>
+          <Badge tone="bad">{t('Scaduta')}</Badge>
         ) : (
-          <Badge tone={days <= 30 ? 'warn' : 'ok'}>{`Scade il ${license.scade!.split('-').reverse().join('/')}`}</Badge>
+          <Badge tone={days <= 30 ? 'warn' : 'ok'}>{t('Scade il {data}', { data: license.scade!.split('-').reverse().join('/') })}</Badge>
         )}
       </Row>
       <Row style={{ justifyContent: 'space-between' }}>
-        <Body>Piano {plan.label}</Body>
+        <Body>{t('Piano {piano}', { piano: plan.label })}</Body>
         {clients !== null && (
-          <Badge tone={full ? 'bad' : 'ok'}>{plan.maxClients === null ? `${clients} clienti` : `${clients} / ${plan.maxClients} clienti`}</Badge>
+          <Badge tone={full ? 'bad' : 'ok'}>{plan.maxClients === null ? t('{n} clienti', { n: clients }) : t('{n} / {max} clienti', { n: clients, max: plan.maxClients })}</Badge>
         )}
       </Row>
-      {full && <Muted style={{ fontSize: 13 }}>Hai raggiunto il limite del piano: i nuovi clienti non possono iscriversi. Chiedi un piano superiore.</Muted>}
+      {full && <Muted style={{ fontSize: 13 }}>{t('Hai raggiunto il limite del piano: i nuovi clienti non possono iscriversi. Chiedi un piano superiore.')}</Muted>}
       <Muted style={{ fontSize: 13 }}>
-        Licenza {license.id}, emessa il {license.emessa.split('-').reverse().join('/')}.
-        {days !== null && days <= 30 && days >= 0 ? ` Mancano ${days} giorni: chiedi il rinnovo.` : ''}
+        {t('Licenza {id}, emessa il {data}.', { id: license.id, data: license.emessa.split('-').reverse().join('/') })}
+        {days !== null && days <= 30 && days >= 0 ? ` ${t('Mancano {n} giorni: chiedi il rinnovo.', { n: days })}` : ''}
       </Muted>
       <Button
         small
         kind="ghost"
-        title="Manda il link di attivazione ai clienti"
-        onPress={() => Share.share({ message: `Scarica l'app K9 Manager e attivala per ${license.campo} con questo link: ${link}` })}
+        title={t('Manda il link di attivazione ai clienti')}
+        onPress={() => Share.share({ message: t("Scarica l'app K9 Manager e attivala per {campo} con questo link: {link}", { campo: license.campo, link }) })}
       />
       <Field
-        label="Nuovo codice (rinnovo o cambio piano)"
+        label={t('Nuovo codice (rinnovo o cambio piano)')}
         value={code}
         onChangeText={setCode}
         placeholder="CC1...."
@@ -103,7 +104,7 @@ export function LicensePanel() {
       />
       <ErrorText>{err}</ErrorText>
       {!!msg && <Muted>{msg}</Muted>}
-      <Button small title="Usa questo codice" onPress={renew} loading={busy} disabled={!code.trim()} />
+      <Button small title={t('Usa questo codice')} onPress={renew} loading={busy} disabled={!code.trim()} />
     </Card>
   );
 }

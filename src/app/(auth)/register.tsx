@@ -6,6 +6,7 @@ import { PhotoPicker, saveSignupPhoto } from '@/components/photo';
 import { Body, Button, Card, Check, Chips, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingColumns, billingError, emptyBilling, type BillingDraft } from '@/lib/billing';
 import { isDayKey } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import type { Picked } from '@/lib/images';
 import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
@@ -38,21 +39,21 @@ export default function Register() {
   async function submit() {
     setErr('');
     const cleanDogs = dogs.filter((d) => d.name.trim());
-    if (!first.trim() || !last.trim() || !phone.trim()) return setErr('Inserisci nome, cognome e telefono.');
+    if (!first.trim() || !last.trim() || !phone.trim()) return setErr(t('Inserisci nome, cognome e telefono.'));
     const bErr = asTrainer ? null : billingError(billing);
     if (bErr) return setErr(bErr);
-    if (!asTrainer && !cleanDogs.length) return setErr('Inserisci almeno un cane.');
-    if (cleanDogs.some((d) => d.birth && !isDayKey(d.birth))) return setErr('Scrivi la data di nascita come AAAA-MM-GG, per esempio 2024-03-15.');
-    if (password.length < 8) return setErr('La password deve avere almeno 8 caratteri.');
-    if (!rulesOk || !privacyOk) return setErr('Per iscriverti devi accettare il regolamento e l’informativa privacy.');
-    if (!settings) return setErr('Impossibile leggere il regolamento. Controlla la connessione.');
+    if (!asTrainer && !cleanDogs.length) return setErr(t('Inserisci almeno un cane.'));
+    if (cleanDogs.some((d) => d.birth && !isDayKey(d.birth))) return setErr(t('Scrivi la data di nascita come AAAA-MM-GG, per esempio 2024-03-15.'));
+    if (password.length < 8) return setErr(t('La password deve avere almeno 8 caratteri.'));
+    if (!rulesOk || !privacyOk) return setErr(t('Per iscriverti devi accettare il regolamento e l’informativa privacy.'));
+    if (!settings) return setErr(t('Impossibile leggere il regolamento. Controlla la connessione.'));
 
     setBusy(true);
     if (!asTrainer && plan.maxClients !== null) {
       const { data: count } = await supabase.rpc('client_count');
       if (typeof count === 'number' && count >= plan.maxClients) {
         setBusy(false);
-        return setErr('Il centro ha raggiunto il numero massimo di iscritti previsto dal suo abbonamento. Contatta il centro.');
+        return setErr(t('Il centro ha raggiunto il numero massimo di iscritti previsto dal suo abbonamento. Contatta il centro.'));
       }
     }
     const { data, error } = await supabase.auth.signUp({
@@ -87,89 +88,89 @@ export default function Register() {
   if (sent) {
     return (
       <Screen>
-        <H1>Controlla l&apos;email</H1>
-        <Body>Ti abbiamo mandato un link a {email.trim()}. Aprilo per confermare l&apos;iscrizione, poi accedi.</Body>
-        {photo && <Muted>La foto che hai scelto mettila dal tuo profilo, dopo il primo accesso.</Muted>}
-        <Button title="Vai all'accesso" onPress={() => router.replace('/')} />
+        <H1>{t("Controlla l'email")}</H1>
+        <Body>{t("Ti abbiamo mandato un link a {email}. Aprilo per confermare l'iscrizione, poi accedi.", { email: email.trim() })}</Body>
+        {photo && <Muted>{t('La foto che hai scelto mettila dal tuo profilo, dopo il primo accesso.')}</Muted>}
+        <Button title={t("Vai all'accesso")} onPress={() => router.replace('/')} />
       </Screen>
     );
   }
 
   return (
     <Screen>
-      <H1>Iscriviti</H1>
+      <H1>{t('Iscriviti')}</H1>
       <Muted>
         {asTrainer
-          ? 'Usa l\'email che hai dato al centro: entrerai nell\'area trainer con le tue lezioni.'
-          : 'Servono i tuoi dati, quelli del cane e il consenso al regolamento e alla privacy.'}
+          ? t("Usa l'email che hai dato al centro: entrerai nell'area trainer con le tue lezioni.")
+          : t('Servono i tuoi dati, quelli del cane e il consenso al regolamento e alla privacy.')}
       </Muted>
       <Chips
         items={[
-          { value: 'client', label: 'Sono un cliente' },
-          { value: 'trainer', label: 'Sono un trainer del centro' },
+          { value: 'client', label: t('Sono un cliente') },
+          { value: 'trainer', label: t('Sono un trainer del centro') },
         ]}
         value={asTrainer ? 'trainer' : 'client'}
         onChange={(v) => setAsTrainer(v === 'trainer')}
       />
 
-      <Step n="1" title="I tuoi dati" />
+      <Step n="1" title={t('I tuoi dati')} />
       <Card>
         <Row>
-          <Field label="Nome" value={first} onChangeText={setFirst} autoComplete="given-name" style={{ flex: 1, minWidth: 140 }} />
-          <Field label="Cognome" value={last} onChangeText={setLast} autoComplete="family-name" style={{ flex: 1, minWidth: 140 }} />
+          <Field label={t('Nome')} value={first} onChangeText={setFirst} autoComplete="given-name" style={{ flex: 1, minWidth: 140 }} />
+          <Field label={t('Cognome')} value={last} onChangeText={setLast} autoComplete="family-name" style={{ flex: 1, minWidth: 140 }} />
         </Row>
-        <Field label="Telefono" value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" />
-        <Field label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
-        <Field label="Password (almeno 8 caratteri)" value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
+        <Field label={t('Telefono')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" />
+        <Field label={t('Email')} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
+        <Field label={t('Password (almeno 8 caratteri)')} value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
       </Card>
 
-      <Step n="2" title="La tua foto (se vuoi)" />
+      <Step n="2" title={t('La tua foto (se vuoi)')} />
       <Card>
         <Muted>
           {asTrainer
-            ? 'I clienti la vedono nelle loro lezioni e nel diario dei cani. Puoi metterla anche dopo, dal tuo profilo.'
-            : 'Il centro e i trainer la vedono per riconoscerti al campo. Puoi metterla anche dopo, dal tuo profilo.'}
+            ? t('I clienti la vedono nelle loro lezioni e nel diario dei cani. Puoi metterla anche dopo, dal tuo profilo.')
+            : t('Il centro e i trainer la vedono per riconoscerti al campo. Puoi metterla anche dopo, dal tuo profilo.')}
         </Muted>
         <PhotoPicker name={`${first} ${last}`.trim()} value={photo} onChange={setPhoto} />
       </Card>
 
       {!asTrainer && (
         <>
-          <Step n="3" title="Fatturazione" />
+          <Step n="3" title={t('Fatturazione')} />
           <Card>
             <BillingFields value={billing} onChange={setBilling} />
           </Card>
 
-          <Step n="4" title={dogs.length > 1 ? 'I tuoi cani' : 'Il tuo cane'} />
+          <Step n="4" title={dogs.length > 1 ? t('I tuoi cani') : t('Il tuo cane')} />
         </>
       )}
       {!asTrainer && dogs.map((d, i) => (
         <Card key={i}>
-          <Field label="Nome del cane" value={d.name} onChangeText={(v) => setDog(i, { name: v })} />
-          <Field label="Razza" value={d.breed} onChangeText={(v) => setDog(i, { breed: v })} />
-          <Field label="Nato il (AAAA-MM-GG)" value={d.birth} onChangeText={(v) => setDog(i, { birth: v })} placeholder="2024-03-15" keyboardType="numbers-and-punctuation" />
-          {dogs.length > 1 && <Button title="Togli questo cane" kind="danger" small onPress={() => setDogs(dogs.filter((_, j) => j !== i))} />}
+          <Field label={t('Nome del cane')} value={d.name} onChangeText={(v) => setDog(i, { name: v })} />
+          <Field label={t('Razza')} value={d.breed} onChangeText={(v) => setDog(i, { breed: v })} />
+          <Field label={t('Nato il (AAAA-MM-GG)')} value={d.birth} onChangeText={(v) => setDog(i, { birth: v })} placeholder="2024-03-15" keyboardType="numbers-and-punctuation" />
+          {dogs.length > 1 && <Button title={t('Togli questo cane')} kind="danger" small onPress={() => setDogs(dogs.filter((_, j) => j !== i))} />}
         </Card>
       ))}
       {!asTrainer && (
-        <Button title="+ Aggiungi un altro cane" kind="ghost" onPress={() => setDogs([...dogs, { name: '', breed: '', birth: '' }])} />
+        <Button title={t('+ Aggiungi un altro cane')} kind="ghost" onPress={() => setDogs([...dogs, { name: '', breed: '', birth: '' }])} />
       )}
 
-      <Step n={asTrainer ? '3' : '5'} title="Consensi" />
+      <Step n={asTrainer ? '3' : '5'} title={t('Consensi')} />
       <Card>
-        {settings && <Expandable title="il regolamento" lines={rulesLines(settings, lessonTypes)} />}
+        {settings && <Expandable title={t('il regolamento')} lines={rulesLines(settings, lessonTypes)} />}
         <Check value={rulesOk} onChange={setRulesOk}>
-          Ho letto e accetto il regolamento del campo.
+          {t('Ho letto e accetto il regolamento del campo.')}
         </Check>
-        {settings && <Expandable title="l'informativa privacy" lines={settings.privacy.split('\n').filter(Boolean)} />}
+        {settings && <Expandable title={t("l'informativa privacy")} lines={settings.privacy.split('\n').filter(Boolean)} />}
         <Check value={privacyOk} onChange={setPrivacyOk}>
-          Ho letto l&apos;informativa e acconsento al trattamento dei miei dati per gestire le prenotazioni.
+          {t("Ho letto l'informativa e acconsento al trattamento dei miei dati per gestire le prenotazioni.")}
         </Check>
       </Card>
 
       <ErrorText>{err}</ErrorText>
-      <Button title="Crea il mio account" onPress={submit} loading={busy} />
-      <Button title="Ho già un account" kind="ghost" onPress={() => router.back()} />
+      <Button title={t('Crea il mio account')} onPress={submit} loading={busy} />
+      <Button title={t('Ho già un account')} kind="ghost" onPress={() => router.back()} />
     </Screen>
   );
 }

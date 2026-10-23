@@ -1,5 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 
+import { t } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
 
 // Il logo del centro sta in "branding"; le foto di trainer e clienti in "foto".
@@ -18,7 +19,7 @@ export async function pickImage(source: Source = 'library'): Promise<Picked | nu
   let res: ImagePicker.ImagePickerResult;
   if (source === 'camera') {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) throw new Error("Per scattare la foto consenti all'app di usare la fotocamera, dalle impostazioni del telefono.");
+    if (!perm.granted) throw new Error(t("Per scattare la foto consenti all'app di usare la fotocamera, dalle impostazioni del telefono."));
     res = await ImagePicker.launchCameraAsync(options);
   } else {
     res = await ImagePicker.launchImageLibraryAsync(options);

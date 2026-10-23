@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router/js-tabs';
 import { useState } from 'react';
 
 import { Body, Button, H1, Muted, Screen, tabIcon } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { planWith, usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
@@ -19,10 +20,10 @@ export default function TrainerLayout() {
         tabBarInactiveTintColor: c.muted,
         tabBarStyle: { backgroundColor: c.surface, borderTopColor: c.line },
       }}>
-      <Tabs.Screen name="index" options={{ title: 'Lezioni', tabBarIcon: tabIcon('◷') }} />
-      <Tabs.Screen name="hours" options={{ title: 'Disponibilità', tabBarIcon: tabIcon('◑') }} />
-      <Tabs.Screen name="dogs" options={{ title: 'Diari', tabBarIcon: tabIcon('✎') }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profilo', tabBarIcon: tabIcon('◉') }} />
+      <Tabs.Screen name="index" options={{ title: t('Lezioni'), tabBarIcon: tabIcon('◷') }} />
+      <Tabs.Screen name="hours" options={{ title: t('Disponibilità'), tabBarIcon: tabIcon('◑') }} />
+      <Tabs.Screen name="dogs" options={{ title: t('Diari'), tabBarIcon: tabIcon('✎') }} />
+      <Tabs.Screen name="profile" options={{ title: t('Profilo'), tabBarIcon: tabIcon('◉') }} />
     </Tabs>
   );
 }
@@ -39,19 +40,19 @@ function NotLinked() {
   }
   return (
     <Screen>
-      <H1>Area trainer</H1>
+      <H1>{t('Area trainer')}</H1>
       {plan.trainers ? (
         <Body>
-          {`Il tuo account (${profile?.email ?? ''}) non è ancora collegato a un trainer, oppure il trainer non è più attivo. Chiedi al centro di scrivere questa email nella pagina Trainer.`}
+          {t('Il tuo account ({email}) non è ancora collegato a un trainer, oppure il trainer non è più attivo. Chiedi al centro di scrivere questa email nella pagina Trainer.', { email: profile?.email ?? '' })}
         </Body>
       ) : (
         <Body>
-          {`Il piano ${plan.label} del centro non comprende l'area trainer: serve il piano ${planWith('trainers')} o superiore. Chiedi al centro di cambiare piano.`}
+          {t("Il piano {piano} del centro non comprende l'area trainer: serve il piano {altro} o superiore. Chiedi al centro di cambiare piano.", { piano: plan.label, altro: planWith('trainers') })}
         </Body>
       )}
-      <Muted style={{ fontSize: 13 }}>Appena il centro ha fatto, tocca Riprova.</Muted>
-      <Button title="Riprova" onPress={retry} loading={busy} />
-      <Button title="Esci" kind="ghost" onPress={() => supabase.auth.signOut()} />
+      <Muted style={{ fontSize: 13 }}>{t('Appena il centro ha fatto, tocca Riprova.')}</Muted>
+      <Button title={t('Riprova')} onPress={retry} loading={busy} />
+      <Button title={t('Esci')} kind="ghost" onPress={() => supabase.auth.signOut()} />
     </Screen>
   );
 }

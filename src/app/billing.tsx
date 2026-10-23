@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { BillingFields } from '@/components/billing-fields';
 import { Body, Button, Card, ErrorText, H1, Screen } from '@/components/ui';
 import { billingColumns, billingError, billingFromProfile } from '@/lib/billing';
+import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 
@@ -30,14 +31,14 @@ export default function Billing() {
 
   return (
     <Screen>
-      <H1>Dati per la fattura</H1>
-      <Body>Per continuare a prenotare servono il tuo codice fiscale e l&apos;indirizzo di fatturazione.</Body>
+      <H1>{t('Dati per la fattura')}</H1>
+      <Body>{t("Per continuare a prenotare servono il tuo codice fiscale e l'indirizzo di fatturazione.")}</Body>
       <Card accent>
         <BillingFields value={billing} onChange={setBilling} />
         <ErrorText>{err}</ErrorText>
-        <Button title="Salva e continua" onPress={save} loading={busy} />
+        <Button title={t('Salva e continua')} onPress={save} loading={busy} />
       </Card>
-      <Button title="Esci" kind="ghost" onPress={() => supabase.auth.signOut()} />
+      <Button title={t('Esci')} kind="ghost" onPress={() => supabase.auth.signOut()} />
     </Screen>
   );
 }

@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Badge, Body, Button, Card, Chips, ErrorText, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { addDays, dayKey, euro, fromKey, hm, longDay, monthShort, today, weekdayShort } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { startsFor } from '@/lib/slots';
 import { errorText, supabase } from '@/lib/supabase';
@@ -100,10 +101,14 @@ export default function Book() {
       load();
       return;
     }
-    setPaidWith(pack ? `Lezione scalata dal pacchetto "${pack.name}".` : pay === 'onsite' ? 'Paghi al campo.' : 'Pagamento online registrato.');
+    setPaidWith(pack ? t('Lezione scalata dal pacchetto "{nome}".', { nome: pack.name }) : pay === 'onsite' ? t('Paghi al campo.') : t('Pagamento online registrato.'));
     setDone(
-      `${type.label}${option ? ` · ${option}` : ''} per ${dog.name}, ${longDay(day)} alle ${hm(start)}` +
-        (manyFields ? `, ${field.name}${field.address ? ` (${field.address})` : ''}.` : '.'),
+      t('{lezione} per {cane}, {giorno} alle {ora}', {
+        lezione: `${type.label}${option ? ` · ${option}` : ''}`,
+        cane: dog.name,
+        giorno: longDay(day),
+        ora: hm(start),
+      }) + (manyFields ? `, ${field.name}${field.address ? ` (${field.address})` : ''}.` : '.'),
     );
     setStart(null);
     load();
@@ -112,49 +117,48 @@ export default function Book() {
   if (done) {
     return (
       <Screen>
-        <H1>Prenotato</H1>
+        <H1>{t('Prenotato')}</H1>
         <Card accent>
           <Body bold>{done}</Body>
           <Muted>
-            {paidWith} Puoi disdire fino a {settings?.cancel_hours ?? 0} ore prima
-            da &quot;Le mie lezioni&quot;.
+            {paidWith} {t('Puoi disdire fino a {ore} ore prima da "Le mie lezioni".', { ore: settings?.cancel_hours ?? 0 })}
           </Muted>
         </Card>
-        <Button title="Vedi le mie lezioni" onPress={() => { setDone(null); router.push('/bookings'); }} />
-        <Button title="Prenota un'altra lezione" kind="ghost" onPress={() => setDone(null)} />
+        <Button title={t('Vedi le mie lezioni')} onPress={() => { setDone(null); router.push('/bookings'); }} />
+        <Button title={t("Prenota un'altra lezione")} kind="ghost" onPress={() => setDone(null)} />
       </Screen>
     );
   }
 
   return (
     <Screen onRefresh={load} refreshing={loading}>
-      <H1>Prenota il campo</H1>
+      <H1>{t('Prenota il campo')}</H1>
 
-      <Step n="1" title="Cane" />
+      <Step n="1" title={t('Cane')} />
       {dogs.length ? (
         <Chips
-          items={dogs.map((d) => ({ value: d.id, label: d.blocked ? `${d.name} (sospeso)` : d.name, disabled: d.blocked }))}
+          items={dogs.map((d) => ({ value: d.id, label: d.blocked ? `${d.name} (${t('sospeso')})` : d.name, disabled: d.blocked }))}
           value={dogId}
           onChange={setDogId}
         />
       ) : (
-        <Muted>Aggiungi un cane dal Profilo per poter prenotare.</Muted>
+        <Muted>{t('Aggiungi un cane dal Profilo per poter prenotare.')}</Muted>
       )}
       {dogs.some((d) => d.blocked) && (
-        <Muted>Un cane sospeso per penalità non può essere prenotato finché il campo non lo riattiva.</Muted>
+        <Muted>{t('Un cane sospeso per penalità non può essere prenotato finché il campo non lo riattiva.')}</Muted>
       )}
 
-      <Step n="2" title="Lezione" />
+      <Step n="2" title={t('Lezione')} />
       <View style={{ gap: 10 }}>
-        {lessonTypes.map((t) => {
-          const on = t.id === typeId;
+        {lessonTypes.map((lt) => {
+          const on = lt.id === typeId;
           return (
             <Pressable
-              key={t.id}
+              key={lt.id}
               accessibilityRole="button"
               accessibilityState={{ selected: on }}
               onPress={() => {
-                setTypeId(t.id);
+                setTypeId(lt.id);
                 setOption(null);
                 setStart(null);
               }}
@@ -167,10 +171,10 @@ export default function Book() {
                 gap: 4,
               }}>
               <Row style={{ justifyContent: 'space-between' }}>
-                <Text style={{ color: c.text, fontSize: 17, fontWeight: '800' }}>{t.label}</Text>
-                <Badge tone="warn">{`${t.duration_min} min · ${euro(t.price_cents)}`}</Badge>
+                <Text style={{ color: c.text, fontSize: 17, fontWeight: '800' }}>{lt.label}</Text>
+                <Badge tone="warn">{`${lt.duration_min} min · ${euro(lt.price_cents)}`}</Badge>
               </Row>
-              {!!t.description && <Muted>{t.description}</Muted>}
+              {!!lt.description && <Muted>{lt.description}</Muted>}
             </Pressable>
           );
         })}
@@ -181,7 +185,7 @@ export default function Book() {
 
       {type && manyFields && (
         <>
-          <Step n="3" title="Campo" />
+          <Step n="3" title={t('Campo')} />
           <View style={{ gap: 8 }}>
             {fields.map((f) => {
               const on = f.id === field?.id;
@@ -214,9 +218,9 @@ export default function Book() {
 
       {type && (
         <>
-          <Step n={nWhen} title="Giorno e ora" />
+          <Step n={nWhen} title={t('Giorno e ora')} />
           {openDays.length === 0 ? (
-            <Muted>Nessun orario libero nelle prossime tre settimane. Riprova più avanti.</Muted>
+            <Muted>{t('Nessun orario libero nelle prossime tre settimane. Riprova più avanti.')}</Muted>
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
               {openDays.map((k) => {
@@ -287,14 +291,13 @@ export default function Book() {
 
       {ready && type && day && start != null && dog && (
         <>
-          <Step n={nConfirm} title="Conferma" />
+          <Step n={nConfirm} title={t('Conferma')} />
           <Card accent>
             <Body bold>
-              {type.label}
-              {option ? ` · ${option}` : ''} per {dog.name}
+              {t('{lezione} per {cane}', { lezione: `${type.label}${option ? ` · ${option}` : ''}`, cane: dog.name })}
             </Body>
             <Muted>
-              {longDay(day)}, dalle {hm(start)} alle {hm(start + type.duration_min)}
+              {t('{giorno}, dalle {da} alle {a}', { giorno: longDay(day), da: hm(start), a: hm(start + type.duration_min) })}
               {pack ? '' : ` · ${euro(type.price_cents)}`}
             </Muted>
             {manyFields && field && (
@@ -305,21 +308,21 @@ export default function Book() {
             )}
             {pack ? (
               <Body>
-                Si scala dal pacchetto &quot;{pack.name}&quot;: {pack.lessons_total - pack.lessons_used - 1} lezioni rimaste dopo questa.
+                {t('Si scala dal pacchetto "{nome}": {n} lezioni rimaste dopo questa.', { nome: pack.name, n: pack.lessons_total - pack.lessons_used - 1 })}
               </Body>
             ) : (
               <Chips
                 items={[
-                  { value: 'onsite', label: 'Pago al campo' },
-                  { value: 'online', label: 'Pago online', disabled: !settings?.online_payments },
+                  { value: 'onsite', label: t('Pago al campo') },
+                  { value: 'online', label: t('Pago online'), disabled: !settings?.online_payments },
                 ]}
                 value={pay}
                 onChange={(v) => setPay(v as 'onsite' | 'online')}
               />
             )}
-            {!pack && !settings?.online_payments && <Muted style={{ fontSize: 12 }}>Il pagamento online non è ancora attivo.</Muted>}
+            {!pack && !settings?.online_payments && <Muted style={{ fontSize: 12 }}>{t('Il pagamento online non è ancora attivo.')}</Muted>}
             <ErrorText>{err}</ErrorText>
-            <Button title="Conferma prenotazione" onPress={confirm} loading={saving} />
+            <Button title={t('Conferma prenotazione')} onPress={confirm} loading={saving} />
           </Card>
         </>
       )}

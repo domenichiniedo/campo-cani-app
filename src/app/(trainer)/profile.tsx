@@ -1,5 +1,6 @@
 import { PhotoEditor } from '@/components/photo';
-import { Body, Button, Card, H1, Muted, Screen } from '@/components/ui';
+import { Body, Button, Card, H1, LangPicker, Muted, Screen, Step } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { fullName } from '@/lib/types';
@@ -8,10 +9,10 @@ export default function TrainerProfile() {
   const { profile, myTrainer, lessonTypes, refresh } = useSession();
   const follows = myTrainer?.lessons.length
     ? myTrainer.lessons.map((id) => lessonTypes.find((t) => t.id === id)?.label ?? id).join(', ')
-    : 'tutte le lezioni';
+    : t('tutte le lezioni');
   return (
     <Screen>
-      <H1>Profilo</H1>
+      <H1>{t('Profilo')}</H1>
       <Card>
         {myTrainer && (
           <PhotoEditor
@@ -28,13 +29,14 @@ export default function TrainerProfile() {
         )}
         <Body bold>{fullName(profile) || myTrainer?.name}</Body>
         <Muted>{profile?.email}</Muted>
-        {myTrainer && <Muted>{`Trainer ${myTrainer.name} · segui ${follows}`}</Muted>}
+        {myTrainer && <Muted>{t('Trainer {nome} · segui {lezioni}', { nome: myTrainer.name, lezioni: follows })}</Muted>}
       </Card>
       <Muted style={{ fontSize: 13 }}>
-        La foto la vedono i clienti nelle loro lezioni e nel diario dei cani. Nome, lezioni che segui e collegamento dell&apos;account li cambia
-        il centro.
+        {t("La foto la vedono i clienti nelle loro lezioni e nel diario dei cani. Nome, lezioni che segui e collegamento dell'account li cambia il centro.")}
       </Muted>
-      <Button title="Esci" kind="ghost" onPress={() => supabase.auth.signOut()} />
+      <Step title={t('Lingua')} />
+      <LangPicker />
+      <Button title={t('Esci')} kind="ghost" onPress={() => supabase.auth.signOut()} />
     </Screen>
   );
 }

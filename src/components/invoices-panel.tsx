@@ -3,27 +3,28 @@ import { useCallback, useEffect, useState } from 'react';
 import { Badge, Body, Button, Card, Chips, ErrorText, Field, Muted, Row, Toggle } from '@/components/ui';
 import { printEpsonReceipt } from '@/lib/epson-rt';
 import { euro, shortDate } from '@/lib/format';
+import { t, tKey } from '@/lib/i18n';
 import { planWith, usePlan } from '@/lib/plans';
 import { errorText, supabase } from '@/lib/supabase';
 import { invoiceTitle, type Invoice, type InvoiceSettings } from '@/lib/types';
 
 function InvoiceBadge({ invoice: i }: { invoice: Invoice }) {
-  if (i.status === 'sent') return <Badge tone="ok">{i.kind === 'receipt' ? 'Emesso' : 'Inviata'}</Badge>;
-  if (i.status === 'error') return <Badge tone="bad">Errore</Badge>;
-  return <Badge tone="warn">{i.kind === 'receipt' ? 'Da emettere' : 'Da inviare'}</Badge>;
+  if (i.status === 'sent') return <Badge tone="ok">{i.kind === 'receipt' ? t('Emesso') : t('Inviata')}</Badge>;
+  if (i.status === 'error') return <Badge tone="bad">{t('Errore')}</Badge>;
+  return <Badge tone="warn">{i.kind === 'receipt' ? t('Da emettere') : t('Da inviare')}</Badge>;
 }
 
 const RECEIPT_MODES: { value: InvoiceSettings['receipt_mode']; label: string; help: string }[] = [
-  { value: 'manual', label: 'Lo batto io', help: 'Batti lo scontrino sul registratore del campo e premi Battuto.' },
+  { value: 'manual', label: tKey('Lo batto io'), help: tKey('Batti lo scontrino sul registratore del campo e premi Battuto.') },
   {
     value: 'cloud',
-    label: 'Registratore in cloud',
-    help: 'Lo trasmette da solo il registratore virtuale Openapi, anche quando non sei al campo. Va collegato seguendo il README.',
+    label: tKey('Registratore in cloud'),
+    help: tKey('Lo trasmette da solo il registratore virtuale Openapi, anche quando non sei al campo. Va collegato seguendo il README.'),
   },
   {
     value: 'device',
-    label: 'Registratore al campo',
-    help: 'Il telefono o il PC Windows lo stampa sul registratore Epson RT del campo: devono essere sulla sua stessa rete.',
+    label: tKey('Registratore al campo'),
+    help: tKey('Il telefono o il PC Windows lo stampa sul registratore Epson RT del campo: devono essere sulla sua stessa rete.'),
   },
 ];
 
@@ -33,7 +34,7 @@ function PrintReceipt({ invoice, printerUrl, onDone }: { invoice: Invoice; print
   return (
     <Button
       small
-      title="Stampa sul registratore"
+      title={t('Stampa sul registratore')}
       loading={busy}
       disabled={!printerUrl.trim()}
       onPress={async () => {
@@ -57,10 +58,10 @@ function ReceiptDone({ id, onDone }: { id: string; onDone: (e?: string) => void 
   const [busy, setBusy] = useState(false);
   return (
     <Row>
-      <Field label="N. documento (facoltativo)" value={num} onChangeText={setNum} placeholder="0001-0042" style={{ flex: 1, minWidth: 140 }} />
+      <Field label={t('N. documento (facoltativo)')} value={num} onChangeText={setNum} placeholder="0001-0042" style={{ flex: 1, minWidth: 140 }} />
       <Button
         small
-        title="Battuto"
+        title={t('Battuto')}
         loading={busy}
         onPress={async () => {
           setBusy(true);
@@ -115,7 +116,7 @@ export function InvoicesPanel() {
     setErr('');
     setMsg('');
     const rate = Number(vat.replace(',', '.'));
-    if (!Number.isFinite(rate) || rate < 0 || rate >= 100) return setErr('Aliquota IVA non valida.');
+    if (!Number.isFinite(rate) || rate < 0 || rate >= 100) return setErr(t('Aliquota IVA non valida.'));
     setSaving(true);
     const { error } = await supabase
       .from('invoice_settings')
@@ -130,7 +131,7 @@ export function InvoicesPanel() {
       .eq('id', 1);
     setSaving(false);
     if (error) return setErr(errorText(error));
-    setMsg('Impostazioni fatture salvate.');
+    setMsg(t('Impostazioni fatture salvate.'));
   }
 
   async function sendNow() {
@@ -143,14 +144,17 @@ export function InvoicesPanel() {
     ]);
     setSending(false);
     const lines: string[] = [];
-    if (inv.error) lines.push('Fatture in Cloud non è ancora collegato: segui i passi nel README.');
-    else if (inv.data?.sendForReal) lines.push(`Fatture inviate allo SDI: ${inv.data.done}. Con errori: ${inv.data.failed}.`);
-    else lines.push(`Prova riuscita per ${inv.data?.done ?? 0} fatture: le trovi su Fatture in Cloud, ma lo SDI non è ancora attivo.`);
-    if (rec?.error) lines.push('Il registratore in cloud non è ancora collegato: segui i passi nel README.');
+    if (inv.error) lines.push(t('Fatture in Cloud non è ancora collegato: segui i passi nel README.'));
+    else if (inv.data?.sendForReal) lines.push(t('Fatture inviate allo SDI: {fatte}. Con errori: {errori}.', { fatte: inv.data.done, errori: inv.data.failed }));
+    else lines.push(t('Prova riuscita per {n} fatture: le trovi su Fatture in Cloud, ma lo SDI non è ancora attivo.', { n: inv.data?.done ?? 0 }));
+    if (rec?.error) lines.push(t('Il registratore in cloud non è ancora collegato: segui i passi nel README.'));
     else if (rec) {
       lines.push(
-        `Scontrini trasmessi: ${rec.data?.done ?? 0}, in lavorazione: ${rec.data?.waiting ?? 0}, con errori: ${rec.data?.failed ?? 0}` +
-          (rec.data?.live ? '.' : ' (ambiente di prova).'),
+        t('Scontrini trasmessi: {fatti}, in lavorazione: {attesa}, con errori: {errori}', {
+          fatti: rec.data?.done ?? 0,
+          attesa: rec.data?.waiting ?? 0,
+          errori: rec.data?.failed ?? 0,
+        }) + (rec.data?.live ? '.' : ` (${t('ambiente di prova')}).`),
       );
     }
     setMsg(lines.join(' '));
@@ -163,7 +167,7 @@ export function InvoicesPanel() {
     load();
   }
 
-  if (!cfg) return <Muted>Esegui la migrazione 0006_fatture.sql per attivare le fatture.</Muted>;
+  if (!cfg) return <Muted>{t('Esegui la migrazione 0006_fatture.sql per attivare le fatture.')}</Muted>;
   const pending = list.filter((i) => i.status === 'pending' && (i.kind === 'invoice' || cfg.receipt_mode === 'cloud')).length;
   // I registratori (in cloud e al campo) sono nel piano Pro: negli altri si batte a mano.
   const modes = plan.receiptDevices ? RECEIPT_MODES : RECEIPT_MODES.filter((m) => m.value === 'manual');
@@ -172,37 +176,35 @@ export function InvoicesPanel() {
   return (
     <>
       <Muted>
-        Quando una lezione pagata online risulta incassata, l&apos;app prepara la fattura con i dati del cliente e la invia a
-        Fatture in Cloud, che la numera e la trasmette allo SDI. Se il cliente ha scelto lo scontrino, lo emetti nel modo
-        scelto qui sotto. I pagamenti al campo restano come ora.
+        {t("Quando una lezione pagata online risulta incassata, l'app prepara la fattura con i dati del cliente e la invia a Fatture in Cloud, che la numera e la trasmette allo SDI. Se il cliente ha scelto lo scontrino, lo emetti nel modo scelto qui sotto. I pagamenti al campo restano come ora.")}
       </Muted>
       <Card>
-        <Toggle label="Prepara fattura o scontrino per i pagamenti online" value={cfg.auto_invoice} onChange={(v) => setCfg({ ...cfg, auto_invoice: v })} />
-        <Muted style={{ fontSize: 13 }}>Regime</Muted>
+        <Toggle label={t('Prepara fattura o scontrino per i pagamenti online')} value={cfg.auto_invoice} onChange={(v) => setCfg({ ...cfg, auto_invoice: v })} />
+        <Muted style={{ fontSize: 13 }}>{t('Regime')}</Muted>
         <Chips
           items={[
-            { value: 'RF01', label: 'Ordinario (con IVA)' },
-            { value: 'RF19', label: 'Forfettario (senza IVA)' },
+            { value: 'RF01', label: t('Ordinario (con IVA)') },
+            { value: 'RF19', label: t('Forfettario (senza IVA)') },
           ]}
           value={cfg.tax_regime}
           onChange={(v) => setCfg({ ...cfg, tax_regime: v })}
         />
         {cfg.tax_regime === 'RF01' && (
-          <Field label="IVA (%) inclusa nei prezzi" value={vat} onChangeText={setVat} keyboardType="decimal-pad" style={{ maxWidth: 160 }} />
+          <Field label={t('IVA (%) inclusa nei prezzi')} value={vat} onChangeText={setVat} keyboardType="decimal-pad" style={{ maxWidth: 160 }} />
         )}
-        <Muted style={{ fontSize: 13 }}>Scontrino</Muted>
+        <Muted style={{ fontSize: 13 }}>{t('Scontrino')}</Muted>
         <Chips
-          items={modes.map((m) => ({ value: m.value, label: m.label }))}
+          items={modes.map((m) => ({ value: m.value, label: t(m.label) }))}
           value={cfg.receipt_mode}
           onChange={(v) => setCfg({ ...cfg, receipt_mode: v })}
         />
-        <Muted style={{ fontSize: 13 }}>{mode.help}</Muted>
+        <Muted style={{ fontSize: 13 }}>{t(mode.help)}</Muted>
         {!plan.receiptDevices && (
-          <Muted style={{ fontSize: 13 }}>Registratore in cloud e registratore al campo sono compresi dal piano {planWith('receiptDevices')}.</Muted>
+          <Muted style={{ fontSize: 13 }}>{t('Registratore in cloud e registratore al campo sono compresi dal piano {piano}.', { piano: planWith('receiptDevices') })}</Muted>
         )}
         {cfg.receipt_mode === 'device' && (
           <Field
-            label="Indirizzo del registratore"
+            label={t('Indirizzo del registratore')}
             value={cfg.printer_url}
             onChangeText={(v) => setCfg({ ...cfg, printer_url: v })}
             placeholder="192.168.1.50"
@@ -211,14 +213,14 @@ export function InvoicesPanel() {
             keyboardType="url"
           />
         )}
-        <Button title="Salva" onPress={save} loading={saving} small />
+        <Button title={t('Salva')} onPress={save} loading={saving} small />
       </Card>
 
       <Row style={{ justifyContent: 'space-between' }}>
-        <Body bold>Ultime fatture e scontrini</Body>
-        <Button small kind="ghost" title={pending ? `Invia ora (${pending})` : 'Invia ora'} onPress={sendNow} loading={sending} />
+        <Body bold>{t('Ultime fatture e scontrini')}</Body>
+        <Button small kind="ghost" title={pending ? `${t('Invia ora')} (${pending})` : t('Invia ora')} onPress={sendNow} loading={sending} />
       </Row>
-      {list.length === 0 && <Muted>Nessuna fattura: arrivano con i primi pagamenti online.</Muted>}
+      {list.length === 0 && <Muted>{t('Nessuna fattura: arrivano con i primi pagamenti online.')}</Muted>}
       {list.map((i) => (
         <Card key={i.id}>
           <Row style={{ justifyContent: 'space-between' }}>
@@ -230,7 +232,7 @@ export function InvoicesPanel() {
           </Muted>
           <Muted style={{ fontSize: 13 }}>{i.description}</Muted>
           {i.kind === 'receipt' && i.status === 'pending' && cfg.receipt_mode === 'cloud' && (
-            <Muted style={{ fontSize: 13 }}>Lo trasmette il registratore in cloud: premi Invia ora per controllare.</Muted>
+            <Muted style={{ fontSize: 13 }}>{t('Lo trasmette il registratore in cloud: premi Invia ora per controllare.')}</Muted>
           )}
           {i.kind === 'receipt' && i.status === 'pending' && cfg.receipt_mode === 'device' && (
             <PrintReceipt
@@ -254,7 +256,7 @@ export function InvoicesPanel() {
           {i.status === 'error' && (
             <>
               <ErrorText>{i.error}</ErrorText>
-              <Button small kind="ghost" title="Riprova" onPress={() => retry(i.id)} />
+              <Button small kind="ghost" title={t('Riprova')} onPress={() => retry(i.id)} />
             </>
           )}
         </Card>

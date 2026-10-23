@@ -4,6 +4,7 @@ import { Modal, ScrollView, Text, View } from 'react-native';
 import { Avatar } from '@/components/photo';
 import { Button, ErrorText, Field, H1, Muted, Row } from '@/components/ui';
 import { cap, longDay } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
@@ -40,13 +41,13 @@ export function NoteItem({ n }: { n: DogNote }) {
       </Row>
       {!!n.work && (
         <Text style={{ color: c.text, lineHeight: 20 }}>
-          <Text style={{ fontWeight: '700' }}>Cosa abbiamo fatto: </Text>
+          <Text style={{ fontWeight: '700' }}>{t('Cosa abbiamo fatto:')} </Text>
           {n.work}
         </Text>
       )}
       {!!n.comment && (
         <Text style={{ color: c.text, lineHeight: 20 }}>
-          <Text style={{ fontWeight: '700' }}>Commento: </Text>
+          <Text style={{ fontWeight: '700' }}>{t('Commento:')} </Text>
           {n.comment}
         </Text>
       )}
@@ -55,16 +56,16 @@ export function NoteItem({ n }: { n: DogNote }) {
 }
 
 /** Il diario di un cane, da leggere. */
-export function DogDiary({ dogId, empty = 'Ancora nessuna pagina nel diario.', limit }: { dogId: string; empty?: string; limit?: number }) {
+export function DogDiary({ dogId, empty, limit }: { dogId: string; empty?: string; limit?: number }) {
   const { notes } = useDogNotes(dogId);
   const shown = limit ? notes.slice(0, limit) : notes;
-  if (!notes.length) return <Muted style={{ fontSize: 13 }}>{empty}</Muted>;
+  if (!notes.length) return <Muted style={{ fontSize: 13 }}>{empty ?? t('Ancora nessuna pagina nel diario.')}</Muted>;
   return (
     <View style={{ gap: 14 }}>
       {shown.map((n) => (
         <NoteItem key={n.id} n={n} />
       ))}
-      {shown.length < notes.length && <Muted style={{ fontSize: 13 }}>{`Altre ${notes.length - shown.length} pagine più vecchie.`}</Muted>}
+      {shown.length < notes.length && <Muted style={{ fontSize: 13 }}>{t('Altre {n} pagine più vecchie.', { n: notes.length - shown.length })}</Muted>}
     </View>
   );
 }
@@ -99,7 +100,7 @@ export function NoteEditor({ target, onClose }: { target: NoteTarget | null; onC
     const { error } = await supabase.rpc('save_dog_note', { p_booking: target.bookingId, p_work: work, p_comment: comment });
     setBusy(false);
     if (error) return setErr(errorText(error));
-    setMsg('Salvato nel diario: lo vedono il cliente e il campo.');
+    setMsg(t('Salvato nel diario: lo vedono il cliente e il campo.'));
     reload();
   }
 
@@ -109,19 +110,19 @@ export function NoteEditor({ target, onClose }: { target: NoteTarget | null; onC
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
         <View style={{ backgroundColor: c.bg, borderRadius: 14, width: '100%', maxWidth: 620, maxHeight: '92%' }}>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 14 }} keyboardShouldPersistTaps="handled">
-            <H1>{`Diario di ${target?.dogName ?? ''}`}</H1>
+            <H1>{t('Diario di {cane}', { cane: target?.dogName ?? '' })}</H1>
             {target && <Muted>{`${cap(longDay(target.day))} · ${target.lesson}`}</Muted>}
-            <Field label="Cosa abbiamo fatto" value={work} onChangeText={setWork} multiline placeholder="Esercizi, durata, progressi" />
-            <Field label="Commenti per il cliente" value={comment} onChangeText={setComment} multiline placeholder="Come è andata, cosa provare a casa" />
+            <Field label={t('Cosa abbiamo fatto')} value={work} onChangeText={setWork} multiline placeholder={t('Esercizi, durata, progressi')} />
+            <Field label={t('Commenti per il cliente')} value={comment} onChangeText={setComment} multiline placeholder={t('Come è andata, cosa provare a casa')} />
             <ErrorText>{err}</ErrorText>
             {!!msg && <Muted>{msg}</Muted>}
             <Row style={{ justifyContent: 'flex-end' }}>
-              <Button small kind="ghost" title="Chiudi" onPress={onClose} />
-              <Button small title={mine ? 'Aggiorna il diario' : 'Salva nel diario'} onPress={save} loading={busy} />
+              <Button small kind="ghost" title={t('Chiudi')} onPress={onClose} />
+              <Button small title={mine ? t('Aggiorna il diario') : t('Salva nel diario')} onPress={save} loading={busy} />
             </Row>
             {older.length > 0 && (
               <View style={{ gap: 14, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 14 }}>
-                <Text style={{ color: c.muted, fontWeight: '800', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Pagine precedenti</Text>
+                <Text style={{ color: c.muted, fontWeight: '800', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>{t('Pagine precedenti')}</Text>
                 {older.slice(0, 8).map((n) => (
                   <NoteItem key={n.id} n={n} />
                 ))}

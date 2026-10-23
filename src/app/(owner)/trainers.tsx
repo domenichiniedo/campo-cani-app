@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import { PhotoEditor } from '@/components/photo';
 import { Badge, Body, Button, Card, ErrorText, Field, H1, Muted, Row, Screen, Stat } from '@/components/ui';
 import { addDays, dayKey, today } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { mondayOf } from '@/lib/owner';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
@@ -72,31 +73,30 @@ export default function OwnerTrainers() {
 
   return (
     <Screen onRefresh={load} refreshing={loading}>
-      <H1>Trainer</H1>
+      <H1>{t('Trainer')}</H1>
       <Muted>
-        Ogni trainer entra nell&apos;app con la sua email: vede le sue lezioni, fa entrare i cani in campo, segna la sua disponibilità e scrive il
-        diario dei cani. La foto la vedono i clienti nelle loro lezioni e nel diario. Per aggiungere o rinominare un trainer vai in Impostazioni.
+        {t("Ogni trainer entra nell'app con la sua email: vede le sue lezioni, fa entrare i cani in campo, segna la sua disponibilità e scrive il diario dei cani. La foto la vedono i clienti nelle loro lezioni e nel diario. Per aggiungere o rinominare un trainer vai in Impostazioni.")}
       </Muted>
       <ErrorText>{err}</ErrorText>
-      {trainers.length === 0 && <Muted>Non hai ancora trainer. Aggiungili in Impostazioni.</Muted>}
-      {trainers.map((t) => {
-        const a = accounts[t.id];
-        const st = stats[t.id];
-        const follows = t.lessons.length ? t.lessons.map((id) => lessonTypes.find((l) => l.id === id)?.label ?? id).join(', ') : 'Tutte le lezioni';
-        const draft = emails[t.id] ?? '';
+      {trainers.length === 0 && <Muted>{t('Non hai ancora trainer. Aggiungili in Impostazioni.')}</Muted>}
+      {trainers.map((tr) => {
+        const a = accounts[tr.id];
+        const st = stats[tr.id];
+        const follows = tr.lessons.length ? tr.lessons.map((id) => lessonTypes.find((l) => l.id === id)?.label ?? id).join(', ') : t('Tutte le lezioni');
+        const draft = emails[tr.id] ?? '';
         return (
-          <Card key={t.id}>
+          <Card key={tr.id}>
             <Row style={{ justifyContent: 'space-between' }}>
-              <Body bold>{t.name}</Body>
-              {a?.user_id ? <Badge tone="ok">App collegata</Badge> : a ? <Badge tone="warn">In attesa di iscrizione</Badge> : <Badge>Senza app</Badge>}
+              <Body bold>{tr.name}</Body>
+              {a?.user_id ? <Badge tone="ok">{t('App collegata')}</Badge> : a ? <Badge tone="warn">{t('In attesa di iscrizione')}</Badge> : <Badge>{t('Senza app')}</Badge>}
             </Row>
-            <Muted>{`Segue: ${follows}`}</Muted>
+            <Muted>{t('Segue: {lezioni}', { lezioni: follows })}</Muted>
             <PhotoEditor
-              name={t.name}
-              path={t.photo_path}
-              prefix={`trainer-${t.id}-`}
+              name={tr.name}
+              path={tr.photo_path}
+              prefix={`trainer-${tr.id}-`}
               save={async (path) => {
-                const { error } = await supabase.from('trainers').update({ photo_path: path }).eq('id', t.id);
+                const { error } = await supabase.from('trainers').update({ photo_path: path }).eq('id', tr.id);
                 if (error) return errorText(error);
                 await refresh();
                 return null;
@@ -104,36 +104,35 @@ export default function OwnerTrainers() {
             />
             {st && (
               <Row>
-                <Stat label="Oggi" value={st.today} />
-                <Stat label="Questa settimana" value={st.week} />
-                <Stat label="Ore disponibili" value={st.hours === null ? 'Sempre' : st.hours} />
-                <Stat label="Diari ultimi 30 gg" value={st.notes} />
+                <Stat label={t('Oggi')} value={st.today} />
+                <Stat label={t('Questa settimana')} value={st.week} />
+                <Stat label={t('Ore disponibili')} value={st.hours === null ? t('Sempre') : st.hours} />
+                <Stat label={t('Diari ultimi 30 gg')} value={st.notes} />
               </Row>
             )}
             <View style={{ gap: 8 }}>
               <Field
-                label="Email per l'app"
+                label={t("Email per l'app")}
                 value={draft}
-                onChangeText={(v) => setEmails({ ...emails, [t.id]: v })}
+                onChangeText={(v) => setEmails({ ...emails, [tr.id]: v })}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 placeholder="trainer@email.it"
               />
               {a && !a.user_id && (
                 <Muted style={{ fontSize: 13 }}>
-                  Digli di iscriversi dall&apos;app con questa email scegliendo &quot;Sono un trainer del centro&quot;: entrerà direttamente nell&apos;area
-                  trainer.
+                  {t("Digli di iscriversi dall'app con questa email scegliendo \"Sono un trainer del centro\": entrerà direttamente nell'area trainer.")}
                 </Muted>
               )}
               <Row>
                 <Button
                   small
-                  title={a ? 'Aggiorna email' : 'Collega'}
-                  loading={busy === t.id}
+                  title={a ? t('Aggiorna email') : t('Collega')}
+                  loading={busy === tr.id}
                   disabled={!draft.trim() || draft.trim().toLowerCase() === a?.email}
-                  onPress={() => link(t.id, draft)}
+                  onPress={() => link(tr.id, draft)}
                 />
-                {a && <Button small kind="ghost" title="Scollega l'app" onPress={() => link(t.id, '')} />}
+                {a && <Button small kind="ghost" title={t("Scollega l'app")} onPress={() => link(tr.id, '')} />}
               </Row>
             </View>
           </Card>

@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 
 import { Button, Card, ErrorText, Field, H1, Muted, Screen } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { errorText, supabase } from '@/lib/supabase';
 
 export default function Forgot() {
@@ -23,7 +24,7 @@ export default function Forgot() {
 
   async function reset() {
     setErr('');
-    if (password.length < 8) return setErr('La password deve avere almeno 8 caratteri.');
+    if (password.length < 8) return setErr(t('La password deve avere almeno 8 caratteri.'));
     setBusy(true);
     const v = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'recovery' });
     if (v.error) {
@@ -38,25 +39,25 @@ export default function Forgot() {
 
   return (
     <Screen>
-      <H1>Nuova password</H1>
+      <H1>{t('Nuova password')}</H1>
       {!sent ? (
         <Card accent>
-          <Muted>Scrivi l&apos;email del tuo account: ti mandiamo un codice per scegliere una nuova password.</Muted>
-          <Field label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
+          <Muted>{t("Scrivi l'email del tuo account: ti mandiamo un codice per scegliere una nuova password.")}</Muted>
+          <Field label={t('Email')} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
           <ErrorText>{err}</ErrorText>
-          <Button title="Mandami il codice" onPress={sendCode} loading={busy} disabled={!email} />
+          <Button title={t('Mandami il codice')} onPress={sendCode} loading={busy} disabled={!email} />
         </Card>
       ) : (
         <Card accent>
-          <Muted>Abbiamo mandato un codice a {email.trim()}. Inseriscilo qui con la nuova password.</Muted>
-          <Field label="Codice ricevuto" value={code} onChangeText={setCode} keyboardType="number-pad" autoComplete="one-time-code" />
-          <Field label="Nuova password" value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
+          <Muted>{t('Abbiamo mandato un codice a {email}. Inseriscilo qui con la nuova password.', { email: email.trim() })}</Muted>
+          <Field label={t('Codice ricevuto')} value={code} onChangeText={setCode} keyboardType="number-pad" autoComplete="one-time-code" />
+          <Field label={t('Nuova password')} value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
           <ErrorText>{err}</ErrorText>
-          <Button title="Salva la password" onPress={reset} loading={busy} disabled={!code || !password} />
-          <Button title="Rimanda il codice" kind="ghost" small onPress={sendCode} />
+          <Button title={t('Salva la password')} onPress={reset} loading={busy} disabled={!code || !password} />
+          <Button title={t('Rimanda il codice')} kind="ghost" small onPress={sendCode} />
         </Card>
       )}
-      <Button title="Torna all'accesso" kind="ghost" onPress={() => router.back()} />
+      <Button title={t("Torna all'accesso")} kind="ghost" onPress={() => router.back()} />
     </Screen>
   );
 }

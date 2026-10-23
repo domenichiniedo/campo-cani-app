@@ -4,6 +4,7 @@ import { Text, View } from 'react-native';
 import { Avatar } from '@/components/photo';
 import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Muted, Row } from '@/components/ui';
 import { euro, hm, timeOf } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import type { OwnerBooking } from '@/lib/owner';
 import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
@@ -45,9 +46,9 @@ export function OwnerBookingCard({ b, onChange, showField }: { b: OwnerBooking; 
         </Text>
         <Row>
           {showField && b.fields && <Badge>{b.fields.name}</Badge>}
-          {arrived && <Badge tone="ok">{`Entrato ${timeOf(b.checked_in_at!)}`}</Badge>}
-          {b.dogs?.blocked && <Badge tone="bad">Sospeso</Badge>}
-          {penalized && <Badge tone="bad">Penalità</Badge>}
+          {arrived && <Badge tone="ok">{t('Entrato {ora}', { ora: timeOf(b.checked_in_at!) })}</Badge>}
+          {b.dogs?.blocked && <Badge tone="bad">{t('Sospeso')}</Badge>}
+          {penalized && <Badge tone="bad">{t('Penalità')}</Badge>}
         </Row>
       </Row>
       <View style={{ gap: 2 }}>
@@ -69,7 +70,7 @@ export function OwnerBookingCard({ b, onChange, showField }: { b: OwnerBooking; 
           <Row>
             {b.trainers && <Avatar name={b.trainers.name} path={trainers.find((t) => t.id === b.trainer_id)?.photo_path} size={24} />}
             <Text style={{ color: b.trainers ? c.accent : c.brassText, fontSize: 14, fontWeight: '700' }}>
-              {b.trainers ? `Trainer: ${b.trainers.name}` : 'Trainer da assegnare'}
+              {b.trainers ? t('Trainer: {nome}', { nome: b.trainers.name }) : t('Trainer da assegnare')}
             </Text>
           </Row>
         )}
@@ -78,30 +79,30 @@ export function OwnerBookingCard({ b, onChange, showField }: { b: OwnerBooking; 
         <Button
           small
           kind={arrived ? 'ghost' : 'primary'}
-          title={arrived ? 'Annulla ingresso' : 'Ingresso'}
+          title={arrived ? t('Annulla ingresso') : t('Ingresso')}
           loading={busy}
           onPress={() =>
             run(() => supabase.from('bookings').update({ checked_in_at: arrived ? null : new Date().toISOString() }).eq('id', b.id))
           }
         />
         {b.pay === 'package' ? (
-          <Badge tone="ok">Dal pacchetto</Badge>
+          <Badge tone="ok">{t('Dal pacchetto')}</Badge>
         ) : (
           plan.payments && (
             <Button
               small
               kind="ghost"
-              title={b.paid ? `Pagato ${euro(b.price_cents)} ✓` : `Incassa ${euro(b.price_cents)}`}
+              title={b.paid ? t('Pagato {prezzo} ✓', { prezzo: euro(b.price_cents) }) : t('Incassa {prezzo}', { prezzo: euro(b.price_cents) })}
               onPress={() => run(() => supabase.from('bookings').update({ paid: !b.paid }).eq('id', b.id))}
             />
           )
         )}
         {trainers.length > 0 && (
-          <Button small kind="ghost" title={b.trainers ? 'Cambia trainer' : 'Assegna trainer'} onPress={() => setTrainerOpen(!trainerOpen)} />
+          <Button small kind="ghost" title={b.trainers ? t('Cambia trainer') : t('Assegna trainer')} onPress={() => setTrainerOpen(!trainerOpen)} />
         )}
-        <Button small kind="ghost" title="Penalità" onPress={() => setPenaltyOpen(!penaltyOpen)} />
+        <Button small kind="ghost" title={t('Penalità')} onPress={() => setPenaltyOpen(!penaltyOpen)} />
         <ConfirmButton
-          title="Annulla lezione"
+          title={t('Annulla lezione')}
           onConfirm={() =>
             run(() => supabase.from('bookings').update({ status: 'cancelled', cancelled_at: new Date().toISOString() }).eq('id', b.id))
           }
@@ -109,9 +110,9 @@ export function OwnerBookingCard({ b, onChange, showField }: { b: OwnerBooking; 
       </Row>
       {trainerOpen && (
         <View style={{ gap: 8 }}>
-          {fit.length === 0 && <Muted>Nessun trainer segue questo tipo di lezione. Controlla in Impostazioni.</Muted>}
+          {fit.length === 0 && <Muted>{t('Nessun trainer segue questo tipo di lezione. Controlla in Impostazioni.')}</Muted>}
           <Chips
-            items={[...fit.map((t) => ({ value: t.id, label: t.name })), { value: '', label: 'Nessuno' }]}
+            items={[...fit.map((t) => ({ value: t.id, label: t.name })), { value: '', label: t('Nessuno') }]}
             value={b.trainer_id ?? ''}
             onChange={async (v) => {
               await run(() => supabase.from('bookings').update({ trainer_id: v || null }).eq('id', b.id));
@@ -122,11 +123,11 @@ export function OwnerBookingCard({ b, onChange, showField }: { b: OwnerBooking; 
       )}
       {penaltyOpen && (
         <View style={{ gap: 8 }}>
-          <Chips items={PENALTY_REASONS.map((r) => ({ value: r, label: r }))} value={reason} onChange={setReason} />
+          <Chips items={PENALTY_REASONS.map((r) => ({ value: r, label: t(r) }))} value={reason} onChange={setReason} />
           <Button
             small
             kind="danger"
-            title="Dai penalità"
+            title={t('Dai penalità')}
             disabled={!reason}
             onPress={async () => {
               await run(() => supabase.from('penalties').insert({ dog_id: b.dog_id, booking_id: b.id, reason }));

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { Body, Button, Card, Check, ErrorText, Expandable, H1, Screen } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { rulesLines } from '@/lib/types';
@@ -30,34 +31,34 @@ export default function Terms() {
 
   return (
     <Screen>
-      <H1>Sono cambiate le regole</H1>
-      <Body>Per continuare a prenotare leggi e accetta la nuova versione.</Body>
+      <H1>{t('Sono cambiate le regole')}</H1>
+      <Body>{t('Per continuare a prenotare leggi e accetta la nuova versione.')}</Body>
       <Card accent>
         {rulesChanged && (
           <>
-            <Expandable title="il regolamento" lines={rulesLines(settings, lessonTypes)} />
+            <Expandable title={t('il regolamento')} lines={rulesLines(settings, lessonTypes)} />
             <Check value={rulesOk} onChange={setRulesOk}>
-              Ho letto e accetto il nuovo regolamento.
+              {t('Ho letto e accetto il nuovo regolamento.')}
             </Check>
           </>
         )}
         {privacyChanged && (
           <>
-            <Expandable title="l'informativa privacy" lines={settings.privacy.split('\n').filter(Boolean)} />
+            <Expandable title={t("l'informativa privacy")} lines={settings.privacy.split('\n').filter(Boolean)} />
             <Check value={privacyOk} onChange={setPrivacyOk}>
-              Ho letto la nuova informativa e acconsento al trattamento dei miei dati.
+              {t('Ho letto la nuova informativa e acconsento al trattamento dei miei dati.')}
             </Check>
           </>
         )}
         <ErrorText>{err}</ErrorText>
         <Button
-          title="Accetto e continuo"
+          title={t('Accetto e continuo')}
           onPress={accept}
           loading={busy}
           disabled={(rulesChanged && !rulesOk) || (privacyChanged && !privacyOk)}
         />
       </Card>
-      <Button title="Esci" kind="ghost" onPress={() => supabase.auth.signOut()} />
+      <Button title={t('Esci')} kind="ghost" onPress={() => supabase.auth.signOut()} />
     </Screen>
   );
 }
