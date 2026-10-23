@@ -53,6 +53,14 @@ jobs:
           done
       - run: npx cap sync android
         working-directory: mobile-demo
+      # Sempre la stessa firma (chiave solo per la demo) e un numero di versione che cresce: così il telefono
+      # installa la demo nuova sopra quella vecchia invece di rifiutarla.
+      - name: Firma e versione della demo
+        run: |
+          mkdir -p ~/.android
+          cp mobile-demo/demo-debug.keystore ~/.android/debug.keystore
+          sed -i 's/versionCode [0-9]*/versionCode ${{ github.run_number }}/' mobile-demo/android/app/build.gradle
+          grep -n versionCode mobile-demo/android/app/build.gradle
       - run: ./gradlew assembleDebug
         working-directory: mobile-demo/android
       - run: cp mobile-demo/android/app/build/outputs/apk/debug/app-debug.apk K9Manager-Demo.apk
@@ -66,6 +74,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view demo-android >/dev/null 2>&1 || gh release create demo-android --prerelease \
-            --title "Demo per Android" --notes "Demo di K9 Manager con i dati di esempio. Scarica K9Manager-Demo.apk dal telefono e aprilo per installarlo."
+          NOTES="Demo di K9 Manager con i dati di esempio. Scarica K9Manager-Demo.apk dal telefono e aprilo per installarlo. Se il telefono non la installa sopra una demo vecchia, disinstalla prima quella vecchia (solo la prima volta)."
+          gh release view demo-android >/dev/null 2>&1 || gh release create demo-android --prerelease --title "Demo per Android" --notes "$NOTES"
+          gh release edit demo-android --title "Demo per Android" --notes "$NOTES"
           gh release upload demo-android K9Manager-Demo.apk --clobber
+          # Il file col vecchio nome (prima di K9 Manager) non si aggiorna più: si toglie per non confondersi.
+          gh release delete-asset demo-android CampoCani-Demo.apk -y || true
