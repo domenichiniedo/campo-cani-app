@@ -263,8 +263,8 @@ né schermate dei clienti), con la stessa licenza e la stampa sul registratore E
 - Le mie lezioni, con disdetta fino al limite di ore deciso dal campo.
 - Pacchetti: vede quelli offerti e li richiede; paga al campo e il proprietario lo attiva. Da lì ogni prenotazione di quel
   tipo scala una lezione, e una lezione annullata torna nel pacchetto.
-- Diario: per ogni cane, cosa si è fatto a ogni lezione e i commenti del trainer, con la scheda di valutazione se il
-  trainer l'ha compilata (piano Pro).
+- Diario: per ogni cane, cosa si è fatto a ogni lezione e i commenti del trainer, con le schede di valutazione che il
+  trainer ha compilato sul cane (piano Pro).
 - Profilo: foto (fotocamera o galleria), dati, cani, penalità ricevute, regolamento e privacy.
 - Le mie lezioni mostrano il trainer con la sua foto.
 - Se il proprietario cambia regolamento o privacy, al prossimo accesso deve accettare il nuovo testo prima di prenotare.
@@ -284,15 +284,17 @@ né schermate dei clienti), con la stessa licenza e la stampa sul registratore E
   viene sospeso da solo; 0 spegne la sospensione automatica.
 - Impostazioni: nome del centro, logo, numero di campi (ognuno con nome e indirizzo, anche uguale), trainer con le
   lezioni che seguono, pacchetti (lezioni, prezzo, validità), orario della griglia, ore per la disdetta, limite penalità, lezioni (nome, durata,
-  prezzo, opzioni), schede di valutazione per il diario (piano Pro: voci con voto da 1 a 5, sì/no o nota), regolamento e
+  prezzo, opzioni), modelli delle schede di valutazione del cane (piano Pro: per esempio primo incontro o ipersensibilità al tatto, con
+  voci a voto da 1 a 5, sì/no, scelta tra risposte o testo), regolamento e
   privacy.
 
 **Trainer**
 - Il proprietario, nella scheda Trainer, scrive l'email del trainer. Il trainer si iscrive dall'app con quella email
   scegliendo "Sono un trainer del centro" (se aveva già un account, diventa trainer subito).
 - Lezioni: le sue lezioni del giorno con cane, cliente e telefono; il giorno della lezione fa entrare il cane in campo.
-- Diario: dopo la lezione scrive cosa si è fatto e i commenti, e può compilare una scheda di valutazione del centro (piano
-  Pro); li leggono il cliente e il proprietario.
+- Diario: dopo la lezione scrive cosa si è fatto e i commenti. Nel piano Pro compila le schede di valutazione del centro
+  sul cane, quando vuole ("+ Valuta il cane" nei Diari) o nella pagina della lezione. Li leggono il cliente e il
+  proprietario.
 - Disponibilità: segna le mezz'ore in cui può fare lezione.
 - Penalità: il giorno della lezione o dopo dà una penalità al cane (stessi motivi del proprietario) e può toglierla se
   sbaglia. Alla soglia il cane viene sospeso; lo riattiva il proprietario.

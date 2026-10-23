@@ -38,13 +38,26 @@
         { id: 'p2', name: '5 lezioni base', lesson_type: 'base', lessons: 5, price_cents: 6500, valid_days: 90, sort: 2, active: true }
       ],
       client_packages: [],
-      // Schede di valutazione del centro, compilate dai trainer nel diario.
+      // Modelli di scheda preparati dal centro, che i trainer compilano sul cane.
       eval_forms: [
-        { id: 'v1', name: 'Valutazione obbedienza', active: true, sort: 1, items: [
+        { id: 'v1', name: 'Primo incontro', active: true, sort: 1, items: [
+          { label: 'Come si presenta all\'arrivo', kind: 'choice', options: ['Tranquillo', 'Curioso', 'Agitato', 'Pauroso', 'Reattivo'] },
+          { label: 'Approccio alle persone', kind: 'score' }, { label: 'Approccio agli altri cani', kind: 'score' },
+          { label: 'Vaccinazioni in regola', kind: 'yesno' }, { label: 'Note sul primo incontro', kind: 'text' }] },
+        { id: 'v2', name: 'Ipersensibilità al tatto', active: true, sort: 2, items: [
+          { label: 'Testa e orecchie', kind: 'choice', options: ['Accetta', 'Tollera', 'Evita', 'Reagisce'] },
+          { label: 'Zampe', kind: 'choice', options: ['Accetta', 'Tollera', 'Evita', 'Reagisce'] },
+          { label: 'Coda e posteriore', kind: 'choice', options: ['Accetta', 'Tollera', 'Evita', 'Reagisce'] },
+          { label: 'Pettorina e collare', kind: 'choice', options: ['Accetta', 'Tollera', 'Evita', 'Reagisce'] },
+          { label: 'Si calma dopo il contatto', kind: 'yesno' }, { label: 'Note', kind: 'text' }] },
+        { id: 'v3', name: 'Obiettivi del conduttore', active: true, sort: 3, items: [
+          { label: 'Obiettivo principale', kind: 'choice', options: ['Educazione di base', 'Gestione in città', 'Sport (IGP, agility)', 'Problema di comportamento'] },
+          { label: 'Cosa vorrebbe migliorare con il cane', kind: 'text' },
+          { label: 'Tempo per allenarsi a casa', kind: 'choice', options: ['Meno di 1 ora a settimana', '1-3 ore a settimana', 'Più di 3 ore a settimana'] },
+          { label: 'Motivazione del conduttore', kind: 'score' }] },
+        { id: 'v4', name: 'Valutazione obbedienza', active: true, sort: 4, items: [
           { label: 'Richiamo', kind: 'score' }, { label: 'Condotta al guinzaglio', kind: 'score' }, { label: 'Concentrazione', kind: 'score' },
-          { label: 'Pronto per la prova', kind: 'yesno' }, { label: 'Da fare a casa', kind: 'text' }] },
-        { id: 'v2', name: 'Valutazione pista', active: true, sort: 2, items: [
-          { label: 'Intensità di fiuto', kind: 'score' }, { label: 'Precisione negli angoli', kind: 'score' }, { label: 'Oggetti trovati tutti', kind: 'yesno' }] }
+          { label: 'Pronto per la prova', kind: 'yesno' }, { label: 'Da fare a casa', kind: 'text' }] }
       ],
       profiles: [], dogs: [], availability: [], trainer_availability: [], trainer_accounts: [], dog_notes: [], bookings: [], classes: [], penalties: [], passwords: {},
       // Foto di esempio di trainer e clienti: sagome disegnate, si possono cambiare dall'app.
@@ -147,12 +160,12 @@
       base: ['Richiamo con distrazioni e guinzaglio lungo', 'Seduto e terra con il cibo, poi senza', 'Passeggiata al guinzaglio senza tirare', 'Resta: 30 secondi a 5 metri', 'Socializzazione con altri due cani']
     };
     var commenti = ['Molto concentrato, bravo!', 'Si distrae dopo 20 minuti: meglio sessioni brevi.', 'Grande progresso rispetto alla volta scorsa.', 'A casa ripetete il richiamo 5 minuti al giorno.', 'Un po\' agitato all\'inizio, poi ottimo.', ''];
-    // Una lezione su due di obbedienza e pista ha anche la scheda, con voti che crescono nel tempo.
+    // Una lezione su due di obbedienza ha anche la scheda, con voti che crescono nel tempo.
     function valuta(b, i) {
-      var f = db.eval_forms[b.lesson_option === 'Pista' ? 1 : 0];
-      if ((b.lesson_option !== 'Obbedienza' && b.lesson_option !== 'Pista') || i % 2) return null;
+      if (b.lesson_option !== 'Obbedienza' || i % 2) return null;
+      var f = db.eval_forms[3];
       var v = Math.max(1, Math.min(5, 4 - Math.round((dk(t) > b.day ? (t - new Date(b.day)) / 864e5 : 0) / 30)));
-      var vals = f.id === 'v1' ? [v, Math.min(5, v + 1), v, v >= 4, i % 4 ? null : 'Richiamo con il fischietto, 5 minuti al giorno'] : [Math.min(5, v + 1), v, v >= 3];
+      var vals = [v, Math.min(5, v + 1), v, v >= 4, i % 4 ? null : 'Richiamo con il fischietto, 5 minuti al giorno'];
       return { form_id: f.id, name: f.name, items: f.items.map(function (it, k) { return { label: it.label, kind: it.kind, value: vals[k] }; }) };
     }
     db.bookings.forEach(function (b, i) {
@@ -162,6 +175,22 @@
       db.dog_notes.push({ id: uid(), dog_id: b.dog_id, booking_id: b.id, trainer_id: b.trainer_id, author_name: tr.name, day: b.day,
         lesson: lt0.label + (b.lesson_option ? ' · ' + b.lesson_option : ''), work: (lavori[b.lesson_type] || lavori[b.lesson_option])[i % (b.lesson_type === 'base' ? 5 : 3)], comment: commenti[i % commenti.length],
         evaluation: valuta(b, i), created_at: b.checked_in_at, updated_at: b.checked_in_at });
+    });
+    // Schede compilate da Luca sui cani che allena in IGP: primo incontro e obiettivi all'inizio, poi il tatto.
+    var allievi = [];
+    db.bookings.forEach(function (b) { if (b.lesson_type === 'igp' && b.trainer_id === 't1' && allievi.indexOf(b.dog_id) < 0) allievi.push(b.dog_id); });
+    var schede = [
+      [0, -75, 'Primo cane del cliente, buona collaborazione.', function (n) { return [['Curioso', 'Tranquillo', 'Agitato'][n % 3], 4 - n % 2, 3 + n % 2, true, 'Si ambienta in pochi minuti, tira al guinzaglio.']; }],
+      [2, -74, '', function (n) { return [['Sport (IGP, agility)', 'Educazione di base', 'Gestione in città'][n % 3], 'Una condotta più attenta e un richiamo affidabile anche al parco.', ['1-3 ore a settimana', 'Più di 3 ore a settimana'][n % 2], 4 + n % 2]; }],
+      [1, -30, 'Da ripetere tra un mese.', function (n) { return [n % 2 ? 'Tollera' : 'Accetta', ['Evita', 'Tollera', 'Reagisce'][n % 3], 'Tollera', 'Accetta', n % 3 !== 2, n % 3 === 2 ? 'Sulle zampe posteriori serve un lavoro lento con il cibo.' : null]; }]
+    ];
+    allievi.forEach(function (dogId, n) {
+      schede.forEach(function (sc) {
+        var f = db.eval_forms[sc[0]], at = addDays(t, sc[1] + n), vals = sc[3](n);
+        db.dog_notes.push({ id: uid(), dog_id: dogId, booking_id: null, trainer_id: 't1', author_name: 'Luca', day: dk(at), lesson: '', work: '', comment: sc[2],
+          evaluation: { form_id: f.id, name: f.name, items: f.items.map(function (it, k) { return { label: it.label, kind: it.kind, value: vals[k] === undefined ? null : vals[k] }; }) },
+          created_at: at.toISOString(), updated_at: at.toISOString() });
+      });
     });
     // Classi di gruppo martedì, giovedì e sabato alle 11 sul Campo B (il sabato con Luca): alcune piene, altre con posti liberi.
     var gruppo = [['c2', 'd3'], ['c3', 'd4'], ['x1', 'dx1'], ['x2', 'dx2'], ['x5', 'dx5'], ['x8', 'dx8'], ['c1', 'd2']];
@@ -437,6 +466,20 @@
     }).sort(function (x, y) { return (x.expires_at || '9999').localeCompare(y.expires_at || '9999'); })[0];
   }
 
+  // Come eval_filled() nel database vero: copia della scheda con i valori controllati, o il messaggio d'errore.
+  function evalFilled(pe) {
+    var ef = db.eval_forms.filter(function (x) { return x.id === pe.form_id; })[0];
+    if (!ef) return 'Scheda di valutazione non trovata';
+    var vs = pe.values || [], items = [];
+    for (var k = 0; k < ef.items.length; k++) {
+      var it = ef.items[k], v = vs[k] === undefined ? null : vs[k];
+      if (it.kind === 'text' && typeof v === 'string') v = v.trim().slice(0, 2000) || null;
+      if (v !== null && !((it.kind === 'score' && [1, 2, 3, 4, 5].indexOf(v) >= 0) || (it.kind === 'yesno' && typeof v === 'boolean') || (it.kind === 'text' && typeof v === 'string') || (it.kind === 'choice' && (it.options || []).indexOf(v) >= 0))) return 'Scheda di valutazione non valida';
+      items.push({ label: it.label, kind: it.kind, value: v });
+    }
+    if (items.every(function (x) { return x.value === null; })) return 'Compila almeno una voce della scheda';
+    return { form_id: ef.id, name: ef.name, items: items };
+  }
   function rpc(name, headers, a) {
     if (name === 'client_count') return json(200, db.profiles.filter(function (p) { return p.role === 'client'; }).length);
     var who = me(headers);
@@ -477,22 +520,9 @@
       if (who.role !== 'owner' && (!nb.trainer_id || nb.trainer_id !== trainerOf(who))) return fail('Non è una tua lezione');
       var work = (a.p_work || '').trim(), comment = (a.p_comment || '').trim();
       var note = db.dog_notes.filter(function (x) { return x.booking_id === nb.id; })[0];
-      // Come eval_filled() nel database vero: copia della scheda con i valori controllati.
       var ev = null, pe = a.p_eval;
       if (pe && pe.keep) ev = note ? note.evaluation || null : null;
-      else if (pe) {
-        var ef = db.eval_forms.filter(function (x) { return x.id === pe.form_id; })[0];
-        if (!ef) return fail('Scheda di valutazione non trovata');
-        var vs = pe.values || [], items = [];
-        for (var k = 0; k < ef.items.length; k++) {
-          var it = ef.items[k], v = vs[k] === undefined ? null : vs[k];
-          if (it.kind === 'text' && typeof v === 'string') v = v.trim().slice(0, 2000) || null;
-          if (v !== null && !((it.kind === 'score' && [1, 2, 3, 4, 5].indexOf(v) >= 0) || (it.kind === 'yesno' && typeof v === 'boolean') || (it.kind === 'text' && typeof v === 'string'))) return fail('Scheda di valutazione non valida');
-          items.push({ label: it.label, kind: it.kind, value: v });
-        }
-        if (items.every(function (x) { return x.value === null; })) return fail('Compila almeno una voce della scheda');
-        ev = { form_id: ef.id, name: ef.name, items: items };
-      }
+      else if (pe) { ev = evalFilled(pe); if (typeof ev === 'string') return fail(ev); }
       if (!work && !comment && !ev) return fail('Scrivi cosa avete fatto o un commento');
       var ntr = db.trainers.filter(function (x) { return x.id === nb.trainer_id; })[0];
       var nlt = db.lesson_types.filter(function (x) { return x.id === nb.lesson_type; })[0];
@@ -505,6 +535,22 @@
       }
       save();
       return json(200, note);
+    }
+    if (name === 'add_dog_eval') {
+      var edog = db.dogs.filter(function (d) { return d.id === a.p_dog; })[0];
+      if (!edog) return fail('Cane non trovato');
+      var etid = trainerOf(who);
+      if (who.role !== 'owner' && !db.bookings.some(function (b) { return b.dog_id === edog.id && etid && b.trainer_id === etid; })) return fail('Non è un cane delle tue lezioni');
+      if (!a.p_eval) return fail('Scegli una scheda di valutazione');
+      var eev = evalFilled(a.p_eval);
+      if (typeof eev === 'string') return fail(eev);
+      var etr = db.trainers.filter(function (x) { return x.id === etid; })[0];
+      var enote = { id: uid(), dog_id: edog.id, booking_id: null, trainer_id: etr ? etr.id : null,
+        author_name: who.role === 'owner' ? ((who.first_name + ' ' + who.last_name).trim() || 'Il campo') : (etr ? etr.name : ''),
+        day: dk(new Date()), lesson: '', work: '', comment: (a.p_comment || '').trim(), evaluation: eev, created_at: nowIso(), updated_at: nowIso() };
+      db.dog_notes.push(enote);
+      save();
+      return json(200, enote);
     }
     if (name === 'set_my_photo') {
       var mine = db.trainers.filter(function (x) { return x.id === trainerOf(who); })[0];
