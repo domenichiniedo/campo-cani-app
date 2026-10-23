@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { hasBilling } from '@/lib/billing';
 import { imageUrl } from '@/lib/images';
 import { upTo, usePlan } from '@/lib/plans';
+import { sameOr, useWhenActive } from '@/lib/refresh';
 import { supabase } from '@/lib/supabase';
 import type { Field, LessonType, Profile, Settings, Trainer } from '@/lib/types';
 
@@ -50,14 +51,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       supabase.from('fields').select('*').eq('active', true).order('sort'),
       supabase.from('trainers').select('*').eq('active', true).order('sort'),
     ]);
-    if (s.data) setSettings(s.data as Settings);
-    setLessonTypes(upTo((t.data ?? []) as LessonType[], plan.maxLessonTypes));
-    setFields(((f.data ?? []) as Field[]).slice(0, plan.maxFields ?? undefined));
-    setTrainers(upTo((tr.data ?? []) as Trainer[], plan.maxTrainers));
+    if (s.data) setSettings(sameOr<Settings | null>(s.data as Settings));
+    setLessonTypes(sameOr(upTo((t.data ?? []) as LessonType[], plan.maxLessonTypes)));
+    setFields(sameOr(((f.data ?? []) as Field[]).slice(0, plan.maxFields ?? undefined)));
+    setTrainers(sameOr(upTo((tr.data ?? []) as Trainer[], plan.maxTrainers)));
     const uid = (await supabase.auth.getSession()).data.session?.user.id ?? null;
     if (uid) {
       const p = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle();
-      setProfile((p.data as Profile) ?? null);
+      // Senza risposta (rete assente) si tiene il profilo che c'è.
+      if (!p.error) setProfile(sameOr<Profile | null>((p.data as Profile) ?? null));
       if ((p.data as Profile | null)?.role === 'trainer') {
         const a = await supabase.from('trainer_accounts').select('trainer_id').eq('user_id', uid).maybeSingle();
         setMyTrainerId((a.data as { trainer_id: string } | null)?.trainer_id ?? null);
@@ -85,6 +87,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     });
     return () => data.subscription.unsubscribe();
   }, [refresh]);
+
+  // Ruolo, impostazioni, lezioni, campi e trainer si aggiornano da soli, senza chiudere l'app.
+  useWhenActive(() => {
+    refresh().catch(() => {});
+  }, 60_000);
 
   const uid = session?.user.id ?? null;
   const dataReady = loadedFor === uid;

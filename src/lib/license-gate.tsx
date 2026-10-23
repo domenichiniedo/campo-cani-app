@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { dayKey, today } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { expiredText, isExpired, licensingEnabled, longer, readLicense, type License } from '@/lib/license';
+import { sameOr, useWhenActive } from '@/lib/refresh';
 import { connectTo, hasEnvConfig, supabase } from '@/lib/supabase';
 
 // Con la licenza attiva (chiave pubblica in license-key.ts) l'app si apre solo con un codice
@@ -88,6 +89,18 @@ export function LicenseGate({ children, activation }: { children: ReactNode; act
       setState(n);
     });
   }, [linked]);
+
+  // Rinnovi e cambi di piano fatti dal centro valgono senza chiudere l'app; una licenza scaduta la chiude.
+  useWhenActive(() => {
+    const code = read();
+    if (!licensingEnabled || !code) return;
+    open(code)
+      .then((n) => {
+        if (n.kind === 'open') write(n.code ?? code);
+        setState(sameOr<State>(n.kind === 'open' ? { kind: 'open', license: n.license } : n));
+      })
+      .catch(() => {});
+  }, 5 * 60_000);
 
   if (state.kind === 'checking') return null;
   if (state.kind === 'not-configured') return activation('');
