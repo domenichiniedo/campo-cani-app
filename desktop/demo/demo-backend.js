@@ -227,6 +227,10 @@
       inv('c1', 'Giulia Rossi', 15, 'Lezione Educazione base · Adulto · ' + dk(addDays(t, -3)).split('-').reverse().join('/'), 1500, 4, 'sent'),
       inv('c1', 'Giulia Rossi', 14, 'Lezione Educazione base · Adulto · ' + dk(addDays(t, -10)).split('-').reverse().join('/'), 1500, 11, 'sent')
     ];
+    // Uno scontrino già battuto, con il numero del registratore.
+    var rec = inv('c3', 'Sara Verdi', null, 'Lezione IGP · Pista · ' + dk(addDays(t, -6)).split('-').reverse().join('/'), 2500, 6, 'sent', null, 'receipt');
+    rec.receipt_number = '0012-0034';
+    db.invoices.splice(2, 0, rec);
   }
 
   var db;
@@ -802,7 +806,8 @@
     if (path.indexOf('/auth/v1') === 0) return auth(method, path.slice(8), u, headers, body || {});
     if (path.indexOf('/rest/v1/rpc/') === 0) return rpc(path.slice(13), headers, body || {});
     if (path.indexOf('/rest/v1/') === 0) return rest(method, path.slice(9), u.searchParams, headers, body);
-    // Nella demo Fatture in Cloud non è collegato.
+    // Nella demo Fatture in Cloud e l'invio del report per email non sono collegati.
+    if (path === '/functions/v1/report-mensile') return json(500, { error: 'Mancano RESEND_API_KEY o REPORT_FROM nei Secrets di Supabase' });
     if (path.indexOf('/functions/v1/') === 0) return json(500, { error: 'Manca il secret FIC_ACCESS_TOKEN' });
     if (path.indexOf('/storage/v1/') === 0) return storage(method, path.slice(12), init.body, body);
     return json(404, {});

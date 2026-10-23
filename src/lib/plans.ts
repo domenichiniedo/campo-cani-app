@@ -35,6 +35,8 @@ export type Plan = {
   groups: boolean;
   /** Schede di valutazione del proprietario, compilate nel diario dei cani. */
   evals: boolean;
+  /** Report mensile in Excel per email, l'ultimo venerdì del mese. */
+  report: boolean;
 };
 
 export const PLANS: Record<PlanId, Plan> = {
@@ -55,6 +57,7 @@ export const PLANS: Record<PlanId, Plan> = {
     desktop: false,
     groups: false,
     evals: false,
+    report: false,
   },
   professional: {
     id: 'professional',
@@ -73,6 +76,7 @@ export const PLANS: Record<PlanId, Plan> = {
     desktop: false,
     groups: false,
     evals: false,
+    report: false,
   },
   pro: {
     id: 'pro',
@@ -91,6 +95,7 @@ export const PLANS: Record<PlanId, Plan> = {
     desktop: true,
     groups: true,
     evals: true,
+    report: true,
   },
 };
 

@@ -52,17 +52,18 @@ function PrintReceipt({ invoice, printerUrl, onDone }: { invoice: Invoice; print
   );
 }
 
-/** Scontrino da battere sul registratore telematico: il proprietario lo segna come fatto. */
+/** Scontrino da battere sul registratore telematico: il proprietario lo segna come fatto, con il numero. */
 function ReceiptDone({ id, onDone }: { id: string; onDone: (e?: string) => void }) {
   const [num, setNum] = useState('');
   const [busy, setBusy] = useState(false);
   return (
     <Row>
-      <Field label={t('N. documento (facoltativo)')} value={num} onChangeText={setNum} placeholder="0001-0042" style={{ flex: 1, minWidth: 140 }} />
+      <Field label={t('N. documento')} value={num} onChangeText={setNum} placeholder="0001-0042" style={{ flex: 1, minWidth: 140 }} />
       <Button
         small
         title={t('Battuto')}
         loading={busy}
+        disabled={!num.trim()}
         onPress={async () => {
           setBusy(true);
           const { error } = await supabase.rpc('mark_receipt_done', { p_id: id, p_number: num });

@@ -121,7 +121,7 @@ Nel Profilo il cliente sceglie se per i pagamenti online vuole la **fattura** o 
 Fatture** scegli come emettere lo scontrino:
 
 - **Lo batto io**: lo scontrino compare come "da emettere"; lo batti sul registratore telematico del campo e premi
-  **Battuto** (il numero del documento è facoltativo). Va bene con qualsiasi registratore.
+  **Battuto** scrivendo il numero del documento, che finisce nel report mensile. Va bene con qualsiasi registratore.
 - **Registratore al campo (Wi-Fi)**: il tuo telefono lo stampa con **Stampa sul registratore** e salva il numero da solo.
   Funziona con i registratori Epson RT che accettano ePOS-Print XML (per esempio FP-81 II RT e FP-90 III RT). Scrivi
   l'indirizzo del registratore (per esempio `192.168.1.50`) e stai sulla stessa rete Wi-Fi. Non funziona dalla demo nel
@@ -253,7 +253,43 @@ né schermate dei clienti), con la stessa licenza e la stampa sul registratore E
   l'Apple Developer Program (99 $ l'anno).
 - **Provarlo sul tuo computer**: nella cartella `desktop` esegui `npm install`, `npm run web` e `npm start`.
 
-## 9. Demo da far provare
+## 9. Report mensile per email (piano Pro)
+
+L'ultimo venerdì di ogni mese il proprietario riceve per email un Excel con il mese: riepilogo di incassi e attività,
+una riga per lezione (con filtri), pacchetti venduti, fatture e scontrini emessi con il loro numero, statistiche per
+lezione, trainer, campo, giorno, fascia oraria e pagamento, penalità. Lo prepara la funzione
+`supabase/functions/report-mensile` e lo spedisce [Resend](https://resend.com) (gratis fino a 3000 email al mese).
+La chiave di Resend resta nei Secrets di Supabase: non finisce mai nell'app.
+
+1. Su Resend crea un account, aggiungi il dominio da cui mandare l'email (per esempio `iltuocampo.it`, seguendo i
+   record DNS che ti indica) e crea una **API key** con il permesso di invio. Senza dominio Resend manda solo al tuo
+   indirizzo, da `onboarding@resend.dev`: va bene per provare.
+2. Dalla cartella del progetto (come al punto 5):
+   ```sh
+   supabase secrets set RESEND_API_KEY=la_chiave REPORT_FROM="K9 Manager <report@iltuocampo.it>" WEBHOOK_SECRET=una_parola_lunga_a_caso
+   supabase functions deploy report-mensile --no-verify-jwt
+   ```
+   Se hai già impostato `WEBHOOK_SECRET` per le fatture, non cambiarlo. Il report va agli account con ruolo
+   proprietario; per mandarlo anche ad altri: `supabase secrets set REPORT_TO=commercialista@esempio.it,socio@esempio.it`.
+3. Nell'app, **Impostazioni → Report mensile → Mandami ora il report**: arriva subito il report del mese in corso.
+4. Per l'invio automatico, in Supabase apri **Database → Extensions** e attiva `pg_cron` e `pg_net`. Poi nel
+   **SQL Editor**, con il tuo project ref e la tua `WEBHOOK_SECRET`:
+   ```sql
+   select cron.schedule('report-mensile', '0 7 * * 5', $$
+     select net.http_post(
+       url := 'https://IL_TUO_PROJECT_REF.supabase.co/functions/v1/report-mensile',
+       headers := jsonb_build_object('Content-Type', 'application/json', 'x-webhook-secret', 'LA_TUA_WEBHOOK_SECRET'),
+       body := '{}'::jsonb
+     );
+   $$);
+   ```
+   Parte ogni venerdì alle 7 (ora di Londra, 8 o 9 in Italia), ma la funzione manda il report solo se è l'ultimo venerdì
+   del mese. Le lezioni dopo quel venerdì compaiono come previste. Per toglierlo: `select cron.unschedule('report-mensile');`.
+
+Per i centri a cui vendi l'app, la funzione controlla il piano nella licenza: il report parte solo con il piano Pro. Se
+imposti anche `LICENSE_PUBLIC_KEY` (la riga di `src/lib/license-key.ts`), controlla pure la firma della licenza.
+
+## 10. Demo da far provare
 
 Tutte le demo hanno i dati di esempio, senza database, e il bottone **Demo** per entrare come proprietario, cliente o
 trainer e per cambiare piano. I dati restano solo su quel telefono o computer.
@@ -295,6 +331,8 @@ trainer e per cambiare piano. I dati restano solo su quel telefono o computer.
   dell'app con la loro email.
 - Clienti: lista in ordine alfabetico con filtri, diario di ogni cane, ricerca anche per codice fiscale, dati di fatturazione, pacchetti da attivare e lezioni rimaste, penalità per cane, sospensione e riattivazione. Alla penalità numero N (scelta in Impostazioni) il cane
   viene sospeso da solo; 0 spegne la sospensione automatica.
+- Report mensile (piano Pro): l'ultimo venerdì del mese un Excel per email con lezioni, pacchetti, fatture e scontrini,
+  incassi e statistiche.
 - Impostazioni: nome del centro, logo, numero di campi (ognuno con nome e indirizzo, anche uguale), trainer con le
   lezioni che seguono, pacchetti (lezioni, prezzo, validità), orario della griglia, ore per la disdetta, limite penalità, lezioni (nome, durata,
   prezzo, opzioni), modelli delle schede di valutazione del cane (piano Pro: per esempio primo incontro o ipersensibilità al tatto, con
