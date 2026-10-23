@@ -1,7 +1,7 @@
 // Finto Supabase in memoria per la demo nel browser: risponde alle chiamate dell'app senza server.
 (function () {
   var BASE = 'https://demo.supabase.co';
-  var KEY = 'campo-demo-db-v7';
+  var KEY = 'campo-demo-db-v8';
   try { history.replaceState(null, '', '/'); } catch (e) {}
 
   function pad(n) { return String(n).padStart(2, '0'); }
@@ -21,15 +21,16 @@
         rules_ver: 1, privacy_ver: 1
       }],
       lesson_types: [
-        { id: 'igp', label: 'IGP', description: 'Scegli la fase da allenare', duration_min: 60, price_cents: 2500, options: ['Pista', 'Obbedienza', 'Attacco'], sort: 1, active: true },
-        { id: 'base', label: 'Educazione base', description: 'Primi comandi e gestione', duration_min: 30, price_cents: 1500, options: ['Cucciolo (meno di 1,5 anni)', 'Adulto (più di 1,5 anni)'], sort: 2, active: true }
+        { id: 'igp', label: 'IGP', description: 'Scegli la fase da allenare', duration_min: 60, price_cents: 2500, options: ['Pista', 'Obbedienza', 'Attacco'], sort: 1, active: true, group_seats: null },
+        { id: 'base', label: 'Educazione base', description: 'Primi comandi e gestione', duration_min: 30, price_cents: 1500, options: ['Cucciolo (meno di 1,5 anni)', 'Adulto (più di 1,5 anni)'], sort: 2, active: true, group_seats: null },
+        { id: 'gruppo', label: 'Socializzazione di gruppo', description: 'In campo con altri cani, guidati dal trainer', duration_min: 60, price_cents: 1200, options: [], sort: 3, active: true, group_seats: 6 }
       ],
       fields: [
         { id: 'f1', name: 'Campo A', address: 'Via dei Campi 12, Bologna', sort: 1, active: true },
         { id: 'f2', name: 'Campo B', address: 'Via dei Campi 12, Bologna', sort: 2, active: true }
       ],
       trainers: [
-        { id: 't1', name: 'Luca', lessons: ['igp'], sort: 1, active: true, photo_path: 'trainer-t1-demo.svg' },
+        { id: 't1', name: 'Luca', lessons: ['igp', 'gruppo'], sort: 1, active: true, photo_path: 'trainer-t1-demo.svg' },
         { id: 't2', name: 'Paola', lessons: [], sort: 2, active: true, photo_path: 'trainer-t2-demo.svg' }
       ],
       packages: [
@@ -37,7 +38,7 @@
         { id: 'p2', name: '5 lezioni base', lesson_type: 'base', lessons: 5, price_cents: 6500, valid_days: 90, sort: 2, active: true }
       ],
       client_packages: [],
-      profiles: [], dogs: [], availability: [], trainer_availability: [], trainer_accounts: [], dog_notes: [], bookings: [], penalties: [], passwords: {},
+      profiles: [], dogs: [], availability: [], trainer_availability: [], trainer_accounts: [], dog_notes: [], bookings: [], classes: [], penalties: [], passwords: {},
       // Foto di esempio di trainer e clienti: sagome disegnate, si possono cambiare dall'app.
       files: { 'foto/trainer-t1-demo.svg': avatar('#cfe3d6', '#e8b994', '#3b2a20'), 'foto/trainer-t2-demo.svg': avatar('#f1dcc0', '#f0c7a4', '#8a4b2a') }
     };
@@ -91,7 +92,7 @@
       var day = addDays(t, dayOffset);
       if (day.getDay() === 0) return;
       var lt = db.lesson_types.filter(function (x) { return x.id === type; })[0];
-      var b = { id: uid(), user_id: user, dog_id: dogId, field_id: field || 'f1', trainer_id: trainer || null, lesson_type: type, lesson_option: option, day: dk(day), start_min: start, dur_min: lt.duration_min, price_cents: lt.price_cents, pay: 'onsite', paid: false, checked_in_at: null, note: '', status: 'active', cancelled_at: null, created_at: nowIso() };
+      var b = { id: uid(), user_id: user, dog_id: dogId, field_id: field || 'f1', trainer_id: trainer || null, lesson_type: type, lesson_option: option, day: dk(day), start_min: start, dur_min: lt.duration_min, price_cents: lt.price_cents, pay: 'onsite', paid: false, checked_in_at: null, note: '', status: 'active', cancelled_at: null, created_at: nowIso(), class_id: null };
       Object.assign(b, extra || {});
       db.bookings.push(b);
       return b;
@@ -122,6 +123,8 @@
         var opts = igp ? ['Pista', 'Obbedienza', 'Attacco'] : ['Cucciolo (meno di 1,5 anni)', 'Adulto (più di 1,5 anni)'];
         var x = rnd(), at = new Date(addDays(t, h).getTime() + (times[j] - 3) * 60000).toISOString();
         var ex = x < 0.08 ? { status: 'cancelled', cancelled_at: at } : x < 0.14 ? { paid: false } : { paid: true, checked_in_at: at };
+        // Martedì, giovedì e sabato alle 11 il Campo B è della classe di gruppo.
+        if (j % 2 && times[j] === 630 && [2, 4, 6].indexOf(addDays(t, h).getDay()) >= 0) continue;
         book(h, times[j], w[0], w[1], igp ? 'igp' : 'base', opts[Math.floor(rnd() * opts.length)], ex, j % 2 ? 'f2' : 'f1', igp ? 't1' : (rnd() < 0.5 ? 't2' : null));
       }
     }
@@ -142,6 +145,20 @@
         lesson: lt0.label + (b.lesson_option ? ' · ' + b.lesson_option : ''), work: (lavori[b.lesson_type] || lavori[b.lesson_option])[i % (b.lesson_type === 'base' ? 5 : 3)], comment: commenti[i % commenti.length],
         created_at: b.checked_in_at, updated_at: b.checked_in_at });
     });
+    // Classi di gruppo martedì, giovedì e sabato alle 11 sul Campo B (il sabato con Luca): alcune piene, altre con posti liberi.
+    var gruppo = [['c2', 'd3'], ['c3', 'd4'], ['x1', 'dx1'], ['x2', 'dx2'], ['x5', 'dx5'], ['x8', 'dx8'], ['c1', 'd2']];
+    for (var g = -7; g < 28; g++) {
+      var gd = addDays(t, g);
+      if ([2, 4, 6].indexOf(gd.getDay()) < 0) continue;
+      var cl = { id: uid(), lesson_type: 'gruppo', lesson_option: '', field_id: 'f2', trainer_id: gd.getDay() === 6 && g >= 0 ? 't1' : 't2', day: dk(gd), start_min: 660, dur_min: 60, seats: 6, status: 'active', created_at: nowIso() };
+      db.classes.push(cl);
+      var many = g % 3 === 0 ? 6 : 2 + ((g + 7) % 3);
+      for (var q = 0; q < many; q++) {
+        var w2 = gruppo[(q + g + 7) % 6];
+        var at2 = new Date(gd.getTime() + 657 * 60000).toISOString();
+        book(g, 660, w2[0], w2[1], 'gruppo', '', g < 0 ? { paid: true, checked_in_at: at2, class_id: cl.id } : { class_id: cl.id }, 'f2', cl.trainer_id);
+      }
+    }
     var late = book(-1, 600, 'c3', 'd4', 'igp', 'Obbedienza');
     if (late) db.penalties.push({ id: uid(), dog_id: 'd4', booking_id: late.id, reason: 'Ritardo', created_at: addDays(t, -1).toISOString() });
     addInvoices(db, t);
@@ -168,6 +185,7 @@
   try { db = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
   if (!db) db = seed();
   if (!db.trainer_availability) db.trainer_availability = [];
+  if (!db.classes) db.classes = [];
   if (db.invoices && !db.invoices.some(function (x) { return x.kind; })) delete db.invoices;
   if (!db.invoices) { var t0 = new Date(); t0.setHours(0, 0, 0, 0); addInvoices(db, t0); }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} }
@@ -188,7 +206,8 @@
   var REL = {
     bookings: { fields: ['one', 'fields', 'field_id', 'id'], trainers: ['one', 'trainers', 'trainer_id', 'id'], profiles: ['one', 'profiles', 'user_id', 'id'], dogs: ['one', 'dogs', 'dog_id', 'id'], lesson_types: ['one', 'lesson_types', 'lesson_type', 'id'], penalties: ['many', 'penalties', 'id', 'booking_id'], dog_notes: ['one', 'dog_notes', 'id', 'booking_id'] },
     profiles: { dogs: ['many', 'dogs', 'id', 'owner_id'], client_packages: ['many', 'client_packages', 'id', 'user_id'] },
-    dogs: { penalties: ['many', 'penalties', 'id', 'dog_id'], profiles: ['one', 'profiles', 'owner_id', 'id'] }
+    dogs: { penalties: ['many', 'penalties', 'id', 'dog_id'], profiles: ['one', 'profiles', 'owner_id', 'id'] },
+    classes: { fields: ['one', 'fields', 'field_id', 'id'], trainers: ['one', 'trainers', 'trainer_id', 'id'], lesson_types: ['one', 'lesson_types', 'lesson_type', 'id'] }
   };
   function splitTop(s) {
     var out = [], depth = 0, cur = '';
@@ -313,13 +332,10 @@
     } else if (method === 'PATCH') {
       if (table !== 'profiles' && table !== 'dogs' && (!who || who.role !== 'owner')) return fail('Permesso negato', 403);
       out = applyFilters(visible(table, rows, who), params);
-      if (table === 'bookings' && body.trainer_id) {
-        var tr = db.trainers.filter(function (x) { return x.id === body.trainer_id; })[0];
+      if ((table === 'bookings' || table === 'classes') && body.trainer_id) {
         for (var i = 0; i < out.length; i++) {
-          var bk = out[i];
-          if (tr.lessons.length && tr.lessons.indexOf(bk.lesson_type) < 0) return fail(tr.name + ' non segue questo tipo di lezione');
-          var clash = db.bookings.some(function (o) { return o.id !== bk.id && o.status === 'active' && o.trainer_id === tr.id && o.day === bk.day && o.start_min < bk.start_min + bk.dur_min && bk.start_min < o.start_min + o.dur_min; });
-          if (clash) return fail(tr.name + ' ha già una lezione in questo orario');
+          var why = trainerBusy(body.trainer_id, out[i], table === 'classes' ? out[i].id : out[i].class_id, table === 'bookings' ? out[i].id : null);
+          if (why) return fail(why);
         }
       }
       out.forEach(function (r) {
@@ -342,6 +358,11 @@
           }
         }
         if (table === 'bookings' && old.status === 'active' && r.status === 'cancelled') refund(r);
+        // Come nel database vero: il trainer della classe vale per tutti i cani, e annullarla annulla le iscrizioni.
+        if (table === 'classes') db.bookings.forEach(function (b) {
+          if (b.class_id !== r.id || b.status !== 'active') return;
+          if (r.status === 'cancelled') { b.status = 'cancelled'; b.cancelled_at = nowIso(); refund(b); } else b.trainer_id = r.trainer_id;
+        });
         if (table === 'profiles' && who.role !== 'owner') r.role = old.role;
       });
     } else if (method === 'POST') {
@@ -373,6 +394,29 @@
     db.client_packages.forEach(function (cp) { if (cp.id === b.package_id) cp.lessons_used = Math.max(cp.lessons_used - 1, 0); });
   }
   function slotDate(day, min) { var p = day.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2], 0, min); }
+  // Come il messaggio del database con la data al posto di %, tradotto da errorText().
+  var FIELD_TAKEN = 'Il campo è già occupato il {nome}';
+  function overlaps(x, day, start, end) { return x.status === 'active' && x.day === day && x.start_min < end && start < x.start_min + x.dur_min; }
+  // Il campo è occupato da una lezione o da una classe (tranne la classe indicata).
+  function fieldBusy(field, day, start, end, skipClass) {
+    return db.bookings.some(function (b) { return b.field_id === field && (!skipClass || b.class_id !== skipClass) && overlaps(b, day, start, end); }) ||
+      db.classes.some(function (c) { return c.field_id === field && c.id !== skipClass && overlaps(c, day, start, end); });
+  }
+  // Perché il trainer non può fare quella lezione o classe, o null se può.
+  function trainerBusy(trainerId, x, classId, bookingId) {
+    var tr = db.trainers.filter(function (y) { return y.id === trainerId; })[0];
+    if (!tr) return null;
+    if (tr.lessons.length && tr.lessons.indexOf(x.lesson_type) < 0) return tr.name + ' non segue questo tipo di lezione';
+    var end = x.start_min + x.dur_min;
+    var clash = db.bookings.some(function (o) { return o.id !== bookingId && o.trainer_id === tr.id && (!classId || o.class_id !== classId) && overlaps(o, x.day, x.start_min, end); }) ||
+      db.classes.some(function (c) { return c.id !== classId && c.trainer_id === tr.id && overlaps(c, x.day, x.start_min, end); });
+    return clash ? tr.name + ' ha già una lezione in questo orario' : null;
+  }
+  function packageFor(user, type) {
+    return db.client_packages.filter(function (cp) {
+      return cp.user_id === user && cp.status === 'active' && cp.lessons_used < cp.lessons_total && (!cp.lesson_type || cp.lesson_type === type) && (!cp.expires_at || new Date(cp.expires_at) > new Date());
+    }).sort(function (x, y) { return (x.expires_at || '9999').localeCompare(y.expires_at || '9999'); })[0];
+  }
 
   function rpc(name, headers, a) {
     if (name === 'client_count') return json(200, db.profiles.filter(function (p) { return p.role === 'client'; }).length);
@@ -460,8 +504,69 @@
       return json(200, null);
     }
     if (name === 'busy_slots') {
-      return json(200, db.bookings.filter(function (b) { return b.status === 'active' && b.day >= a.from_day && b.day <= a.to_day; })
-        .map(function (b) { return { field_id: b.field_id, day: b.day, start_min: b.start_min, dur_min: b.dur_min, mine: b.user_id === who.id }; }));
+      var inRange = function (x) { return x.status === 'active' && x.day >= a.from_day && x.day <= a.to_day; };
+      return json(200, db.bookings.filter(function (b) { return inRange(b) && !b.class_id; })
+        .map(function (b) { return { field_id: b.field_id, day: b.day, start_min: b.start_min, dur_min: b.dur_min, mine: b.user_id === who.id }; })
+        .concat(db.classes.filter(inRange).map(function (c) {
+          return { field_id: c.field_id, day: c.day, start_min: c.start_min, dur_min: c.dur_min, mine: db.bookings.some(function (b) { return b.class_id === c.id && b.status === 'active' && b.user_id === who.id; }) };
+        })));
+    }
+    if (name === 'class_list') {
+      return json(200, db.classes.filter(function (c) { return c.status === 'active' && c.day >= a.from_day && c.day <= a.to_day; })
+        .sort(function (x, y) { return x.day.localeCompare(y.day) || x.start_min - y.start_min; })
+        .map(function (c) {
+          var in_ = db.bookings.filter(function (b) { return b.class_id === c.id && b.status === 'active'; });
+          return { id: c.id, lesson_type: c.lesson_type, lesson_option: c.lesson_option, field_id: c.field_id, trainer_id: c.trainer_id, day: c.day, start_min: c.start_min, dur_min: c.dur_min, seats: c.seats,
+            taken: in_.length, my_dogs: in_.filter(function (b) { return b.user_id === who.id; }).map(function (b) { return b.dog_id; }) };
+        }));
+    }
+    if (name === 'create_classes') {
+      if (who.role !== 'owner') return fail('Solo il proprietario');
+      var glt = db.lesson_types.filter(function (x) { return x.id === a.p_type && x.active; })[0];
+      if (!glt || glt.group_seats == null) return fail('Scegli una lezione di gruppo');
+      if (glt.options.length && glt.options.indexOf(a.p_option) < 0) return fail('Specialità non valida');
+      if (!db.fields.some(function (f) { return f.id === a.p_field && f.active; })) return fail('Campo non disponibile');
+      if (a.p_start % 30 || a.p_start < 0 || a.p_start + glt.duration_min > 1440) return fail('Orario non valido');
+      if (!(a.p_seats >= 2 && a.p_seats <= 50)) return fail('I posti vanno da 2 a 50');
+      if (!(a.p_weeks >= 1 && a.p_weeks <= 26)) return fail('Le settimane vanno da 1 a 26');
+      var made = [];
+      for (var wk = 0; wk < a.p_weeks; wk++) {
+        var nc = { id: uid(), lesson_type: glt.id, lesson_option: a.p_option || '', field_id: a.p_field, trainer_id: a.p_trainer || null, day: dk(addDays(slotDate(a.p_day, 0), 7 * wk)), start_min: a.p_start, dur_min: glt.duration_min, seats: a.p_seats, status: 'active', created_at: nowIso() };
+        if (fieldBusy(nc.field_id, nc.day, nc.start_min, nc.start_min + nc.dur_min) || made.some(function (m) { return overlaps(m, nc.day, nc.start_min, nc.start_min + nc.dur_min); }))
+          return fail(FIELD_TAKEN.replace('{nome}', nc.day.split('-').reverse().join('/')));
+        var tw = nc.trainer_id && trainerBusy(nc.trainer_id, nc, nc.id, null);
+        if (tw) return fail(tw);
+        made.push(nc);
+      }
+      db.classes = db.classes.concat(made);
+      save();
+      return json(200, made.length);
+    }
+    if (name === 'join_class') {
+      var forOther = !!a.p_user;
+      if (forOther && who.role !== 'owner') return fail('Solo il proprietario può prenotare per un cliente');
+      var usr = a.p_user || who.id;
+      if (!forOther) {
+        if (who.rules_ver !== s.rules_ver || who.privacy_ver !== s.privacy_ver) return fail('Devi prima accettare regolamento e privacy aggiornati');
+        if (!who.tax_code || !who.billing_street || !who.billing_zip || !who.billing_city) return fail('Completa codice fiscale e indirizzo di fatturazione nel Profilo');
+        if (a.p_pay === 'online' && !s.online_payments) return fail('Il pagamento online non è ancora attivo');
+      }
+      var jd = db.dogs.filter(function (d) { return d.id === a.p_dog && d.owner_id === usr && !d.archived; })[0];
+      if (!jd) return fail('Cane non trovato');
+      if (jd.blocked && !forOther) return fail('Le prenotazioni per questo cane sono sospese. Contatta il campo.');
+      var jc = db.classes.filter(function (c) { return c.id === a.p_class && c.status === 'active'; })[0];
+      if (!jc) return fail('Classe non trovata');
+      if (!forOther && slotDate(jc.day, jc.start_min) <= new Date()) return fail('Orario già passato');
+      var inside = db.bookings.filter(function (b) { return b.class_id === jc.id && b.status === 'active'; });
+      if (inside.some(function (b) { return b.dog_id === jd.id; })) return fail('Questo cane è già iscritto alla classe');
+      if (inside.length >= jc.seats) return fail('La classe è al completo');
+      var jlt = db.lesson_types.filter(function (x) { return x.id === jc.lesson_type; })[0];
+      var jb = { id: uid(), user_id: usr, dog_id: jd.id, field_id: jc.field_id, trainer_id: jc.trainer_id, lesson_type: jc.lesson_type, lesson_option: jc.lesson_option, day: jc.day, start_min: jc.start_min, dur_min: jc.dur_min, price_cents: jlt ? jlt.price_cents : 0, pay: forOther ? 'onsite' : (a.p_pay || 'onsite'), paid: false, checked_in_at: null, note: '', status: 'active', cancelled_at: null, created_at: nowIso(), class_id: jc.id };
+      var jp = packageFor(usr, jc.lesson_type);
+      if (jp) { jp.lessons_used++; jb.package_id = jp.id; jb.pay = 'package'; jb.paid = true; jb.price_cents = 0; }
+      db.bookings.push(jb);
+      save();
+      return json(200, jb);
     }
     if (name === 'accept_terms') {
       who.rules_ver = s.rules_ver; who.privacy_ver = s.privacy_ver; who.rules_accepted_at = who.privacy_accepted_at = nowIso();
@@ -520,12 +625,13 @@
       if (dog.blocked) return fail('Le prenotazioni di questo cane sono sospese.');
       var lt = db.lesson_types.filter(function (t) { return t.id === a.p_type && t.active; })[0];
       if (!lt) return fail('Lezione non disponibile.');
+      if (lt.group_seats != null) return fail('Questa lezione si fa in gruppo: scegli una classe');
       if (lt.options.length && lt.options.indexOf(a.p_option) < 0) return fail('Scegli un\'opzione valida.');
       if (a.p_pay === 'online' && !s.online_payments) return fail('Il pagamento online non è attivo.');
       if (slotDate(a.p_day, a.p_start) <= new Date()) return fail('Questo orario è già passato.');
       var av = db.availability.filter(function (x) { return x.field_id === a.p_field && x.day === a.p_day; })[0];
       for (var m = a.p_start; m < a.p_start + lt.duration_min; m += 30) if (!av || av.slots.indexOf(m) < 0) return fail('Il campo è chiuso in questo orario.');
-      var clash = db.bookings.some(function (b) { return b.status === 'active' && b.field_id === a.p_field && b.day === a.p_day && a.p_start < b.start_min + b.dur_min && b.start_min < a.p_start + lt.duration_min; });
+      var clash = fieldBusy(a.p_field, a.p_day, a.p_start, a.p_start + lt.duration_min);
       if (clash) return fail('Orario appena preso da un altro cliente. Scegline un altro.');
       var nb = { id: uid(), user_id: who.id, dog_id: dog.id, field_id: fld.id, trainer_id: null, lesson_type: lt.id, lesson_option: a.p_option, day: a.p_day, start_min: a.p_start, dur_min: lt.duration_min, price_cents: lt.price_cents, pay: a.p_pay, paid: false, checked_in_at: null, note: '', status: 'active', cancelled_at: null, created_at: nowIso() };
       var cps = db.client_packages.filter(function (cp) {
@@ -544,12 +650,12 @@
       if (!dog2) return fail('Cane non trovato per questo cliente');
       var lt2 = db.lesson_types.filter(function (t) { return t.id === a.p_type; })[0];
       if (!lt2) return fail('Tipo di lezione non valido');
+      if (lt2.group_seats != null) return fail('Questa lezione si fa in gruppo: scegli una classe');
       if (lt2.options.length && lt2.options.indexOf(a.p_option) < 0) return fail('Specialità non valida');
       var end2 = a.p_start + lt2.duration_min;
-      if (db.bookings.some(function (b) { return b.status === 'active' && b.field_id === a.p_field && b.day === a.p_day && a.p_start < b.start_min + b.dur_min && b.start_min < end2; }))
-        return fail('Il campo è già occupato a quell\'ora');
-      if (a.p_trainer && db.bookings.some(function (b) { return b.status === 'active' && b.trainer_id === a.p_trainer && b.day === a.p_day && a.p_start < b.start_min + b.dur_min && b.start_min < end2; }))
-        return fail('Il trainer ha già una lezione in questo orario');
+      if (fieldBusy(a.p_field, a.p_day, a.p_start, end2)) return fail('Il campo è già occupato a quell\'ora');
+      var tw2 = a.p_trainer && trainerBusy(a.p_trainer, { lesson_type: lt2.id, day: a.p_day, start_min: a.p_start, dur_min: lt2.duration_min }, null, null);
+      if (tw2) return fail(tw2);
       var nb2 = { id: uid(), user_id: a.p_user, dog_id: dog2.id, field_id: fld2.id, trainer_id: a.p_trainer || null, lesson_type: lt2.id, lesson_option: a.p_option || '', day: a.p_day, start_min: a.p_start, dur_min: lt2.duration_min, price_cents: lt2.price_cents, pay: 'onsite', paid: false, checked_in_at: null, note: '', status: 'active', cancelled_at: null, created_at: nowIso() };
       var cps2 = db.client_packages.filter(function (cp) {
         return cp.user_id === a.p_user && cp.status === 'active' && cp.lessons_used < cp.lessons_total && (!cp.lesson_type || cp.lesson_type === lt2.id) && (!cp.expires_at || new Date(cp.expires_at) > new Date());

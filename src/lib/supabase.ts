@@ -52,7 +52,16 @@ const NAMED = [
   tKey('{nome} non segue questo tipo di lezione'),
   tKey("{nome} non è disponibile a quell'ora"),
   tKey('{nome} è sospeso: non può entrare in campo'),
+  tKey('Il campo è già occupato il {nome}'),
 ];
+
+/** Il testo variabile di un messaggio con {nome}, se il messaggio ha quella forma. */
+function namedPart(msg: string, key: string) {
+  const [before, after] = key.split('{nome}');
+  return msg.length > before.length + after.length && msg.startsWith(before) && msg.endsWith(after)
+    ? msg.slice(before.length, msg.length - after.length)
+    : null;
+}
 
 export function errorText(e: unknown): string {
   const msg = (e as { message?: string })?.message ?? String(e);
@@ -63,7 +72,10 @@ export function errorText(e: unknown): string {
   if (/Token has expired or is invalid/i.test(msg)) return t('Il codice non è valido o è scaduto. Richiedine uno nuovo.');
   if (/network|fetch/i.test(msg)) return t('Connessione assente. Controlla internet e riprova.');
   // I messaggi del database sono in italiano: se c'è la traduzione si mostra quella.
-  // Alcuni cominciano con un nome ("Luca ha già una lezione..."): si traduce il resto.
-  const named = NAMED.find((k) => msg.endsWith(k.slice('{nome}'.length)));
-  return named ? t(named, { nome: msg.slice(0, msg.length - named.length + '{nome}'.length) }) : t(msg);
+  // Alcuni contengono un nome o una data ("Luca ha già una lezione..."): si traduce il resto.
+  for (const k of NAMED) {
+    const nome = namedPart(msg, k);
+    if (nome !== null) return t(k, { nome });
+  }
+  return t(msg);
 }

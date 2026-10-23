@@ -31,6 +31,8 @@ export type Plan = {
   receiptDevices: boolean;
   /** Programma per Windows. */
   desktop: boolean;
+  /** Lezioni di gruppo: classi con più cani. */
+  groups: boolean;
 };
 
 export const PLANS: Record<PlanId, Plan> = {
@@ -49,6 +51,7 @@ export const PLANS: Record<PlanId, Plan> = {
     invoices: false,
     receiptDevices: false,
     desktop: false,
+    groups: false,
   },
   professional: {
     id: 'professional',
@@ -65,6 +68,7 @@ export const PLANS: Record<PlanId, Plan> = {
     invoices: false,
     receiptDevices: false,
     desktop: false,
+    groups: false,
   },
   pro: {
     id: 'pro',
@@ -81,6 +85,7 @@ export const PLANS: Record<PlanId, Plan> = {
     invoices: true,
     receiptDevices: true,
     desktop: true,
+    groups: true,
   },
 };
 

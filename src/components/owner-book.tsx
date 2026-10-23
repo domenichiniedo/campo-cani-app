@@ -2,18 +2,20 @@ import { useEffect, useState } from 'react';
 import { Modal, ScrollView, View } from 'react-native';
 
 import { Body, Button, Chips, ErrorText, Field, H1, Muted, Row } from '@/components/ui';
-import { hm, isDayKey, parseHm, STEP } from '@/lib/format';
+import { hm, isDayKey, longDay, parseHm, STEP } from '@/lib/format';
 import { t } from '@/lib/i18n';
+import type { OwnerClass } from '@/lib/owner';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
 import { fullName, type Dog, type Profile } from '@/lib/types';
 
-export type BookStart = { day: string; start: number; fieldId?: string };
+/** Da dove parte la prenotazione; con `cls` il cane si iscrive a quella classe di gruppo. */
+export type BookStart = { day: string; start: number; fieldId?: string; cls?: OwnerClass };
 
 type Client = Profile & { dogs: Dog[] };
 
-/** Il proprietario prenota una lezione per un cliente già iscritto. */
+/** Il proprietario prenota una lezione per un cliente già iscritto, o lo iscrive a una classe. */
 export function OwnerBook({ start, onClose, onDone }: { start: BookStart | null; onClose: () => void; onDone: () => void }) {
   const c = useColors();
   const { fields, lessonTypes, trainers } = useSession();
@@ -21,7 +23,10 @@ export function OwnerBook({ start, onClose, onDone }: { start: BookStart | null;
   const [q, setQ] = useState('');
   const [client, setClient] = useState<Client | null>(null);
   const [dog, setDog] = useState<string | null>(null);
-  const [type, setType] = useState<string | null>(lessonTypes[0]?.id ?? null);
+  // Le lezioni di gruppo si prenotano solo iscrivendosi a una classe.
+  const single = lessonTypes.filter((lt) => lt.group_seats === null);
+  const [type, setType] = useState<string | null>(single[0]?.id ?? null);
+  const cls = start?.cls ?? null;
   const [option, setOption] = useState<string | null>(null);
   const [field, setField] = useState<string | null>(null);
   const [trainer, setTrainer] = useState<string>('');
@@ -87,6 +92,13 @@ export function OwnerBook({ start, onClose, onDone }: { start: BookStart | null;
   async function save() {
     setErr('');
     if (!client || !dog) return setErr(t('Scegli il cliente e il cane.'));
+    if (cls) {
+      setBusy(true);
+      const { error } = await supabase.rpc('join_class', { p_class: cls.id, p_dog: dog, p_pay: 'onsite', p_user: client.id });
+      setBusy(false);
+      if (error) return setErr(errorText(error));
+      return onDone();
+    }
     if (!lesson) return setErr(t('Scegli la lezione.'));
     if (lesson.options.length && !option) return setErr(t('Scegli la specialità.'));
     if (!field) return setErr(t('Scegli il campo.'));
@@ -113,7 +125,12 @@ export function OwnerBook({ start, onClose, onDone }: { start: BookStart | null;
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
         <View style={{ backgroundColor: c.bg, borderRadius: 14, width: '100%', maxWidth: 620, maxHeight: '92%' }}>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 14 }} keyboardShouldPersistTaps="handled">
-            <H1>{t('Prenota per un cliente')}</H1>
+            <H1>{cls ? t('Iscrivi alla classe') : t('Prenota per un cliente')}</H1>
+            {cls && (
+              <Muted>
+                {`${cls.lesson_types?.label ?? cls.lesson_type}${cls.lesson_option ? ` · ${cls.lesson_option}` : ''} · ${longDay(cls.day)} · ${hm(cls.start_min)}`}
+              </Muted>
+            )}
 
             {client ? (
               <Row style={{ justifyContent: 'space-between' }}>
@@ -149,57 +166,66 @@ export function OwnerBook({ start, onClose, onDone }: { start: BookStart | null;
               </>
             )}
 
-            <Muted style={{ fontSize: 13 }}>{t('Lezione')}</Muted>
-            <Chips
-              items={lessonTypes.map((lt) => ({ value: lt.id, label: lt.label }))}
-              value={type}
-              onChange={(v) => {
-                setType(v);
-                setOption(null);
-                setTrainer('');
-              }}
-            />
-            {!!lesson?.options.length && <Chips items={lesson.options.map((o) => ({ value: o, label: o }))} value={option} onChange={setOption} />}
-
-            {fields.length > 1 && (
+            {!cls && (
               <>
-                <Muted style={{ fontSize: 13 }}>{t('Campo')}</Muted>
-                <Chips items={fields.map((f) => ({ value: f.id, label: f.name }))} value={field} onChange={setField} />
-              </>
-            )}
-
-            {trainers.length > 0 && (
-              <>
-                <Muted style={{ fontSize: 13 }}>{t('Trainer')}</Muted>
+                <Muted style={{ fontSize: 13 }}>{t('Lezione')}</Muted>
                 <Chips
-                  items={[
-                    { value: '', label: t('Da assegnare') },
-                    // Solo i trainer che seguono questa lezione (lista vuota = tutte).
-                    ...trainers
-                      .filter((tr) => !tr.lessons.length || (type && tr.lessons.includes(type)))
-                      .map((tr) => ({ value: tr.id, label: tr.name })),
-                  ]}
-                  value={trainer}
-                  onChange={setTrainer}
+                  items={single.map((lt) => ({ value: lt.id, label: lt.label }))}
+                  value={type}
+                  onChange={(v) => {
+                    setType(v);
+                    setOption(null);
+                    setTrainer('');
+                  }}
                 />
+                {!!lesson?.options.length && <Chips items={lesson.options.map((o) => ({ value: o, label: o }))} value={option} onChange={setOption} />}
+
+                {fields.length > 1 && (
+                  <>
+                    <Muted style={{ fontSize: 13 }}>{t('Campo')}</Muted>
+                    <Chips items={fields.map((f) => ({ value: f.id, label: f.name }))} value={field} onChange={setField} />
+                  </>
+                )}
+
+                {trainers.length > 0 && (
+                  <>
+                    <Muted style={{ fontSize: 13 }}>{t('Trainer')}</Muted>
+                    <Chips
+                      items={[
+                        { value: '', label: t('Da assegnare') },
+                        // Solo i trainer che seguono questa lezione (lista vuota = tutte).
+                        ...trainers
+                          .filter((tr) => !tr.lessons.length || (type && tr.lessons.includes(type)))
+                          .map((tr) => ({ value: tr.id, label: tr.name })),
+                      ]}
+                      value={trainer}
+                      onChange={setTrainer}
+                    />
+                  </>
+                )}
+
+                <Row>
+                  <Field label={t('Giorno')} value={day} onChangeText={setDay} placeholder="2026-10-23" style={{ flex: 1, minWidth: 140 }} />
+                  <Field label={t('Ora')} value={time} onChangeText={setTime} placeholder="10:00" style={{ flex: 1, minWidth: 100 }} />
+                </Row>
+                {closed && <Body style={{ color: c.brassText }}>{t("A quell'ora il campo risulta chiuso: puoi prenotare lo stesso.")}</Body>}
+                {lesson && (
+                  <Muted style={{ fontSize: 13 }}>
+                    {t('Dura {min} minuti. Se il cliente ha un pacchetto valido si scala da lì, altrimenti paga al campo.', { min: lesson.duration_min })}
+                  </Muted>
+                )}
               </>
             )}
-
-            <Row>
-              <Field label={t('Giorno')} value={day} onChangeText={setDay} placeholder="2026-10-23" style={{ flex: 1, minWidth: 140 }} />
-              <Field label={t('Ora')} value={time} onChangeText={setTime} placeholder="10:00" style={{ flex: 1, minWidth: 100 }} />
-            </Row>
-            {closed && <Body style={{ color: c.brassText }}>{t("A quell'ora il campo risulta chiuso: puoi prenotare lo stesso.")}</Body>}
-            {lesson && (
+            {cls && (
               <Muted style={{ fontSize: 13 }}>
-                {t('Dura {min} minuti. Se il cliente ha un pacchetto valido si scala da lì, altrimenti paga al campo.', { min: lesson.duration_min })}
+                {t('Se il cliente ha un pacchetto valido si scala da lì, altrimenti paga al campo.')}
               </Muted>
             )}
 
             <ErrorText>{err}</ErrorText>
             <Row style={{ justifyContent: 'flex-end' }}>
               <Button small kind="ghost" title={t('Annulla')} onPress={onClose} />
-              <Button small title={t('Prenota')} onPress={save} loading={busy} />
+              <Button small title={cls ? t('Iscrivi') : t('Prenota')} onPress={save} loading={busy} />
             </Row>
           </ScrollView>
         </View>

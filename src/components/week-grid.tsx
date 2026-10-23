@@ -4,7 +4,7 @@ import { Pressable, Text, useColorScheme, View } from 'react-native';
 import { cap, dayKey, fromKey, hm, STEP, today, weekdayShort } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { useLessonColors } from '@/lib/lesson-colors';
-import type { OwnerBooking } from '@/lib/owner';
+import type { OwnerBooking, OwnerClass } from '@/lib/owner';
 import { useSession } from '@/lib/session';
 import { useColors } from '@/lib/theme';
 
@@ -14,13 +14,64 @@ const HOURS_W = 52;
 
 const openDay = (k: string) => router.navigate({ pathname: '/', params: { day: k } });
 
+/** Un blocco nella griglia: una lezione singola o una classe di gruppo con i suoi cani. */
+type Block = {
+  id: string;
+  day: string;
+  field_id: string;
+  start_min: number;
+  dur_min: number;
+  lesson_type: string;
+  lesson_option: string;
+  lesson: string;
+  /** Cane della lezione, o "Gruppo 3/6" per una classe. */
+  who: string;
+  trainer: string | null;
+  done: boolean;
+};
+
+function blocks(rows: OwnerBooking[], classes: OwnerClass[]): Block[] {
+  const single = rows.filter((b) => !b.class_id || !classes.some((cl) => cl.id === b.class_id));
+  return [
+    ...single.map((b) => ({
+      id: b.id,
+      day: b.day,
+      field_id: b.field_id,
+      start_min: b.start_min,
+      dur_min: b.dur_min,
+      lesson_type: b.lesson_type,
+      lesson_option: b.lesson_option,
+      lesson: b.lesson_types?.label ?? b.lesson_type,
+      who: b.dogs?.name ?? '',
+      trainer: b.trainers?.name ?? null,
+      done: !!b.checked_in_at,
+    })),
+    ...classes.map((cl) => {
+      const dogs = rows.filter((b) => b.class_id === cl.id);
+      return {
+        id: cl.id,
+        day: cl.day,
+        field_id: cl.field_id,
+        start_min: cl.start_min,
+        dur_min: cl.dur_min,
+        lesson_type: cl.lesson_type,
+        lesson_option: cl.lesson_option,
+        lesson: cl.lesson_types?.label ?? cl.lesson_type,
+        who: t('Gruppo {n}/{posti}', { n: dogs.length, posti: cl.seats }),
+        trainer: cl.trainers?.name ?? null,
+        done: dogs.length > 0 && dogs.every((b) => b.checked_in_at),
+      };
+    }),
+  ];
+}
+
 /**
  * Posizione di ogni lezione nella colonna del giorno: le lezioni che si sovrappongono (su campi
  * diversi) stanno affiancate, le altre usano tutta la larghezza.
  */
-function layout(list: OwnerBooking[]) {
+function layout(list: Block[]) {
   const out = new Map<string, { lane: number; of: number }>();
-  let group: OwnerBooking[] = [];
+  let group: Block[] = [];
   let ends: number[] = [];
   let groupEnd = -1;
   const close = () => group.forEach((b) => (out.get(b.id)!.of = ends.length));
@@ -51,12 +102,14 @@ const CLOSED = { light: '#f4e4e8', dark: '#2b2026' };
  */
 export function WeekGrid({
   days,
-  rows,
+  rows: bookings,
+  classes,
   open,
   onSlot,
 }: {
   days: string[];
   rows: OwnerBooking[];
+  classes: OwnerClass[];
   /** Mezz'ore aperte per campo e giorno: chiave "campo|giorno". */
   open: Record<string, number[]>;
   onSlot: (day: string, fieldId: string, start: number) => void;
@@ -68,6 +121,7 @@ export function WeekGrid({
   const { settings, fields, lessonTypes } = useSession();
   const todayKey = dayKey(today());
   const many = fields.length > 1;
+  const rows = blocks(bookings, classes);
 
   // Dall'apertura alla chiusura, allargato se c'è una lezione fuori orario.
   const first = Math.min(settings?.open_min ?? 480, ...rows.map((b) => b.start_min));
@@ -97,7 +151,7 @@ export function WeekGrid({
         <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderColor: c.line }}>
           <View style={{ width: HOURS_W }} />
           {days.map((k) => {
-            const n = rows.filter((b) => b.day === k).length;
+            const n = bookings.filter((b) => b.day === k).length;
             const isToday = k === todayKey;
             return (
               <View key={k} style={{ flex: 1, borderLeftWidth: 1, borderColor: c.lineStrong, backgroundColor: isToday ? c.accentSoft : undefined }}>
@@ -201,17 +255,17 @@ export function WeekGrid({
                               overflow: 'hidden',
                             }}>
                             <Text style={{ color: col.text, fontSize: 12, fontWeight: '800' }} numberOfLines={1}>
-                              {`${hm(b.start_min)} ${b.dogs?.name ?? ''}`}
-                              {b.checked_in_at ? ' ✓' : ''}
+                              {`${hm(b.start_min)} ${b.who}`}
+                              {b.done ? ' ✓' : ''}
                             </Text>
                             <Text style={{ color: col.text, fontSize: 11 }} numberOfLines={tall ? 2 : 1}>
                               {tall
-                                ? `${b.lesson_types?.label ?? b.lesson_type}${b.lesson_option ? ` · ${b.lesson_option}` : ''}`
-                                : `${b.trainers?.name ?? t('Trainer da assegnare')} · ${b.lesson_option || (b.lesson_types?.label ?? '')}`}
+                                ? `${b.lesson}${b.lesson_option ? ` · ${b.lesson_option}` : ''}`
+                                : `${b.trainer ?? t('Trainer da assegnare')} · ${b.lesson_option || b.lesson}`}
                             </Text>
                             {tall && (
                               <Text style={{ color: col.text, fontSize: 11, fontWeight: '700' }} numberOfLines={1}>
-                                {b.trainers ? t('Trainer: {nome}', { nome: b.trainers.name }) : t('Trainer da assegnare')}
+                                {b.trainer ? t('Trainer: {nome}', { nome: b.trainer }) : t('Trainer da assegnare')}
                               </Text>
                             )}
                           </View>
