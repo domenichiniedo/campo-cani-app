@@ -2,7 +2,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
 
-import { Button, Card, ErrorText, Field, H1, LangMenu, Muted, Row } from '@/components/ui';
+import { RegisterCentre, registrationPending } from '@/components/register-centre';
+import { Body, Button, Card, ErrorText, Field, H1, LangMenu, Muted, Row } from '@/components/ui';
+import { gestoreEnabled } from '@/lib/gestore';
 import { t } from '@/lib/i18n';
 import { useLicense } from '@/lib/license-gate';
 import { useColors } from '@/lib/theme';
@@ -14,6 +16,7 @@ export function Activate({ reason }: { reason: string }) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [registering, setRegistering] = useState(() => gestoreEnabled && registrationPending());
 
   useEffect(() => {
     SplashScreen.hideAsync();
@@ -34,23 +37,38 @@ export function Activate({ reason }: { reason: string }) {
         <H1>{t("Attiva l'app")}</H1>
         <LangMenu onLight />
       </Row>
-      <Card>
-        <Muted>
-          {t('Inserisci il codice di attivazione del tuo centro cinofilo. Se sei un cliente, chiedilo al centro: di solito te lo manda come link, e basta aprirlo dal telefono.')}
-        </Muted>
-        <Field
-          label={t('Codice di attivazione')}
-          value={code}
-          onChangeText={setCode}
-          placeholder="CC1...."
-          autoCapitalize="none"
-          autoCorrect={false}
-          multiline
-          style={{ minHeight: 90 }}
-        />
-        <ErrorText>{err || reason}</ErrorText>
-        <Button title={t('Attiva')} onPress={submit} loading={busy} disabled={!code.trim()} />
-      </Card>
+      {registering ? (
+        <RegisterCentre onBack={() => setRegistering(false)} />
+      ) : (
+        <>
+          <Card>
+            <Muted>
+              {gestoreEnabled
+                ? t("Inserisci il codice del tuo centro cinofilo (K9-...). Se sei un cliente o un trainer, chiedilo al centro: di solito te lo manda come link, e basta aprirlo dal telefono.")
+                : t('Inserisci il codice di attivazione del tuo centro cinofilo. Se sei un cliente, chiedilo al centro: di solito te lo manda come link, e basta aprirlo dal telefono.')}
+            </Muted>
+            <Field
+              label={gestoreEnabled ? t('Codice del centro') : t('Codice di attivazione')}
+              value={code}
+              onChangeText={setCode}
+              placeholder={gestoreEnabled ? 'K9-XXXXXX' : 'CC1....'}
+              autoCapitalize={gestoreEnabled ? 'characters' : 'none'}
+              autoCorrect={false}
+              multiline={!gestoreEnabled}
+              style={gestoreEnabled ? undefined : { minHeight: 90 }}
+            />
+            <ErrorText>{err || reason}</ErrorText>
+            <Button title={t('Attiva')} onPress={submit} loading={busy} disabled={!code.trim()} />
+          </Card>
+          {gestoreEnabled && (
+            <Card>
+              <Body bold>{t('Hai un centro cinofilo?')}</Body>
+              <Muted>{t('Registralo in pochi minuti: prepariamo noi il database del centro e ti diamo il codice per i tuoi clienti.')}</Muted>
+              <Button kind="ghost" title={t('Registra il tuo centro')} onPress={() => setRegistering(true)} />
+            </Card>
+          )}
+        </>
+      )}
     </ScrollView>
   );
 }

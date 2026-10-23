@@ -15,6 +15,12 @@
 //
 //   node tools/licenza.mjs verifica <codice>
 //       Mostra cosa contiene un codice e se la firma è valida.
+//
+//   node tools/licenza.mjs chiavi-server
+//       Crea la seconda coppia di chiavi, quella del server gestore che firma da solo le licenze dei centri
+//       che si registrano dall'app (vedi gestore/README.md). La privata finisce in ~/.campo-cani/gestore.env,
+//       da caricare nei segreti di Supabase del gestore; la pubblica va in src/lib/license-key.ts.
+//       La tua chiave privata non cambia e non esce dal computer.
 
 import { createPrivateKey, createPublicKey, generateKeyPairSync, randomBytes, sign, verify } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -51,6 +57,22 @@ function keys() {
   console.log(`Chiave privata salvata in ${PRIVATE}. Non condividerla e conservane una copia.`);
   console.log('\nIncolla questa riga in src/lib/license-key.ts:\n');
   console.log(`export const LICENSE_PUBLIC_KEY = '${b64url(rawPublic(publicKey))}';`);
+}
+
+function serverKeys() {
+  const file = join(DIR, 'gestore.env');
+  if (existsSync(file) && readFileSync(file, 'utf8').includes('LICENZA_SERVER_PRIVATA=')) {
+    fail(`Esiste già una chiave del server in ${file}: non la sovrascrivo, le licenze del server smetterebbero di funzionare.`);
+  }
+  const { privateKey, publicKey } = generateKeyPairSync('ed25519');
+  // Il server usa il "seme" della chiave (32 byte), che sta in fondo al formato pkcs8.
+  const seed = privateKey.export({ format: 'der', type: 'pkcs8' }).subarray(-32);
+  mkdirSync(DIR, { recursive: true, mode: 0o700 });
+  writeFileSync(file, `${existsSync(file) ? readFileSync(file, 'utf8') : ''}LICENZA_SERVER_PRIVATA=${b64url(seed)}\n`, { mode: 0o600 });
+  console.log(`Chiave privata del server salvata in ${file}. Caricala nei segreti del gestore con:\n`);
+  console.log(`  npx supabase secrets set --env-file ${file} --project-ref <codice del progetto gestore>\n`);
+  console.log('Non incollarla in chat né su GitHub. Poi incolla questa riga in src/lib/license-key.ts:\n');
+  console.log(`export const LICENSE_SERVER_KEY = '${b64url(rawPublic(publicKey))}';`);
 }
 
 function generate(o) {
@@ -90,4 +112,5 @@ const [cmd, ...rest] = process.argv.slice(2);
 if (cmd === 'chiavi') keys();
 else if (cmd === 'genera') generate(args(rest));
 else if (cmd === 'verifica') check(rest[0]);
-else fail('Uso: node tools/licenza.mjs chiavi | genera --campo "Nome" --piano base|professional|pro [--scadenza AAAA-MM-GG] | verifica <codice>');
+else if (cmd === 'chiavi-server') serverKeys();
+else fail('Uso: node tools/licenza.mjs chiavi | chiavi-server | genera --campo "Nome" --piano base|professional|pro [--scadenza AAAA-MM-GG] | verifica <codice>');

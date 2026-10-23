@@ -8,7 +8,8 @@ import { Body, Button, H1, Muted } from '@/components/ui';
 import { t, useLang } from '@/lib/i18n';
 import { SessionProvider, useSession } from '@/lib/session';
 import { Activate } from '@/components/activate';
-import { ownerOnly } from '@/lib/edition';
+import { GestorePanel } from '@/components/gestore-panel';
+import { ownerOnly, panelOnly } from '@/lib/edition';
 import { licensingEnabled } from '@/lib/license';
 import { LicenseGate } from '@/lib/license-gate';
 import { planWith, usePlan } from '@/lib/plans';
@@ -111,7 +112,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
       <StatusBar style="light" />
-      {trialOver ? (
+      {panelOnly ? (
+        <GestorePanel />
+      ) : trialOver ? (
         <TrialOver />
       ) : licensingEnabled || hasEnvConfig ? (
         <LicenseGate activation={(reason) => <Activate reason={reason} />}>

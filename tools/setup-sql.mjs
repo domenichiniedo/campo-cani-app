@@ -3,6 +3,9 @@
 // di un progetto Supabase nuovo. Rilancialo ogni volta che aggiungi una migrazione:
 //
 //   node tools/setup-sql.mjs
+//
+// Scrive anche gestore/supabase/functions/_shared/migrazioni.ts: le stesse migrazioni, per il server
+// gestore che prepara da solo il database dei centri che si registrano dall'app.
 
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -43,4 +46,13 @@ select public.set_owner_email('titolare@esempio.it');
 `,
   );
   console.log(`Scritto ${out}`);
+  const gestore = join(import.meta.dirname, '../gestore/supabase/functions/_shared/migrazioni.ts');
+  writeFileSync(
+    gestore,
+    `// Le migrazioni del database di un centro, per il gestore. File generato da tools/setup-sql.mjs: non modificarlo a mano.
+
+export const MIGRAZIONI: { file: string; sql: string }[] = ${JSON.stringify(migrations(), null, 1)};
+`,
+  );
+  console.log(`Scritto ${gestore}`);
 }

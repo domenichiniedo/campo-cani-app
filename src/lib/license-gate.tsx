@@ -2,6 +2,7 @@ import * as Linking from 'expo-linking';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import { dayKey, today } from '@/lib/format';
+import { centreStatus, gestoreEnabled, isCentreCode } from '@/lib/gestore';
 import { t } from '@/lib/i18n';
 import { expiredText, isExpired, licensingEnabled, longer, readLicense, type License } from '@/lib/license';
 import { sameOr, useWhenActive } from '@/lib/refresh';
@@ -10,6 +11,7 @@ import { connectTo, hasEnvConfig, supabase } from '@/lib/supabase';
 // Con la licenza attiva (chiave pubblica in license-key.ts) l'app si apre solo con un codice
 // valido, che dice anche a quale database collegarsi. Il codice più recente sta nel database
 // del centro: quando il centro rinnova, vale subito per tutti i suoi clienti.
+// Al posto della licenza si può scrivere il codice corto del centro (K9-XXXXXX): la licenza la dà il gestore.
 
 const STORE = 'campo-cani-licenza';
 
@@ -44,8 +46,26 @@ const codeFromUrl = (url: string | null) => {
   return typeof q === 'string' ? q : '';
 };
 
+/** Dal codice del centro alla sua licenza, chiedendola al gestore. */
+async function fromCentreCode(code: string): Promise<{ code: string } | { reason: string }> {
+  if (!gestoreEnabled) return { reason: t('Questo non è un codice di licenza K9 Manager.') };
+  try {
+    const s = await centreStatus(code);
+    if (s.licenza) return { code: s.licenza };
+    return { reason: s.stato === 'errore' ? t('Il centro non è stato attivato. Contatta il centro.') : t('Il centro si sta ancora preparando. Riprova tra qualche minuto.') };
+  } catch (e) {
+    return { reason: t((e as Error).message) };
+  }
+}
+
 /** Apre la licenza: collega il database e prende il codice più recente salvato dal centro. */
-async function open(code: string): Promise<State & { code?: string }> {
+async function open(given: string): Promise<State & { code?: string }> {
+  let code = given;
+  if (isCentreCode(code)) {
+    const c = await fromCentreCode(code);
+    if ('reason' in c) return { kind: 'activate', reason: c.reason };
+    code = c.code;
+  }
   const r = readLicense(code);
   if (!r.ok) return { kind: 'activate', reason: r.reason };
   let best = r.license;

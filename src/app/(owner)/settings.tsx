@@ -5,6 +5,7 @@ import { Text, View } from 'react-native';
 import { EvalFormsEditor } from '@/components/eval-forms-editor';
 import { InvoicesPanel } from '@/components/invoices-panel';
 import { ReportPanel } from '@/components/report-panel';
+import { StripePanel } from '@/components/stripe-panel';
 import { LicensePanel } from '@/components/license-panel';
 import { LimitNote } from '@/components/limit-note';
 import { OwnersPanel } from '@/components/owners-panel';
@@ -381,6 +382,7 @@ export default function OwnerSettings() {
         <Muted style={{ fontSize: 13 }}>
           {t('Il pagamento online si attiva dopo aver collegato un conto Stripe. Per ora i clienti pagano al campo.')}
         </Muted>
+        <StripePanel />
       </Card>
 
       <Step title={t('Lezioni')} />
