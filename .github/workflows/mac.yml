@@ -1,0 +1,84 @@
+# Costruisce il programma per Mac (K9Manager-x.y.z.dmg), per Mac con chip Apple e Intel.
+# Lo trovi in GitHub → Actions → "App per Mac" → l'ultima esecuzione → Artifacts.
+# Partenza: a mano (Run workflow), con un tag v1.2.3, o quando una PR cambia il programma.
+#
+# Il programma non è firmato da Apple: la prima volta si apre con clic destro → Apri, oppure
+# da Impostazioni di Sistema → Privacy e sicurezza → Apri comunque.
+#
+# Come per Windows, le variabili EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+# lo collegano al database del tuo campo. Versione demo: Run workflow con "demo" spuntato.
+# La demo finisce anche in GitHub → Releases → "Demo per Mac" (file K9Manager-Mac-Demo.dmg).
+# In una PR si costruisce la demo solo per provare che il programma si apre.
+name: App per Mac
+
+on:
+  workflow_dispatch:
+    inputs:
+      demo:
+        description: Versione demo con dati di esempio, senza database
+        type: boolean
+        default: false
+  push:
+    tags: ['v*']
+  pull_request:
+    paths: ['desktop/**', 'app.config.js', '.github/workflows/mac.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    env:
+      DEMO: ${{ inputs.demo == true || github.event_name == 'pull_request' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: desktop
+      - run: npm run web
+        working-directory: desktop
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ env.DEMO == 'true' && 'https://demo.supabase.co' || vars.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ env.DEMO == 'true' && 'demo' || vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      - if: ${{ env.DEMO == 'true' }}
+        run: node demo/inject.js
+        working-directory: desktop
+      - run: npm run dist:mac
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      # Il programma deve aprirsi e restare aperto: la schermata finisce negli Artifacts.
+      - name: Prova che si apre
+        run: |
+          APP="$(ls -d desktop/release/mac*/*.app | head -1)"
+          codesign --verify --deep --strict "$APP"
+          "$APP/Contents/MacOS/K9 Manager" &
+          sleep 25
+          screencapture -x schermata-mac.png || true
+          kill -0 $!
+          kill $!
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.DEMO == 'true' && 'K9Manager-Mac-Demo' || 'K9Manager-Mac' }}
+          path: |
+            desktop/release/*.dmg
+            schermata-mac.png
+          if-no-files-found: error
+      # Release fissa "demo-mac": il link per scaricare la demo resta sempre lo stesso.
+      - if: ${{ inputs.demo }}
+        name: Pubblica la demo nelle Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp desktop/release/*.dmg K9Manager-Mac-Demo.dmg
+          gh release view demo-mac >/dev/null 2>&1 || gh release create demo-mac --prerelease \
+            --title "Demo per Mac" --notes "Demo del programma K9 Manager per Mac (chip Apple e Intel), con i dati di esempio e senza database. Scarica K9Manager-Mac-Demo.dmg, aprilo e trascina K9 Manager in Applicazioni. Il programma non è firmato da Apple: la prima volta aprilo con clic destro → Apri, oppure da Impostazioni di Sistema → Privacy e sicurezza → Apri comunque."
+          gh release upload demo-mac K9Manager-Mac-Demo.dmg --clobber

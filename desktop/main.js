@@ -1,4 +1,4 @@
-// K9 Manager per Windows: apre la versione web dell'app in una finestra, senza browser.
+// K9 Manager per Windows e Mac: apre la versione web dell'app in una finestra, senza browser.
 // I file dell'app stanno in web/ (creati da "npm run web") e si servono dall'indirizzo app://campo/.
 const { app, BrowserWindow, ipcMain, net, protocol, shell } = require('electron');
 const fs = require('node:fs');
@@ -65,6 +65,15 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   app.setAsDefaultProtocolClient(SCHEME);
 
+  // Su Mac il link di attivazione arriva qui, anche quando apre il programma.
+  let macLink = null;
+  app.on('open-url', (e, url) => {
+    e.preventDefault();
+    if (!win) return (macLink = url);
+    win.loadURL(pageFor(url));
+    win.focus();
+  });
+
   app.on('second-instance', (_e, argv) => {
     if (!win) return;
     const link = linkIn(argv);
@@ -90,7 +99,7 @@ if (!app.requestSingleInstanceLock()) {
       return { status: res.status, text: await res.text() };
     });
 
-    createWindow(linkIn(process.argv));
+    createWindow(macLink ?? linkIn(process.argv));
   });
 
   app.on('window-all-closed', () => app.quit());
