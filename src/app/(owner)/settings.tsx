@@ -4,6 +4,7 @@ import { Text, View } from 'react-native';
 
 import { EvalFormsEditor } from '@/components/eval-forms-editor';
 import { InvoicesPanel } from '@/components/invoices-panel';
+import { ReportPanel } from '@/components/report-panel';
 import { LicensePanel } from '@/components/license-panel';
 import { LimitNote } from '@/components/limit-note';
 import { PackagesEditor } from '@/components/packages-editor';
@@ -452,6 +453,15 @@ export default function OwnerSettings() {
         </>
       ) : (
         <PlanNote title={t('Fatture e scontrini')} plan={planWith('invoices')} />
+      )}
+
+      {plan.report ? (
+        <>
+          <Step title={t('Report mensile')} />
+          <ReportPanel />
+        </>
+      ) : (
+        <PlanNote title={t('Report mensile')} plan={planWith('report')} />
       )}
 
       <Step title={t('Regolamento e privacy')} />
