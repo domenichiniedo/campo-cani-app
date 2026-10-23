@@ -33,6 +33,8 @@ export type Plan = {
   desktop: boolean;
   /** Lezioni di gruppo: classi con più cani. */
   groups: boolean;
+  /** Schede di valutazione del proprietario, compilate nel diario dei cani. */
+  evals: boolean;
 };
 
 export const PLANS: Record<PlanId, Plan> = {
@@ -52,6 +54,7 @@ export const PLANS: Record<PlanId, Plan> = {
     receiptDevices: false,
     desktop: false,
     groups: false,
+    evals: false,
   },
   professional: {
     id: 'professional',
@@ -69,6 +72,7 @@ export const PLANS: Record<PlanId, Plan> = {
     receiptDevices: false,
     desktop: false,
     groups: false,
+    evals: false,
   },
   pro: {
     id: 'pro',
@@ -86,6 +90,7 @@ export const PLANS: Record<PlanId, Plan> = {
     receiptDevices: true,
     desktop: true,
     groups: true,
+    evals: true,
   },
 };
 

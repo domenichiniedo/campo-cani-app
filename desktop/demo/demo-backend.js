@@ -1,7 +1,7 @@
 // Finto Supabase in memoria per la demo nel browser: risponde alle chiamate dell'app senza server.
 (function () {
   var BASE = 'https://demo.supabase.co';
-  var KEY = 'campo-demo-db-v8';
+  var KEY = 'campo-demo-db-v10';
   try { history.replaceState(null, '', '/'); } catch (e) {}
 
   function pad(n) { return String(n).padStart(2, '0'); }
@@ -38,6 +38,14 @@
         { id: 'p2', name: '5 lezioni base', lesson_type: 'base', lessons: 5, price_cents: 6500, valid_days: 90, sort: 2, active: true }
       ],
       client_packages: [],
+      // Schede di valutazione del centro, compilate dai trainer nel diario.
+      eval_forms: [
+        { id: 'v1', name: 'Valutazione obbedienza', active: true, sort: 1, items: [
+          { label: 'Richiamo', kind: 'score' }, { label: 'Condotta al guinzaglio', kind: 'score' }, { label: 'Concentrazione', kind: 'score' },
+          { label: 'Pronto per la prova', kind: 'yesno' }, { label: 'Da fare a casa', kind: 'text' }] },
+        { id: 'v2', name: 'Valutazione pista', active: true, sort: 2, items: [
+          { label: 'Intensità di fiuto', kind: 'score' }, { label: 'Precisione negli angoli', kind: 'score' }, { label: 'Oggetti trovati tutti', kind: 'yesno' }] }
+      ],
       profiles: [], dogs: [], availability: [], trainer_availability: [], trainer_accounts: [], dog_notes: [], bookings: [], classes: [], penalties: [], passwords: {},
       // Foto di esempio di trainer e clienti: sagome disegnate, si possono cambiare dall'app.
       files: { 'foto/trainer-t1-demo.svg': avatar('#cfe3d6', '#e8b994', '#3b2a20'), 'foto/trainer-t2-demo.svg': avatar('#f1dcc0', '#f0c7a4', '#8a4b2a') }
@@ -137,13 +145,21 @@
       base: ['Richiamo con distrazioni e guinzaglio lungo', 'Seduto e terra con il cibo, poi senza', 'Passeggiata al guinzaglio senza tirare', 'Resta: 30 secondi a 5 metri', 'Socializzazione con altri due cani']
     };
     var commenti = ['Molto concentrato, bravo!', 'Si distrae dopo 20 minuti: meglio sessioni brevi.', 'Grande progresso rispetto alla volta scorsa.', 'A casa ripetete il richiamo 5 minuti al giorno.', 'Un po\' agitato all\'inizio, poi ottimo.', ''];
+    // Una lezione su due di obbedienza e pista ha anche la scheda, con voti che crescono nel tempo.
+    function valuta(b, i) {
+      var f = db.eval_forms[b.lesson_option === 'Pista' ? 1 : 0];
+      if ((b.lesson_option !== 'Obbedienza' && b.lesson_option !== 'Pista') || i % 2) return null;
+      var v = Math.max(1, Math.min(5, 4 - Math.round((dk(t) > b.day ? (t - new Date(b.day)) / 864e5 : 0) / 30)));
+      var vals = f.id === 'v1' ? [v, Math.min(5, v + 1), v, v >= 4, i % 4 ? null : 'Richiamo con il fischietto, 5 minuti al giorno'] : [Math.min(5, v + 1), v, v >= 3];
+      return { form_id: f.id, name: f.name, items: f.items.map(function (it, k) { return { label: it.label, kind: it.kind, value: vals[k] }; }) };
+    }
     db.bookings.forEach(function (b, i) {
       if (!b.checked_in_at || !b.trainer_id || b.day >= dk(t) || i % 10 > 6) return;
       var tr = db.trainers.filter(function (x) { return x.id === b.trainer_id; })[0];
       var lt0 = db.lesson_types.filter(function (x) { return x.id === b.lesson_type; })[0];
       db.dog_notes.push({ id: uid(), dog_id: b.dog_id, booking_id: b.id, trainer_id: b.trainer_id, author_name: tr.name, day: b.day,
         lesson: lt0.label + (b.lesson_option ? ' · ' + b.lesson_option : ''), work: (lavori[b.lesson_type] || lavori[b.lesson_option])[i % (b.lesson_type === 'base' ? 5 : 3)], comment: commenti[i % commenti.length],
-        created_at: b.checked_in_at, updated_at: b.checked_in_at });
+        evaluation: valuta(b, i), created_at: b.checked_in_at, updated_at: b.checked_in_at });
     });
     // Classi di gruppo martedì, giovedì e sabato alle 11 sul Campo B (il sabato con Luca): alcune piene, altre con posti liberi.
     var gruppo = [['c2', 'd3'], ['c3', 'd4'], ['x1', 'dx1'], ['x2', 'dx2'], ['x5', 'dx5'], ['x8', 'dx8'], ['c1', 'd2']];
@@ -314,7 +330,7 @@
   }
   function defaults(table, row, who) {
     var base = { dogs: { blocked: false, archived: false, breed: '', birth: null }, penalties: { created_at: nowIso() }, bookings: { created_at: nowIso() },
-      fields: { address: '', sort: 0, active: true }, packages: { lesson_type: null, valid_days: null, sort: 0, active: true }, trainers: { lessons: [], sort: 0, active: true } }[table] || {};
+      fields: { address: '', sort: 0, active: true }, eval_forms: { sort: 0, active: true }, packages: { lesson_type: null, valid_days: null, sort: 0, active: true }, trainers: { lessons: [], sort: 0, active: true } }[table] || {};
     var r = Object.assign({}, base, row);
     if (pk(table)[0] === 'id' && r.id === undefined) r.id = uid();
     return r;
@@ -457,15 +473,31 @@
       if (!nb) return fail('Lezione non trovata');
       if (who.role !== 'owner' && (!nb.trainer_id || nb.trainer_id !== trainerOf(who))) return fail('Non è una tua lezione');
       var work = (a.p_work || '').trim(), comment = (a.p_comment || '').trim();
-      if (!work && !comment) return fail('Scrivi cosa avete fatto o un commento');
+      var note = db.dog_notes.filter(function (x) { return x.booking_id === nb.id; })[0];
+      // Come eval_filled() nel database vero: copia della scheda con i valori controllati.
+      var ev = null, pe = a.p_eval;
+      if (pe && pe.keep) ev = note ? note.evaluation || null : null;
+      else if (pe) {
+        var ef = db.eval_forms.filter(function (x) { return x.id === pe.form_id; })[0];
+        if (!ef) return fail('Scheda di valutazione non trovata');
+        var vs = pe.values || [], items = [];
+        for (var k = 0; k < ef.items.length; k++) {
+          var it = ef.items[k], v = vs[k] === undefined ? null : vs[k];
+          if (it.kind === 'text' && typeof v === 'string') v = v.trim().slice(0, 2000) || null;
+          if (v !== null && !((it.kind === 'score' && [1, 2, 3, 4, 5].indexOf(v) >= 0) || (it.kind === 'yesno' && typeof v === 'boolean') || (it.kind === 'text' && typeof v === 'string'))) return fail('Scheda di valutazione non valida');
+          items.push({ label: it.label, kind: it.kind, value: v });
+        }
+        if (items.every(function (x) { return x.value === null; })) return fail('Compila almeno una voce della scheda');
+        ev = { form_id: ef.id, name: ef.name, items: items };
+      }
+      if (!work && !comment && !ev) return fail('Scrivi cosa avete fatto o un commento');
       var ntr = db.trainers.filter(function (x) { return x.id === nb.trainer_id; })[0];
       var nlt = db.lesson_types.filter(function (x) { return x.id === nb.lesson_type; })[0];
       var author = who.role === 'owner' ? ((who.first_name + ' ' + who.last_name).trim() || 'Il campo') : (ntr ? ntr.name : '');
-      var note = db.dog_notes.filter(function (x) { return x.booking_id === nb.id; })[0];
-      if (note) { note.work = work; note.comment = comment; note.author_name = author; note.updated_at = nowIso(); }
+      if (note) { note.work = work; note.comment = comment; note.evaluation = ev; note.author_name = author; note.updated_at = nowIso(); }
       else {
         note = { id: uid(), dog_id: nb.dog_id, booking_id: nb.id, trainer_id: nb.trainer_id, author_name: author, day: nb.day,
-          lesson: (nlt ? nlt.label : nb.lesson_type) + (nb.lesson_option ? ' · ' + nb.lesson_option : ''), work: work, comment: comment, created_at: nowIso(), updated_at: nowIso() };
+          lesson: (nlt ? nlt.label : nb.lesson_type) + (nb.lesson_option ? ' · ' + nb.lesson_option : ''), work: work, comment: comment, evaluation: ev, created_at: nowIso(), updated_at: nowIso() };
         db.dog_notes.push(note);
       }
       save();

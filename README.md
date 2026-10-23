@@ -13,7 +13,7 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
    nel progetto apri **SQL Editor**, incolla tutto il file e premi **Run**. Crea in un colpo tabelle, regole di accesso,
    lezioni di partenza e spazi per logo e foto, e segna la tua email come quella del proprietario.
    `setup.sql` è solo per un progetto **nuovo**. Se il database esiste già, esegui solo le migrazioni nuove di
-   `supabase/migrations`, una volta ciascuna e in ordine (l'ultima è `0016_lezioni_di_gruppo.sql`).
+   `supabase/migrations`, una volta ciascuna e in ordine (l'ultima è `0018_schede_valutazione.sql`).
 3. In **Project Settings → API Keys** copia l'URL del progetto e la **Publishable key** (inizia con `sb_publishable_`).
    Non usare mai la Secret key nell'app.
 4. Copia il file `.env.example` in `.env.local` e incolla i due valori:
@@ -222,6 +222,7 @@ L'app è una sola: il piano scritto nella licenza decide cosa si vede. Le licenz
 | Registratore in cloud o registratore Epson al campo | no | no | sì |
 | Programma per Windows | no | no | sì |
 | Lezioni di gruppo: classi con più cani, anche ogni settimana | no | no | sì |
+| Schede di valutazione nel diario dei cani | no | no | sì |
 
 Le lezioni e i pacchetti spenti non contano nel limite. Se un centro scende di piano con più campi, lezioni, pacchetti o
 trainer di quanti ne comprende il nuovo piano, restano attivi solo i primi in ordine.
@@ -257,7 +258,8 @@ né schermate dei clienti), con la stessa licenza e la stampa sul registratore E
 - Le mie lezioni, con disdetta fino al limite di ore deciso dal campo.
 - Pacchetti: vede quelli offerti e li richiede; paga al campo e il proprietario lo attiva. Da lì ogni prenotazione di quel
   tipo scala una lezione, e una lezione annullata torna nel pacchetto.
-- Diario: per ogni cane, cosa si è fatto a ogni lezione e i commenti del trainer.
+- Diario: per ogni cane, cosa si è fatto a ogni lezione e i commenti del trainer, con la scheda di valutazione se il
+  trainer l'ha compilata (piano Pro).
 - Profilo: foto (fotocamera o galleria), dati, cani, penalità ricevute, regolamento e privacy.
 - Le mie lezioni mostrano il trainer con la sua foto.
 - Se il proprietario cambia regolamento o privacy, al prossimo accesso deve accettare il nuovo testo prima di prenotare.
@@ -277,13 +279,15 @@ né schermate dei clienti), con la stessa licenza e la stampa sul registratore E
   viene sospeso da solo; 0 spegne la sospensione automatica.
 - Impostazioni: nome del centro, logo, numero di campi (ognuno con nome e indirizzo, anche uguale), trainer con le
   lezioni che seguono, pacchetti (lezioni, prezzo, validità), orario della griglia, ore per la disdetta, limite penalità, lezioni (nome, durata,
-  prezzo, opzioni), regolamento e privacy.
+  prezzo, opzioni), schede di valutazione per il diario (piano Pro: voci con voto da 1 a 5, sì/no o nota), regolamento e
+  privacy.
 
 **Trainer**
 - Il proprietario, nella scheda Trainer, scrive l'email del trainer. Il trainer si iscrive dall'app con quella email
   scegliendo "Sono un trainer del centro" (se aveva già un account, diventa trainer subito).
 - Lezioni: le sue lezioni del giorno con cane, cliente e telefono; il giorno della lezione fa entrare il cane in campo.
-- Diario: dopo la lezione scrive cosa si è fatto e i commenti; li leggono il cliente e il proprietario.
+- Diario: dopo la lezione scrive cosa si è fatto e i commenti, e può compilare una scheda di valutazione del centro (piano
+  Pro); li leggono il cliente e il proprietario.
 - Disponibilità: segna le mezz'ore in cui può fare lezione.
 - Penalità: il giorno della lezione o dopo dà una penalità al cane (stessi motivi del proprietario) e può toglierla se
   sbaglia. Alla soglia il cane viene sospeso; lo riattiva il proprietario.

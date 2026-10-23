@@ -200,9 +200,19 @@ export type DogNote = {
   lesson: string;
   work: string;
   comment: string;
+  /** Scheda di valutazione compilata, copiata com'era quel giorno. */
+  evaluation: Evaluation | null;
   created_at: string;
   updated_at: string;
 };
+
+/** Voce di una scheda di valutazione: voto da 1 a 5, sì/no o nota. */
+export type EvalItem = { label: string; kind: 'score' | 'yesno' | 'text' };
+
+/** Scheda di valutazione preparata dal proprietario, da compilare nel diario (piano Pro). */
+export type EvalForm = { id: string; name: string; items: EvalItem[]; active: boolean; sort: number };
+
+export type Evaluation = { form_id: string; name: string; items: (EvalItem & { value: number | boolean | string | null })[] };
 
 /** Account con cui un trainer entra nell'app (lo collega il proprietario con l'email). */
 export type TrainerAccount = { trainer_id: string; email: string; user_id: string | null };

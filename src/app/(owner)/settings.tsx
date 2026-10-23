@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 
+import { EvalFormsEditor } from '@/components/eval-forms-editor';
 import { InvoicesPanel } from '@/components/invoices-panel';
 import { LicensePanel } from '@/components/license-panel';
 import { LimitNote } from '@/components/limit-note';
@@ -433,6 +434,15 @@ export default function OwnerSettings() {
         </>
       ) : (
         <PlanNote title={t('Pacchetti')} plan={planWith('packages')} />
+      )}
+
+      {plan.evals ? (
+        <>
+          <Step title={t('Schede di valutazione')} />
+          <EvalFormsEditor />
+        </>
+      ) : (
+        <PlanNote title={t('Schede di valutazione')} plan={planWith('evals')} />
       )}
 
       {plan.invoices ? (
