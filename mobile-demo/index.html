@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>K9 Manager Demo</title>
+<!-- Aggiunta alla schermata Home (iPhone: Condividi → Aggiungi alla schermata Home) si apre a tutto schermo come un'app. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="K9 Demo">
+<meta name="theme-color" content="#123a2b">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <style>
 /* L'app occupa tutto lo schermo; il bottone Demo apre un pannello per cambiare persona e piano. */
 :root {
@@ -14,8 +22,10 @@
   --bg: #0b110e; --surface: #141d18; --text: #e7eee9; --muted: #9aa9a0; --line: #26332c;
   --pitch: #0e2a1f; --accent: #4fae7e; color-scheme: dark } }
 html, body { height: 100%; margin: 0; background: var(--pitch); font-family: system-ui, -apple-system, Roboto, sans-serif; }
-#app { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
-#open { position: fixed; right: 12px; bottom: 74px; z-index: 2; border: 0; border-radius: 999px; padding: 10px 14px;
+/* Fuori dalla tacca e dalla barra in basso dell'iPhone (l'app è in un riquadro e non le vede). */
+#app { position: fixed; left: 0; right: 0; top: env(safe-area-inset-top, 0); bottom: env(safe-area-inset-bottom, 0);
+  width: 100%; height: calc(100% - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); border: 0; display: block; }
+#open { position: fixed; right: 12px; bottom: calc(74px + env(safe-area-inset-bottom, 0px)); z-index: 2; border: 0; border-radius: 999px; padding: 10px 14px;
   background: var(--accent); color: #fff; font: 700 14px system-ui, sans-serif; box-shadow: 0 6px 18px rgba(0,0,0,.25); opacity: .92; }
 #sheet { position: fixed; inset: 0; z-index: 3; display: none; background: rgba(0,0,0,.45); }
 #sheet.on { display: flex; align-items: flex-end; }

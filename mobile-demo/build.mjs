@@ -1,6 +1,8 @@
 // Prepara www/ per la demo Android: l'app esportata per il web in un solo file, il finto
 // database della demo e la pagina con il bottone "Demo" per cambiare persona e piano.
 // Si lancia dalla cartella mobile-demo con "npm run web"; serve npm ci nella cartella principale.
+// La stessa cartella è la demo web per iPhone: con DEMO_BASE_URL=/campo-cani-app funziona anche in
+// una sottocartella del sito (GitHub Pages).
 import { execSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -23,6 +25,7 @@ try {
   j.expo.plugins = j.expo.plugins.map((p) =>
     p === 'expo-router' ? ['expo-router', { asyncRoutes: false }] : Array.isArray(p) && p[0] === 'expo-router' ? [p[0], { ...p[1], asyncRoutes: false }] : p,
   );
+  if (process.env.DEMO_BASE_URL) j.expo.experiments = { ...j.expo.experiments, baseUrl: process.env.DEMO_BASE_URL };
   writeFileSync(appJson, JSON.stringify(j, null, 2));
   rmSync(out, { recursive: true, force: true });
   execSync(`npx expo export --platform web --output-dir "${out}"`, { cwd: root, stdio: 'inherit' });
@@ -40,4 +43,7 @@ if (existsSync(join(out, 'assets'))) cpSync(join(out, 'assets'), join(www, 'asse
 cpSync(join(root, 'desktop/demo/demo-backend.js'), join(www, 'demo-backend.js'));
 cpSync(join(import.meta.dirname, 'app.html'), join(www, 'app.html'));
 cpSync(join(import.meta.dirname, 'index.html'), join(www, 'index.html'));
+// Icona e manifest per "Aggiungi alla schermata Home" su iPhone e Android.
+cpSync(join(root, 'assets/images/icon.png'), join(www, 'icon.png'));
+cpSync(join(import.meta.dirname, 'manifest.webmanifest'), join(www, 'manifest.webmanifest'));
 console.log(`Demo pronta in ${www}`);

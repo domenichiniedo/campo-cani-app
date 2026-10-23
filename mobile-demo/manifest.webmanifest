@@ -1,0 +1,11 @@
+{
+  "name": "K9 Manager Demo",
+  "short_name": "K9 Demo",
+  "lang": "it",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#123a2b",
+  "theme_color": "#123a2b",
+  "icons": [{ "src": "icon.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }]
+}

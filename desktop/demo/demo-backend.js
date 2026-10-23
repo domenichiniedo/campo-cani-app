@@ -2,7 +2,8 @@
 (function () {
   var BASE = 'https://demo.supabase.co';
   var KEY = 'campo-demo-db-v10';
-  try { history.replaceState(null, '', '/'); } catch (e) {}
+  // L'app parte dalla sua pagina iniziale: la cartella della demo (/ o, sul sito, /campo-cani-app/).
+  try { history.replaceState(null, '', location.pathname.replace(/[^/]*$/, '')); } catch (e) {}
 
   function pad(n) { return String(n).padStart(2, '0'); }
   function dk(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }

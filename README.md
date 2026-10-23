@@ -289,6 +289,19 @@ La chiave di Resend resta nei Secrets di Supabase: non finisce mai nell'app.
 Per i centri a cui vendi l'app, la funzione controlla il piano nella licenza: il report parte solo con il piano Pro. Se
 imposti anche `LICENSE_PUBLIC_KEY` (la riga di `src/lib/license-key.ts`), controlla pure la firma della licenza.
 
+## 10. Demo da far provare
+
+Tutte le demo hanno i dati di esempio, senza database, e il bottone **Demo** per entrare come proprietario, cliente o
+trainer e per cambiare piano. I dati restano solo su quel telefono o computer.
+
+- **Android**: GitHub → Releases → **Demo per Android**, file `K9Manager-Demo.apk` da aprire sul telefono.
+- **iPhone (e qualunque browser)**: la demo web su https://domenichiniedo.github.io/campo-cani-app/. In Safari
+  **Condividi → Aggiungi alla schermata Home** e si apre a tutto schermo come un'app. Si aggiorna da sola a ogni
+  modifica dell'app su main (Actions → **Demo web per iPhone**). La prima volta va acceso GitHub Pages: **Settings →
+  Pages → Build and deployment → Source: GitHub Actions**. Con il repository privato GitHub Pages richiede GitHub Pro;
+  il sito della demo è comunque pubblico.
+- **Windows e Mac**: punto 8, versione demo (Releases → **Demo per Windows** e **Demo per Mac**).
+
 ## Cosa fa l'app
 
 **Cliente**
