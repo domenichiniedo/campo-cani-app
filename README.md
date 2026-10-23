@@ -13,7 +13,7 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
    nel progetto apri **SQL Editor**, incolla tutto il file e premi **Run**. Crea in un colpo tabelle, regole di accesso,
    lezioni di partenza e spazi per logo e foto, e segna la tua email come quella del proprietario.
    `setup.sql` è solo per un progetto **nuovo**. Se il database esiste già, esegui solo le migrazioni nuove di
-   `supabase/migrations`, una volta ciascuna e in ordine (l'ultima è `0015_proprietario_automatico.sql`).
+   `supabase/migrations`, una volta ciascuna e in ordine (l'ultima è `0016_lezioni_di_gruppo.sql`).
 3. In **Project Settings → API Keys** copia l'URL del progetto e la **Publishable key** (inizia con `sb_publishable_`).
    Non usare mai la Secret key nell'app.
 4. Copia il file `.env.example` in `.env.local` e incolla i due valori:
@@ -221,6 +221,7 @@ L'app è una sola: il piano scritto nella licenza decide cosa si vede. Le licenz
 | Fatture automatiche e scontrino | no | no | sì |
 | Registratore in cloud o registratore Epson al campo | no | no | sì |
 | Programma per Windows | no | no | sì |
+| Lezioni di gruppo: classi con più cani, anche ogni settimana | no | no | sì |
 
 Le lezioni e i pacchetti spenti non contano nel limite. Se un centro scende di piano con più campi, lezioni, pacchetti o
 trainer di quanti ne comprende il nuovo piano, restano attivi solo i primi in ordine.

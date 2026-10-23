@@ -44,6 +44,8 @@ export type LessonType = {
   options: string[];
   sort: number;
   active: boolean;
+  /** Lezione di gruppo: posti proposti per le classi. null = lezione singola. */
+  group_seats: number | null;
 };
 
 export type Profile = {
@@ -97,7 +99,26 @@ export type Booking = {
   checked_in_at: string | null;
   note: string;
   status: 'active' | 'cancelled';
+  /** Classe di gruppo a cui è iscritto il cane; null = lezione singola. */
+  class_id: string | null;
 };
+
+/** Lezione di gruppo messa in calendario dal proprietario. */
+export type GroupClass = {
+  id: string;
+  lesson_type: string;
+  lesson_option: string;
+  field_id: string;
+  trainer_id: string | null;
+  day: string;
+  start_min: number;
+  dur_min: number;
+  seats: number;
+  status: 'active' | 'cancelled';
+};
+
+/** Classe vista dalla lista: posti presi e cani propri già iscritti. */
+export type ClassSlot = Omit<GroupClass, 'status'> & { taken: number; my_dogs: string[] };
 
 export type Package = {
   id: string;

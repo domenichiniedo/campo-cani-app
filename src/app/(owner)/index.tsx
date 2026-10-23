@@ -2,11 +2,13 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 
 import { OwnerBookingCard } from '@/components/booking-card';
+import { ClassCard } from '@/components/class-card';
+import { NewClass } from '@/components/new-class';
 import { OwnerBook, type BookStart } from '@/components/owner-book';
 import { Button, Chips, ErrorText, H1, Muted, Row, Screen, Stat } from '@/components/ui';
 import { addDays, cap, dayKey, euro, fromKey, isDayKey, longDay, today } from '@/lib/format';
 import { t } from '@/lib/i18n';
-import { ownerBookings, type OwnerBooking } from '@/lib/owner';
+import { ownerBookings, ownerClasses, type OwnerBooking, type OwnerClass } from '@/lib/owner';
 import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText } from '@/lib/supabase';
@@ -19,6 +21,8 @@ export default function OwnerDay() {
   const { fields, trainers, settings } = useSession();
   const plan = usePlan();
   const [booking, setBooking] = useState<BookStart | null>(null);
+  const [newClass, setNewClass] = useState<BookStart | null>(null);
+  const [classes, setClasses] = useState<OwnerClass[]>([]);
   const [fieldFilter, setFieldFilter] = useState('');
   const [rows, setRows] = useState<OwnerBooking[]>([]);
   const [loading, setLoading] = useState(false);
@@ -27,13 +31,15 @@ export default function OwnerDay() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setRows(await ownerBookings(day, day));
+      const [b, cl] = await Promise.all([ownerBookings(day, day), plan.groups ? ownerClasses(day, day) : Promise.resolve([])]);
+      setRows(b);
+      setClasses(cl);
       setErr('');
     } catch (e) {
       setErr(errorText(e));
     }
     setLoading(false);
-  }, [day]);
+  }, [day, plan.groups]);
 
   useFocusEffect(
     useCallback(() => {
@@ -43,7 +49,13 @@ export default function OwnerDay() {
 
   const move = (n: number) => setDay(dayKey(addDays(fromKey(day), n)));
   const shown = fieldFilter ? rows.filter((b) => b.field_id === fieldFilter) : rows;
-  const unassigned = shown.filter((b) => !b.trainer_id).length;
+  const shownClasses = fieldFilter ? classes.filter((cl) => cl.field_id === fieldFilter) : classes;
+  // Lezioni singole e classi di gruppo in ordine di orario; i cani di una classe stanno dentro la sua scheda.
+  const items = [
+    ...shown.filter((b) => !b.class_id || !classes.some((cl) => cl.id === b.class_id)).map((b) => ({ start: b.start_min, b, cl: null })),
+    ...shownClasses.map((cl) => ({ start: cl.start_min, b: null, cl })),
+  ].sort((x, y) => x.start - y.start);
+  const unassigned = shown.filter((b) => !b.class_id && !b.trainer_id).length + shownClasses.filter((cl) => !cl.trainer_id).length;
   const arrived = rows.filter((b) => b.checked_in_at).length;
   const toCollect = rows.filter((b) => !b.paid).reduce((s, b) => s + b.price_cents, 0);
 
@@ -59,6 +71,13 @@ export default function OwnerDay() {
         title={t('+ Prenota per un cliente')}
         onPress={() => setBooking({ day, start: settings?.open_min ?? 540, fieldId: fieldFilter || undefined })}
       />
+      {plan.groups && (
+        <Button
+          kind="ghost"
+          title={t('+ Nuova classe di gruppo')}
+          onPress={() => setNewClass({ day, start: settings?.open_min ?? 540, fieldId: fieldFilter || undefined })}
+        />
+      )}
       <Row>
         <Stat label={t('Lezioni')} value={rows.length} />
         <Stat label={t('Entrati')} value={`${arrived}/${rows.length}`} />
@@ -75,10 +94,29 @@ export default function OwnerDay() {
         <Muted>{unassigned === 1 ? t('1 lezione senza trainer.') : t('{n} lezioni senza trainer.', { n: unassigned })}</Muted>
       )}
       <ErrorText>{err}</ErrorText>
-      {shown.length === 0 && !loading && <Muted>{t('Nessuna lezione prenotata.')}</Muted>}
-      {shown.map((b) => (
-        <OwnerBookingCard key={b.id} b={b} onChange={load} showField={fields.length > 1} />
-      ))}
+      {items.length === 0 && !loading && <Muted>{t('Nessuna lezione prenotata.')}</Muted>}
+      {items.map(({ b, cl }) =>
+        cl ? (
+          <ClassCard
+            key={cl.id}
+            cls={cl}
+            dogs={rows.filter((x) => x.class_id === cl.id)}
+            onChange={load}
+            onAdd={() => setBooking({ day, start: cl.start_min, cls: cl })}
+            showField={fields.length > 1}
+          />
+        ) : (
+          <OwnerBookingCard key={b!.id} b={b!} onChange={load} showField={fields.length > 1} />
+        ),
+      )}
+      <NewClass
+        start={newClass}
+        onClose={() => setNewClass(null)}
+        onDone={() => {
+          setNewClass(null);
+          load();
+        }}
+      />
       <OwnerBook
         start={booking}
         onClose={() => setBooking(null)}

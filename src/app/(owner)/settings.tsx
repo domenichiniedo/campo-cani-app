@@ -17,7 +17,18 @@ import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
 import type { Field as FieldRow, LessonType, Trainer } from '@/lib/types';
 
-type TypeDraft = { id: string; label: string; description: string; duration: string; price: string; options: string; active: boolean };
+type TypeDraft = {
+  id: string;
+  label: string;
+  description: string;
+  duration: string;
+  price: string;
+  options: string;
+  active: boolean;
+  /** Lezione di gruppo, con i posti proposti per le classi. */
+  group: boolean;
+  seats: string;
+};
 
 type FieldDraft = { id?: string; name: string; address: string };
 type TrainerDraft = { id?: string; name: string; lessons: string[] };
@@ -30,6 +41,8 @@ const toDraft = (t: LessonType): TypeDraft => ({
   price: (t.price_cents / 100).toString().replace('.', ','),
   options: t.options.join(', '),
   active: t.active,
+  group: t.group_seats !== null,
+  seats: String(t.group_seats ?? 6),
 });
 
 /** Sezione che il piano attuale non comprende. */
@@ -193,6 +206,9 @@ export default function OwnerSettings() {
       if (!ty.label.trim()) return setErr(t('Ogni lezione deve avere un nome.'));
       if (!Number.isInteger(dur) || dur <= 0 || dur % STEP) return setErr(t('{lezione}: la durata deve essere un multiplo di 30 minuti.', { lezione: ty.label }));
       if (!Number.isFinite(price) || price < 0) return setErr(t('{lezione}: prezzo non valido.', { lezione: ty.label }));
+      const seats = ty.group ? Number(ty.seats) : null;
+      if (seats !== null && (!Number.isInteger(seats) || seats < 2 || seats > 50))
+        return setErr(t('{lezione}: i posti della classe vanno da 2 a 50.', { lezione: ty.label }));
       typeRows.push({
         id: ty.id,
         label: ty.label.trim(),
@@ -202,6 +218,7 @@ export default function OwnerSettings() {
         options: ty.options.split(',').map((x) => x.trim()).filter(Boolean),
         sort: i,
         active: ty.active,
+        group_seats: seats,
       });
     }
 
@@ -367,6 +384,24 @@ export default function OwnerSettings() {
           </Row>
           <Field label={t('Opzioni, separate da virgola')} value={ty.options} onChangeText={(v) => setType(i, { options: v })} />
           <Toggle label={t('Prenotabile')} value={ty.active} onChange={(v) => setType(i, { active: v })} disabled={!ty.active && typesFull} />
+          {(plan.groups || ty.group) && (
+            <>
+              <Toggle label={t('Lezione di gruppo')} value={ty.group} onChange={(v) => setType(i, { group: v })} />
+              {ty.group && (
+                <>
+                  <Field
+                    label={t('Posti per classe')}
+                    value={ty.seats}
+                    onChangeText={(v) => setType(i, { seats: v })}
+                    keyboardType="number-pad"
+                  />
+                  <Muted style={{ fontSize: 13 }}>
+                    {t('Le classi si mettono in calendario dal Giorno; i clienti si iscrivono ai posti liberi e ogni cane paga la sua lezione.')}
+                  </Muted>
+                </>
+              )}
+            </>
+          )}
         </Card>
       ))}
       <Button
@@ -377,7 +412,7 @@ export default function OwnerSettings() {
           setTypes([
             ...types,
             // L'id resta fisso anche se poi cambi il nome; serve ai trainer per riconoscere la lezione.
-            { id: `lez-${Date.now().toString(36)}`, label: '', description: '', duration: '60', price: '0', options: '', active: true },
+            { id: `lez-${Date.now().toString(36)}`, label: '', description: '', duration: '60', price: '0', options: '', active: true, group: false, seats: '6' },
           ])
         }
       />
@@ -385,6 +420,11 @@ export default function OwnerSettings() {
         {t('Per togliere una lezione spegni "Prenotabile": i clienti non la vedono più, ma restano le prenotazioni già fatte.')}
       </Muted>
       <LimitNote kind="maxLessonTypes" count={activeTypes} what={t('lezioni prenotabili')} />
+      {!plan.groups && (
+        <Muted style={{ fontSize: 13 }}>
+          {t('Le lezioni di gruppo, con più cani nella stessa classe, sono nel piano {piano}. Per passare a un piano superiore chiedi un nuovo codice di licenza.', { piano: planWith('groups') })}
+        </Muted>
+      )}
 
       {plan.packages ? (
         <>

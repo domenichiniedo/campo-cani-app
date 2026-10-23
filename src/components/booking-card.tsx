@@ -12,8 +12,21 @@ import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
 import { fullName, PENALTY_REASONS } from '@/lib/types';
 
-/** Scheda di una prenotazione per il proprietario: ingresso, pagamento, penalità, annullo. */
-export function OwnerBookingCard({ b, onChange, showField }: { b: OwnerBooking; onChange: () => void; showField?: boolean }) {
+/**
+ * Scheda di una prenotazione per il proprietario: ingresso, pagamento, penalità, annullo.
+ * Dentro una classe di gruppo ora, lezione e trainer sono quelli della classe e non si ripetono.
+ */
+export function OwnerBookingCard({
+  b,
+  onChange,
+  showField,
+  inClass,
+}: {
+  b: OwnerBooking;
+  onChange: () => void;
+  showField?: boolean;
+  inClass?: boolean;
+}) {
   const c = useColors();
   const { trainers } = useSession();
   const plan = usePlan();
@@ -40,33 +53,44 @@ export function OwnerBookingCard({ b, onChange, showField }: { b: OwnerBooking; 
   return (
     <Card style={arrived ? { borderLeftWidth: 4, borderLeftColor: c.accent } : undefined}>
       <Row style={{ justifyContent: 'space-between' }}>
-        <Text style={{ color: c.text, fontSize: 20, fontWeight: '800' }}>
-          {hm(b.start_min)}
-          <Text style={{ color: c.muted, fontSize: 14, fontWeight: '600' }}> – {hm(b.start_min + b.dur_min)}</Text>
-        </Text>
+        {inClass ? (
+          <Body bold>
+            {b.dogs?.name}
+            {b.dogs?.breed ? ` (${b.dogs.breed})` : ''}
+          </Body>
+        ) : (
+          <Text style={{ color: c.text, fontSize: 20, fontWeight: '800' }}>
+            {hm(b.start_min)}
+            <Text style={{ color: c.muted, fontSize: 14, fontWeight: '600' }}> – {hm(b.start_min + b.dur_min)}</Text>
+          </Text>
+        )}
         <Row>
-          {showField && b.fields && <Badge>{b.fields.name}</Badge>}
+          {showField && !inClass && b.fields && <Badge>{b.fields.name}</Badge>}
           {arrived && <Badge tone="ok">{t('Entrato {ora}', { ora: timeOf(b.checked_in_at!) })}</Badge>}
           {b.dogs?.blocked && <Badge tone="bad">{t('Sospeso')}</Badge>}
           {penalized && <Badge tone="bad">{t('Penalità')}</Badge>}
         </Row>
       </Row>
       <View style={{ gap: 2 }}>
-        <Body bold>
-          {b.dogs?.name}
-          {b.dogs?.breed ? ` (${b.dogs.breed})` : ''}
-        </Body>
-        <Muted>
-          {b.lesson_types?.label ?? b.lesson_type}
-          {b.lesson_option ? ` · ${b.lesson_option}` : ''}
-        </Muted>
+        {!inClass && (
+          <>
+            <Body bold>
+              {b.dogs?.name}
+              {b.dogs?.breed ? ` (${b.dogs.breed})` : ''}
+            </Body>
+            <Muted>
+              {b.lesson_types?.label ?? b.lesson_type}
+              {b.lesson_option ? ` · ${b.lesson_option}` : ''}
+            </Muted>
+          </>
+        )}
         <Row>
           <Avatar name={fullName(b.profiles)} path={b.profiles?.photo_path} size={24} />
           <Muted>
             {fullName(b.profiles)} · {b.profiles?.phone}
           </Muted>
         </Row>
-        {trainers.length > 0 && (
+        {trainers.length > 0 && !inClass && (
           <Row>
             {b.trainers && <Avatar name={b.trainers.name} path={trainers.find((t) => t.id === b.trainer_id)?.photo_path} size={24} />}
             <Text style={{ color: b.trainers ? c.accent : c.brassText, fontSize: 14, fontWeight: '700' }}>
@@ -97,12 +121,12 @@ export function OwnerBookingCard({ b, onChange, showField }: { b: OwnerBooking; 
             />
           )
         )}
-        {trainers.length > 0 && (
+        {trainers.length > 0 && !inClass && (
           <Button small kind="ghost" title={b.trainers ? t('Cambia trainer') : t('Assegna trainer')} onPress={() => setTrainerOpen(!trainerOpen)} />
         )}
         <Button small kind="ghost" title={t('Penalità')} onPress={() => setPenaltyOpen(!penaltyOpen)} />
         <ConfirmButton
-          title={t('Annulla lezione')}
+          title={inClass ? t('Togli dalla classe') : t('Annulla lezione')}
           onConfirm={() =>
             run(() => supabase.from('bookings').update({ status: 'cancelled', cancelled_at: new Date().toISOString() }).eq('id', b.id))
           }

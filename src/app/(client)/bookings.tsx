@@ -76,6 +76,7 @@ export default function MyBookings() {
             )}
             <Row>
               <Badge>{`${b.dur_min} min`}</Badge>
+              {b.class_id && <Badge>{t('Di gruppo')}</Badge>}
               <Badge tone={b.paid ? 'ok' : 'warn'}>{b.pay === 'package' ? t('Dal pacchetto') : b.paid ? t('Pagato') : b.pay === 'online' ? t('Online') : t('Al campo {prezzo}', { prezzo: euro(b.price_cents) })}</Badge>
               {b.checked_in_at && <Badge tone="ok">{t('Entrato')}</Badge>}
             </Row>
