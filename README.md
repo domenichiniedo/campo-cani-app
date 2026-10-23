@@ -311,7 +311,8 @@ nel progetto Supabase. I pagamenti online restano spenti.
 **Tutto da GitHub (consigliato)**: una volta sola crea un token in supabase.com → **Account → Access Tokens** e
 salvalo nel repository in **Settings → Secrets and variables → Actions → New repository secret** con nome
 `SUPABASE_ACCESS_TOKEN`. Poi per ogni prova: **Actions → Prova con database → Run workflow** con il nome del centro,
-l'email del proprietario e i giorni. Il workflow crea il progetto Supabase gratuito con il database pronto (senza
+l'email del proprietario e i giorni (se hai già creato il progetto su supabase.com, scrivi anche il suo codice, quello
+di `xxxx.supabase.co`). Il workflow crea il progetto Supabase gratuito con il database pronto (senza
 conferma via email) e costruisce l'APK: in una quindicina di minuti è in **Releases → Prova per Android – xxxx**.
 Poi segui i punti 4 e 5 qui sotto.
 

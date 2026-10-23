@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// Crea il database di una prova: un progetto Supabase nuovo con tutte le migrazioni, l'email del
+// Crea il database di una prova: un progetto Supabase nuovo (o uno già creato, con --ref) con tutte le migrazioni, l'email del
 // proprietario, le email della password dimenticata e l'iscrizione senza conferma via email.
 // Lo lancia il workflow "Prova con database" (Actions), con il token nel secret SUPABASE_ACCESS_TOKEN;
 // si può lanciare anche dal tuo computer con la variabile SUPABASE_ACCESS_TOKEN.
 //
 //   node tools/nuova-prova.mjs --campo "Prova Le Querce" --email titolare@lequerce.it [--regione eu-central-1] [--org <id>]
+//   node tools/nuova-prova.mjs --ref abcdefghijklmnopqrst --campo ... --email ...   (progetto già creato su supabase.com)
 //
 // Stampa l'URL del progetto e la publishable key (mai la secret key); in GitHub Actions li scrive anche
 // nelle uscite del passo (url, chiave) per costruire l'APK.
@@ -42,19 +43,23 @@ const step = (msg) => console.error(`• ${msg}`);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const sql = (s) => `'${s.replace(/'/g, "''")}'`;
 
-// 1. Progetto gratuito nella prima organizzazione (o in quella indicata).
-const orgs = await api('GET', '/organizations');
-const org = o.org ? orgs.find((x) => x.id === o.org || x.slug === o.org) : orgs[0];
-if (!org) fail(o.org ? `Organizzazione "${o.org}" non trovata.` : 'Il tuo account Supabase non ha organizzazioni.');
-step(`Creo il progetto "${o.campo}" nell'organizzazione ${org.name} (${o.regione || 'eu-central-1'})…`);
-const project = await api('POST', '/projects', {
-  name: o.campo.trim(),
-  organization_id: org.id,
-  region: o.regione || 'eu-central-1',
-  // La password del database non serve all'app: se mai servisse si cambia da Project Settings → Database.
-  db_pass: randomBytes(18).toString('base64url'),
-});
-const ref = project.id ?? project.ref;
+// 1. Progetto: quello indicato, oppure uno nuovo gratuito nella prima organizzazione (o in quella indicata).
+let ref = o.ref?.trim();
+if (ref && !/^[a-z0-9]{20}$/.test(ref)) fail(`"${ref}" non sembra il codice di un progetto Supabase (20 lettere e numeri).`);
+if (!ref) {
+  const orgs = await api('GET', '/organizations');
+  const org = o.org ? orgs.find((x) => x.id === o.org || x.slug === o.org) : orgs[0];
+  if (!org) fail(o.org ? `Organizzazione "${o.org}" non trovata.` : 'Il tuo account Supabase non ha organizzazioni.');
+  step(`Creo il progetto "${o.campo}" nell'organizzazione ${org.name} (${o.regione || 'eu-central-1'})…`);
+  const project = await api('POST', '/projects', {
+    name: o.campo.trim(),
+    organization_id: org.id,
+    region: o.regione || 'eu-central-1',
+    // La password del database non serve all'app: se mai servisse si cambia da Project Settings → Database.
+    db_pass: randomBytes(18).toString('base64url'),
+  });
+  ref = project.id ?? project.ref;
+} else step(`Uso il progetto ${ref}…`);
 const url = `https://${ref}.supabase.co`;
 
 step('Aspetto che il database sia pronto (di solito un paio di minuti)…');
@@ -65,11 +70,16 @@ for (let i = 0; ; i++) {
   await wait(10000);
 }
 
-// 2. Database: tutte le migrazioni, il nome del centro e l'email del proprietario.
-step('Preparo il database (tutte le migrazioni)…');
-await api('POST', `/projects/${ref}/database/query`, {
-  query: `${migrationsSql()}\nselect public.set_owner_email(${sql(o.email.trim().toLowerCase())});\nupdate public.settings set field_name = ${sql(o.campo.trim())} where id = 1;`,
-});
+// 2. Database: tutte le migrazioni, il nome del centro e l'email del proprietario. Un progetto che ha già
+// le tabelle dell'app (per esempio con setup.sql eseguito a mano) resta com'è.
+const [{ pronto }] = await api('POST', `/projects/${ref}/database/query`, { query: "select to_regclass('public.settings') is not null as pronto;" });
+if (pronto) step("Il database ha già le tabelle dell'app: lo lascio com'è.");
+else {
+  step('Preparo il database (tutte le migrazioni)…');
+  await api('POST', `/projects/${ref}/database/query`, {
+    query: `${migrationsSql()}\nselect public.set_owner_email(${sql(o.email.trim().toLowerCase())});\nupdate public.settings set field_name = ${sql(o.campo.trim())} where id = 1;`,
+  });
+}
 
 // 3. Iscrizione senza conferma via email (chi prova entra subito) e codice per la password dimenticata.
 step("Imposto l'accesso: niente conferma via email, codice per la password dimenticata…");
