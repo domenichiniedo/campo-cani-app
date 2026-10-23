@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import { useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -15,7 +16,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LANGS, setLang, t, useLang } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
@@ -69,6 +70,7 @@ export function BrandBar() {
           {settings?.field_address || t('Centro cinofilo · IGP ed educazione')}
         </Text>
       </View>
+      <LangMenu />
     </View>
   );
 }
@@ -341,6 +343,21 @@ export function Loading() {
 
 const styles = StyleSheet.create({
   brand: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
+  langBtn: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  langMenu: {
+    position: 'absolute',
+    right: 12,
+    minWidth: 180,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
+  langItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 16, paddingHorizontal: 16, paddingVertical: 12 },
   logo: { width: 40, height: 40, borderRadius: 20, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   step: { flexDirection: 'row', alignItems: 'baseline', gap: 8, borderBottomWidth: 2, paddingBottom: 4 },
   card: { borderWidth: 1, borderRadius: 10, padding: 16, gap: 12 },
@@ -359,8 +376,45 @@ export const tabIcon = (glyph: string) =>
     return <Text style={{ color, fontSize: 18, fontWeight: '800' }}>{glyph}</Text>;
   };
 
-/** Scelta della lingua: cambia subito tutti i testi dell'app e resta salvata sul telefono. */
-export function LangPicker() {
+/**
+ * Menu a tendina della lingua, in alto a destra: cambia subito tutti i testi dell'app e resta salvata
+ * sul telefono. Sta sulla fascia verde; dove la fascia non c'è (attivazione) si usa sullo sfondo chiaro.
+ */
+export function LangMenu({ onLight = false }: { onLight?: boolean }) {
+  const c = useColors();
   const l = useLang();
-  return <Chips items={LANGS.map((x) => ({ value: x.id, label: x.label }))} value={l} onChange={setLang} />;
+  const insets = useSafeAreaInsets();
+  const [open, setOpen] = useState(false);
+  const fg = onLight ? c.text : c.onPitch;
+  return (
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('Lingua')}
+        onPress={() => setOpen(true)}
+        style={[styles.langBtn, { borderColor: onLight ? c.lineStrong : c.onPitchMuted }]}>
+        <Text style={{ color: fg, fontWeight: '800', fontSize: 13 }}>{`${l.toUpperCase()} ▾`}</Text>
+      </Pressable>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable style={{ flex: 1 }} onPress={() => setOpen(false)}>
+          <View style={[styles.langMenu, { top: insets.top + 56, backgroundColor: c.surface, borderColor: c.line }]}>
+            {LANGS.map((x) => (
+              <Pressable
+                key={x.id}
+                accessibilityRole="button"
+                accessibilityState={{ selected: x.id === l }}
+                onPress={() => {
+                  setOpen(false);
+                  setLang(x.id);
+                }}
+                style={[styles.langItem, x.id === l && { backgroundColor: c.accentSoft }]}>
+                <Text style={{ color: c.text, fontSize: 16, fontWeight: x.id === l ? '800' : '500' }}>{x.label}</Text>
+                {x.id === l && <Text style={{ color: c.accent, fontWeight: '800' }}>✓</Text>}
+              </Pressable>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
+    </>
+  );
 }

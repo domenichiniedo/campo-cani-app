@@ -2,7 +2,7 @@ import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { Text } from 'react-native';
 
-import { Button, Card, ErrorText, Field, H1, LangPicker, Muted, Screen } from '@/components/ui';
+import { Button, Card, ErrorText, Field, H1, Muted, Screen } from '@/components/ui';
 import { ownerOnly } from '@/lib/edition';
 import { t } from '@/lib/i18n';
 import { errorText, supabase } from '@/lib/supabase';
@@ -47,7 +47,6 @@ export default function Login() {
           <Button title={t('Iscriviti')} kind="ghost" onPress={() => router.push('/register')} />
         </Card>
       )}
-      <LangPicker />
     </Screen>
   );
 }

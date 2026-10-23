@@ -6,7 +6,7 @@ import { InvoicesPanel } from '@/components/invoices-panel';
 import { LicensePanel } from '@/components/license-panel';
 import { LimitNote } from '@/components/limit-note';
 import { PackagesEditor } from '@/components/packages-editor';
-import { Body, Button, Card, ErrorText, Field, H1, LangPicker, Muted, Row, Screen, Step, Toggle } from '@/components/ui';
+import { Body, Button, Card, ErrorText, Field, H1, Muted, Row, Screen, Step, Toggle } from '@/components/ui';
 import { hm, parseHm, STEP } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { pickAndUpload, removeImage, type Source } from '@/lib/images';
@@ -421,9 +421,6 @@ export default function OwnerSettings() {
       <ErrorText>{err}</ErrorText>
       {!!msg && <Muted>{msg}</Muted>}
       <Button title={t('Salva impostazioni')} onPress={save} loading={saving} />
-
-      <Step title={t('Lingua')} />
-      <LangPicker />
 
       <Muted style={{ textAlign: 'center' }}>{t('Accesso come proprietario: {email}', { email: profile?.email ?? '' })}</Muted>
       <Button title={t('Esci')} kind="ghost" onPress={() => supabase.auth.signOut()} />

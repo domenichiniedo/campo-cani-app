@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 
 import { BillingFields } from '@/components/billing-fields';
 import { PhotoEditor } from '@/components/photo';
-import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Expandable, Field, H1, LangPicker, Muted, Row, Screen, Step } from '@/components/ui';
+import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingColumns, billingError, billingFromProfile } from '@/lib/billing';
 import { euro, isDayKey, shortDate } from '@/lib/format';
 import { t } from '@/lib/i18n';
@@ -195,9 +195,6 @@ export default function Profile() {
           })}
         </Muted>
       </Card>
-
-      <Step title={t('Lingua')} />
-      <LangPicker />
 
       <Button title={t('Esci')} kind="ghost" onPress={() => supabase.auth.signOut()} />
 
