@@ -3,6 +3,6 @@
   "appName": "K9 Manager Demo",
   "webDir": "www",
   "android": {
-    "adjustMarginsForEdgeToEdge": "force"
+    "adjustMarginsForEdgeToEdge": "auto"
   }
 }
