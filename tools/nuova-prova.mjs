@@ -83,11 +83,19 @@ else {
 
 // 3. Iscrizione senza conferma via email (chi prova entra subito) e codice per la password dimenticata.
 step("Imposto l'accesso: niente conferma via email, codice per la password dimenticata…");
-await api('PATCH', `/projects/${ref}/config/auth`, {
-  mailer_autoconfirm: true,
-  mailer_subjects_recovery: 'Il codice per la nuova password',
-  mailer_templates_recovery_content: '<h2>Nuova password</h2>\n<p>Il tuo codice è: <strong>{{ .Token }}</strong></p>',
+await api('PATCH', `/projects/${ref}/config/auth`, { mailer_autoconfirm: true });
+// Nel piano gratuito, senza un SMTP proprio, Supabase non lascia cambiare le email: la prova parte lo stesso.
+const template = await fetch(`${API}/projects/${ref}/config/auth`, {
+  method: 'PATCH',
+  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    mailer_subjects_recovery: 'Il codice per la nuova password',
+    mailer_templates_recovery_content: '<h2>Nuova password</h2>\n<p>Il tuo codice è: <strong>{{ .Token }}</strong></p>',
+  }),
 });
+if (!template.ok) {
+  console.log(`::warning::Supabase non lascia cambiare l'email della password dimenticata (${template.status}): nella prova "Password dimenticata" non manda il codice. Si sistema collegando un SMTP in Authentication → Emails → SMTP Settings.`);
+}
 
 // 4. Publishable key (mai la secret key).
 step('Prendo la publishable key…');
