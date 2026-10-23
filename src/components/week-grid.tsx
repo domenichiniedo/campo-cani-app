@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, Text, useColorScheme, View } from 'react-native';
 
 import { cap, dayKey, fromKey, hm, STEP, today, weekdayShort } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { useLessonColors } from '@/lib/lesson-colors';
 import type { OwnerBooking } from '@/lib/owner';
 import { useSession } from '@/lib/session';
@@ -79,15 +80,15 @@ export function WeekGrid({
   return (
     <View style={{ gap: 10 }}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14 }}>
-        {lessonTypes.map((t) => (
-          <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: color(t.id).bar }} />
-            <Text style={{ color: c.text, fontSize: 13 }}>{t.label}</Text>
+        {lessonTypes.map((lt) => (
+          <View key={lt.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: color(lt.id).bar }} />
+            <Text style={{ color: c.text, fontSize: 13 }}>{lt.label}</Text>
           </View>
         ))}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: closedBg, borderWidth: 1, borderColor: c.line }} />
-          <Text style={{ color: c.text, fontSize: 13 }}>Chiuso</Text>
+          <Text style={{ color: c.text, fontSize: 13 }}>{t('Chiuso')}</Text>
         </View>
       </View>
 
@@ -104,7 +105,7 @@ export function WeekGrid({
                   <Text style={{ color: isToday ? c.accent : c.text, fontWeight: '800' }}>
                     {`${cap(weekdayShort(fromKey(k)))} ${fromKey(k).getDate()}`}
                   </Text>
-                  <Text style={{ color: c.muted, fontSize: 12 }}>{n ? (n === 1 ? '1 lezione' : `${n} lezioni`) : 'Libero'}</Text>
+                  <Text style={{ color: c.muted, fontSize: 12 }}>{n ? (n === 1 ? t('1 lezione') : t('{n} lezioni', { n })) : t('Libero')}</Text>
                 </Pressable>
                 {many && (
                   <View style={{ flexDirection: 'row', borderTopWidth: 1, borderColor: c.line }}>
@@ -155,7 +156,7 @@ export function WeekGrid({
                       return (
                         <Pressable
                           key={i}
-                          accessibilityLabel={`Prenota ${f.name} ${hm(m)}`}
+                          accessibilityLabel={`${t('Prenota')} ${f.name} ${hm(m)}`}
                           onPress={() => onSlot(k, f.id, m)}
                           style={{
                             position: 'absolute',
@@ -206,11 +207,11 @@ export function WeekGrid({
                             <Text style={{ color: col.text, fontSize: 11 }} numberOfLines={tall ? 2 : 1}>
                               {tall
                                 ? `${b.lesson_types?.label ?? b.lesson_type}${b.lesson_option ? ` · ${b.lesson_option}` : ''}`
-                                : `${b.trainers?.name ?? 'Trainer da assegnare'} · ${b.lesson_option || (b.lesson_types?.label ?? '')}`}
+                                : `${b.trainers?.name ?? t('Trainer da assegnare')} · ${b.lesson_option || (b.lesson_types?.label ?? '')}`}
                             </Text>
                             {tall && (
                               <Text style={{ color: col.text, fontSize: 11, fontWeight: '700' }} numberOfLines={1}>
-                                {b.trainers ? `Trainer: ${b.trainers.name}` : 'Trainer da assegnare'}
+                                {b.trainers ? t('Trainer: {nome}', { nome: b.trainers.name }) : t('Trainer da assegnare')}
                               </Text>
                             )}
                           </View>
@@ -225,7 +226,7 @@ export function WeekGrid({
         </View>
       </View>
       <Text style={{ color: c.muted, fontSize: 12 }}>
-        Clicca su una lezione per aprire il giorno, o su una mezz&apos;ora libera per prenotare per un cliente.
+        {t("Clicca su una lezione per aprire il giorno, o su una mezz'ora libera per prenotare per un cliente.")}
       </Text>
     </View>
   );

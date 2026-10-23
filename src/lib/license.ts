@@ -1,5 +1,6 @@
 import nacl from 'tweetnacl';
 
+import { t } from '@/lib/i18n';
 import { LICENSE_PUBLIC_KEY } from '@/lib/license-key';
 
 // Codice di licenza: CC1.<dati in base64url>.<firma Ed25519 in base64url>, creato con tools/licenza.mjs.
@@ -38,25 +39,25 @@ export const licensingEnabled = LICENSE_PUBLIC_KEY.length > 0;
 /** Legge un codice e ne controlla la firma, senza guardare la scadenza. */
 export function readLicense(code: string, publicKey = LICENSE_PUBLIC_KEY): LicenseCheck {
   const [prefix, body, sig] = code.trim().split('.');
-  if (prefix !== PREFIX || !body || !sig) return { ok: false, reason: 'Questo non è un codice di licenza K9 Manager.' };
+  if (prefix !== PREFIX || !body || !sig) return { ok: false, reason: t('Questo non è un codice di licenza K9 Manager.') };
   let valid = false;
   try {
     valid = nacl.sign.detached.verify(ascii(`${prefix}.${body}`), fromB64url(sig), fromB64url(publicKey));
   } catch {
     valid = false;
   }
-  if (!valid) return { ok: false, reason: 'Codice di licenza non valido. Controlla di averlo copiato tutto.' };
+  if (!valid) return { ok: false, reason: t('Codice di licenza non valido. Controlla di averlo copiato tutto.') };
   try {
     return { ok: true, license: JSON.parse(utf8(fromB64url(body))) as License };
   } catch {
-    return { ok: false, reason: 'Codice di licenza non leggibile.' };
+    return { ok: false, reason: t('Codice di licenza non leggibile.') };
   }
 }
 
 export const isExpired = (l: License, today: string) => !!l.scade && l.scade < today;
 
 export const expiredText = (l: License) =>
-  `La licenza di ${l.campo} è scaduta il ${(l.scade ?? '').split('-').reverse().join('/')}. Il centro deve rinnovarla.`;
+  t('La licenza di {campo} è scaduta il {data}. Il centro deve rinnovarla.', { campo: l.campo, data: (l.scade ?? '').split('-').reverse().join('/') });
 
 /** Tra due licenze valide tiene quella che dura di più; a pari durata la più recente (es. un cambio di piano). */
 export function longer(a: License, b: License) {

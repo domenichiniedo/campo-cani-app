@@ -1,0 +1,19 @@
+# Controlla che ogni frase dell'app abbia la traduzione in inglese, tedesco, francese e spagnolo.
+# Se manca qualcosa, il log dice quale frase e dove si usa: va aggiunta in src/locales/.
+name: Traduzioni
+
+on:
+  pull_request:
+    paths: ['src/**', 'supabase/migrations/**', 'desktop/demo/demo-backend.js', 'tools/lingue.mjs', '.github/workflows/lingue.yml']
+
+jobs:
+  lingue:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node tools/lingue.mjs

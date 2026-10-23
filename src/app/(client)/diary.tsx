@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 
 import { DogDiary } from '@/components/dog-diary';
 import { Card, Chips, H1, Muted, Screen } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 import type { Dog } from '@/lib/types';
@@ -34,12 +35,12 @@ export default function ClientDiary() {
   const dog = dogs.find((d) => d.id === pick) ?? dogs[0] ?? null;
   return (
     <Screen>
-      <H1>Diario di allenamento</H1>
-      <Muted>Dopo ogni lezione il trainer scrive cosa avete fatto e i suoi commenti.</Muted>
+      <H1>{t('Diario di allenamento')}</H1>
+      <Muted>{t('Dopo ogni lezione il trainer scrive cosa avete fatto e i suoi commenti.')}</Muted>
       {dogs.length > 1 && <Chips items={dogs.map((d) => ({ value: d.id, label: d.name }))} value={dog?.id ?? null} onChange={setPick} />}
       {dog && (
         <Card>
-          <DogDiary key={`${dog.id}-${round}`} dogId={dog.id} empty={`Il diario di ${dog.name} è ancora vuoto: si riempie dopo le lezioni.`} />
+          <DogDiary key={`${dog.id}-${round}`} dogId={dog.id} empty={t('Il diario di {cane} è ancora vuoto: si riempie dopo le lezioni.', { cane: dog.name })} />
         </Card>
       )}
     </Screen>

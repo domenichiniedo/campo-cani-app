@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router/js-tabs';
 
 import { tabIcon } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { usePlan } from '@/lib/plans';
 import { useColors } from '@/lib/theme';
 
@@ -15,11 +16,11 @@ export default function ClientLayout() {
         tabBarInactiveTintColor: c.muted,
         tabBarStyle: { backgroundColor: c.surface, borderTopColor: c.line },
       }}>
-      <Tabs.Screen name="index" options={{ title: 'Prenota', tabBarIcon: tabIcon('＋') }} />
-      <Tabs.Screen name="bookings" options={{ title: 'Le mie lezioni', tabBarIcon: tabIcon('☰') }} />
-      <Tabs.Screen name="diary" options={{ title: 'Diario', tabBarIcon: tabIcon('✎'), href: plan.trainers ? undefined : null }} />
-      <Tabs.Screen name="packages" options={{ title: 'Pacchetti', tabBarIcon: tabIcon('▤'), href: plan.packages ? undefined : null }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profilo', tabBarIcon: tabIcon('◉') }} />
+      <Tabs.Screen name="index" options={{ title: t('Prenota'), tabBarIcon: tabIcon('＋') }} />
+      <Tabs.Screen name="bookings" options={{ title: t('Le mie lezioni'), tabBarIcon: tabIcon('☰') }} />
+      <Tabs.Screen name="diary" options={{ title: t('Diario'), tabBarIcon: tabIcon('✎'), href: plan.trainers ? undefined : null }} />
+      <Tabs.Screen name="packages" options={{ title: t('Pacchetti'), tabBarIcon: tabIcon('▤'), href: plan.packages ? undefined : null }} />
+      <Tabs.Screen name="profile" options={{ title: t('Profilo'), tabBarIcon: tabIcon('◉') }} />
     </Tabs>
   );
 }

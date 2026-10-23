@@ -7,6 +7,7 @@ import { Avatar } from '@/components/photo';
 import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Field, H1, Muted, Row, Screen } from '@/components/ui';
 import { billingLine } from '@/lib/billing';
 import { euro, shortDate } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
@@ -123,14 +124,14 @@ export default function OwnerClients() {
                   {sortName(p) || p.email}
                 </Text>
                 <Text style={{ color: c.muted, fontSize: 13 }} numberOfLines={1}>
-                  {dogs.length ? dogs.map((d) => d.name).join(', ') : 'Nessun cane'}
+                  {dogs.length ? dogs.map((d) => d.name).join(', ') : t('Nessun cane')}
                   {p.phone ? `  ·  ${p.phone}` : ''}
                 </Text>
               </View>
               <Row style={{ gap: 4, flexWrap: 'nowrap' }}>
-                {pkg && <Badge tone="ok">{`${pkg.lessons_total - pkg.lessons_used} lez.`}</Badge>}
-                {pens > 0 && <Badge tone="warn">{`${pens} pen.`}</Badge>}
-                {dogs.some((d) => d.blocked) && <Badge tone="bad">Sospeso</Badge>}
+                {pkg && <Badge tone="ok">{t('{n} lez.', { n: pkg.lessons_total - pkg.lessons_used })}</Badge>}
+                {pens > 0 && <Badge tone="warn">{t('{n} pen.', { n: pens })}</Badge>}
+                {dogs.some((d) => d.blocked) && <Badge tone="bad">{t('Sospeso')}</Badge>}
               </Row>
               {!wide && <Text style={{ color: c.muted, fontSize: 16 }}>{on ? '▾' : '›'}</Text>}
             </Pressable>
@@ -143,23 +144,23 @@ export default function OwnerClients() {
         );
       })}
       {shown.length === 0 && !loading && (
-        <Text style={{ color: c.muted, padding: 12 }}>{rows.length ? 'Nessun cliente corrisponde alla ricerca.' : 'Ancora nessun iscritto.'}</Text>
+        <Text style={{ color: c.muted, padding: 12 }}>{rows.length ? t('Nessun cliente corrisponde alla ricerca.') : t('Ancora nessun iscritto.')}</Text>
       )}
     </View>
   );
 
   return (
     <Screen onRefresh={load} refreshing={loading}>
-      <H1>Clienti</H1>
+      <H1>{t('Clienti')}</H1>
       <Muted>
-        {rows.length} iscritti.{' '}
-        {limit > 0 ? `Un cane viene sospeso da solo alla ${limit}ª penalità.` : 'La sospensione automatica è spenta.'}
+        {t('{n} iscritti.', { n: rows.length })}{' '}
+        {limit > 0 ? t('Un cane viene sospeso da solo alla {n}ª penalità.', { n: limit }) : t('La sospensione automatica è spenta.')}
       </Muted>
       {requests.length > 0 && (
         <Card accent>
-          <Body bold>{requests.length === 1 ? '1 pacchetto da attivare' : `${requests.length} pacchetti da attivare`}</Body>
+          <Body bold>{requests.length === 1 ? t('1 pacchetto da attivare') : t('{n} pacchetti da attivare', { n: requests.length })}</Body>
           <Muted style={{ fontSize: 13 }}>
-            {plan.invoices ? 'Attivalo quando il cliente paga: parte la fattura o lo scontrino, come per le lezioni.' : 'Attivalo quando il cliente paga.'}
+            {plan.invoices ? t('Attivalo quando il cliente paga: parte la fattura o lo scontrino, come per le lezioni.') : t('Attivalo quando il cliente paga.')}
           </Muted>
           {requests.map(({ p, cp }) => (
             <View key={cp.id} style={{ gap: 6 }}>
@@ -167,26 +168,26 @@ export default function OwnerClients() {
                 {fullName(p)}: {cp.name}, {euro(cp.price_cents)}
               </Muted>
               <Row>
-                <Button small title={plan.payments ? 'Incassato, attiva' : 'Attiva'} onPress={() => activate(cp)} />
-                <ConfirmButton title="Rifiuta" onConfirm={() => reject(cp)} />
+                <Button small title={plan.payments ? t('Incassato, attiva') : t('Attiva')} onPress={() => activate(cp)} />
+                <ConfirmButton title={t('Rifiuta')} onConfirm={() => reject(cp)} />
               </Row>
             </View>
           ))}
         </Card>
       )}
-      <Field label="Cerca" value={q} onChangeText={setQ} placeholder="Nome, cognome, cane, telefono, email o codice fiscale" />
+      <Field label={t('Cerca')} value={q} onChangeText={setQ} placeholder={t('Nome, cognome, cane, telefono, email o codice fiscale')} />
       <Chips
         items={[
-          { value: 'all', label: 'Tutti' },
-          { value: 'package', label: 'Con pacchetto' },
-          { value: 'penalties', label: 'Con penalità' },
-          { value: 'blocked', label: 'Sospesi' },
-          { value: 'billing', label: 'Senza dati fattura' },
+          { value: 'all', label: t('Tutti') },
+          { value: 'package', label: t('Con pacchetto') },
+          { value: 'penalties', label: t('Con penalità') },
+          { value: 'blocked', label: t('Sospesi') },
+          { value: 'billing', label: t('Senza dati fattura') },
         ]}
         value={filter}
         onChange={setFilter}
       />
-      {(!!needle || filter !== 'all') && <Muted style={{ fontSize: 13 }}>{`${shown.length} di ${rows.length}`}</Muted>}
+      {(!!needle || filter !== 'all') && <Muted style={{ fontSize: 13 }}>{t('{n} di {tot}', { n: shown.length, tot: rows.length })}</Muted>}
       <ErrorText>{err}</ErrorText>
       {wide ? (
         <View style={{ flexDirection: 'row', gap: 16, alignItems: 'flex-start' }}>
@@ -197,7 +198,7 @@ export default function OwnerClients() {
                 <ClientDetail p={open} act={act} />
               </Card>
             ) : (
-              <Muted>Scegli un cliente dalla lista per vedere cani, pacchetti e penalità.</Muted>
+              <Muted>{t('Scegli un cliente dalla lista per vedere cani, pacchetti e penalità.')}</Muted>
             )}
           </ScrollView>
         </View>
@@ -224,9 +225,13 @@ function ClientDetail({ p, act }: { p: Client; act: Act }) {
         </View>
       </Row>
       <View style={{ gap: 2 }}>
-        <Muted style={{ fontSize: 13 }}>{p.tax_code ? `CF ${p.tax_code} · ${billingLine(p)}` : 'Dati di fatturazione mancanti'}</Muted>
+        <Muted style={{ fontSize: 13 }}>{p.tax_code ? `${t('CF')} ${p.tax_code} · ${billingLine(p)}` : t('Dati di fatturazione mancanti')}</Muted>
         <Muted style={{ fontSize: 12 }}>
-          Iscritto il {shortDate(p.created_at)} · consensi regolamento v{p.rules_ver ?? '–'}, privacy v{p.privacy_ver ?? '–'}
+          {t('Iscritto il {data} · consensi regolamento v{reg}, privacy v{priv}', {
+            data: shortDate(p.created_at),
+            reg: p.rules_ver ?? '–',
+            priv: p.privacy_ver ?? '–',
+          })}
         </Muted>
       </View>
       {p.client_packages
@@ -234,10 +239,10 @@ function ClientDetail({ p, act }: { p: Client; act: Act }) {
         .map((cp) => (
           <Row key={cp.id} style={{ justifyContent: 'space-between' }}>
             <Muted style={{ fontSize: 13, flex: 1 }}>
-              {cp.name}: {cp.lessons_used}/{cp.lessons_total} usate
-              {cp.expires_at ? `, scade il ${shortDate(cp.expires_at)}` : ''}
+              {cp.name}: {t('{usate}/{tot} usate', { usate: cp.lessons_used, tot: cp.lessons_total })}
+              {cp.expires_at ? `, ${t('scade il {data}', { data: shortDate(cp.expires_at) })}` : ''}
             </Muted>
-            <Badge tone={usable(cp) ? 'ok' : 'neutral'}>{usable(cp) ? 'Attivo' : 'Finito'}</Badge>
+            <Badge tone={usable(cp) ? 'ok' : 'neutral'}>{usable(cp) ? t('Attivo') : t('Finito')}</Badge>
           </Row>
         ))}
       {dogsOf(p).map((d) => (
@@ -248,30 +253,30 @@ function ClientDetail({ p, act }: { p: Client; act: Act }) {
               {d.breed ? ` (${d.breed})` : ''}
             </Body>
             <Row>
-              {d.penalties.length > 0 && <Badge tone="warn">{`${d.penalties.length} penalità`}</Badge>}
-              {d.blocked && <Badge tone="bad">Sospeso</Badge>}
+              {d.penalties.length > 0 && <Badge tone="warn">{t('{n} penalità', { n: d.penalties.length })}</Badge>}
+              {d.blocked && <Badge tone="bad">{t('Sospeso')}</Badge>}
             </Row>
           </Row>
           {d.penalties.map((pen) => (
             <Row key={pen.id} style={{ justifyContent: 'space-between' }}>
               <Muted style={{ fontSize: 13, flex: 1 }}>
-                {shortDate(pen.created_at)}: {pen.reason}
+                {shortDate(pen.created_at)}: {t(pen.reason)}
               </Muted>
-              <ConfirmButton title="Togli" onConfirm={() => act(() => supabase.from('penalties').delete().eq('id', pen.id))} />
+              <ConfirmButton title={t('Togli')} onConfirm={() => act(() => supabase.from('penalties').delete().eq('id', pen.id))} />
             </Row>
           ))}
           <Row>
             {trainers.length > 0 && (
-              <Button small kind="ghost" title={diary === d.id ? 'Chiudi diario' : 'Diario'} onPress={() => setDiary(diary === d.id ? null : d.id)} />
+              <Button small kind="ghost" title={diary === d.id ? t('Chiudi diario') : t('Diario')} onPress={() => setDiary(diary === d.id ? null : d.id)} />
             )}
             <Button
               small
               kind={d.blocked ? 'primary' : 'danger'}
-              title={d.blocked ? 'Riattiva prenotazioni' : 'Sospendi prenotazioni'}
+              title={d.blocked ? t('Riattiva prenotazioni') : t('Sospendi prenotazioni')}
               onPress={() => act(() => supabase.from('dogs').update({ blocked: !d.blocked }).eq('id', d.id))}
             />
           </Row>
-          {diary === d.id && <DogDiary dogId={d.id} limit={10} empty={`Il diario di ${d.name} è ancora vuoto.`} />}
+          {diary === d.id && <DogDiary dogId={d.id} limit={10} empty={t('Il diario di {cane} è ancora vuoto.', { cane: d.name })} />}
         </View>
       ))}
     </View>

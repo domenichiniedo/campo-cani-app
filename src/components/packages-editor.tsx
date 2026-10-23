@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { LimitNote } from '@/components/limit-note';
 import { Button, Card, Chips, ErrorText, Field, Muted, Row, Toggle } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
@@ -51,10 +52,10 @@ export function PackagesEditor() {
     for (const [i, d] of list.entries()) {
       const lessons = Number(d.lessons), price = Math.round(Number(d.price.replace(',', '.')) * 100);
       const days = d.validDays.trim() ? Number(d.validDays) : null;
-      if (!d.name.trim()) return setErr('Ogni pacchetto deve avere un nome.');
-      if (!Number.isInteger(lessons) || lessons <= 0) return setErr(`${d.name}: il numero di lezioni deve essere un intero.`);
-      if (!Number.isFinite(price) || price < 0) return setErr(`${d.name}: prezzo non valido.`);
-      if (days !== null && (!Number.isInteger(days) || days <= 0)) return setErr(`${d.name}: la validità va in giorni, oppure lasciala vuota.`);
+      if (!d.name.trim()) return setErr(t('Ogni pacchetto deve avere un nome.'));
+      if (!Number.isInteger(lessons) || lessons <= 0) return setErr(t('{nome}: il numero di lezioni deve essere un intero.', { nome: d.name }));
+      if (!Number.isFinite(price) || price < 0) return setErr(t('{nome}: prezzo non valido.', { nome: d.name }));
+      if (days !== null && (!Number.isInteger(days) || days <= 0)) return setErr(t('{nome}: la validità va in giorni, oppure lasciala vuota.', { nome: d.name }));
       rows.push({ id: d.id, name: d.name.trim(), lesson_type: d.lessonType || null, lessons, price_cents: price, valid_days: days, sort: i + 1, active: d.active });
     }
     setSaving(true);
@@ -66,42 +67,41 @@ export function PackagesEditor() {
     const e = res.find((r) => r.error)?.error;
     if (e) return setErr(errorText(e));
     await load();
-    setMsg('Pacchetti salvati.');
+    setMsg(t('Pacchetti salvati.'));
   }
 
   return (
     <>
       <Muted>
-        Il cliente richiede un pacchetto dall&apos;app e tu lo attivi da Clienti quando incassi. Da lì ogni prenotazione di quel
-        tipo scala una lezione; se la lezione viene annullata, torna nel pacchetto.
+        {t("Il cliente richiede un pacchetto dall'app e tu lo attivi da Clienti quando incassi. Da lì ogni prenotazione di quel tipo scala una lezione; se la lezione viene annullata, torna nel pacchetto.")}
       </Muted>
       {list.map((d, i) => (
         <Card key={d.id ?? `new-${i}`}>
-          <Field label="Nome" value={d.name} onChangeText={(v) => setAt(i, { name: v })} placeholder="10 lezioni IGP" />
-          <Muted style={{ fontSize: 13 }}>Vale per</Muted>
+          <Field label={t('Nome')} value={d.name} onChangeText={(v) => setAt(i, { name: v })} placeholder={t('10 lezioni IGP')} />
+          <Muted style={{ fontSize: 13 }}>{t('Vale per')}</Muted>
           <Chips
-            items={[{ value: '', label: 'Tutte le lezioni' }, ...lessonTypes.map((t) => ({ value: t.id, label: t.label }))]}
+            items={[{ value: '', label: t('Tutte le lezioni') }, ...lessonTypes.map((t) => ({ value: t.id, label: t.label }))]}
             value={d.lessonType}
             onChange={(v) => setAt(i, { lessonType: v })}
           />
           <Row>
-            <Field label="Lezioni" value={d.lessons} onChangeText={(v) => setAt(i, { lessons: v })} keyboardType="number-pad" style={{ flex: 1, minWidth: 90 }} />
-            <Field label="Prezzo (€)" value={d.price} onChangeText={(v) => setAt(i, { price: v })} keyboardType="decimal-pad" style={{ flex: 1, minWidth: 90 }} />
-            <Field label="Validità (giorni)" value={d.validDays} onChangeText={(v) => setAt(i, { validDays: v })} keyboardType="number-pad" placeholder="sempre" style={{ flex: 1, minWidth: 110 }} />
+            <Field label={t('Lezioni')} value={d.lessons} onChangeText={(v) => setAt(i, { lessons: v })} keyboardType="number-pad" style={{ flex: 1, minWidth: 90 }} />
+            <Field label={t('Prezzo (€)')} value={d.price} onChangeText={(v) => setAt(i, { price: v })} keyboardType="decimal-pad" style={{ flex: 1, minWidth: 90 }} />
+            <Field label={t('Validità (giorni)')} value={d.validDays} onChangeText={(v) => setAt(i, { validDays: v })} keyboardType="number-pad" placeholder={t('sempre')} style={{ flex: 1, minWidth: 110 }} />
           </Row>
-          <Toggle label="Richiedibile dai clienti" value={d.active} onChange={(v) => setAt(i, { active: v })} disabled={!d.active && full} />
+          <Toggle label={t('Richiedibile dai clienti')} value={d.active} onChange={(v) => setAt(i, { active: v })} disabled={!d.active && full} />
         </Card>
       ))}
       <Button
-        title="+ Aggiungi pacchetto"
+        title={t('+ Aggiungi pacchetto')}
         kind="ghost"
         disabled={full}
         onPress={() => setList([...list, { name: '', lessonType: lessonTypes[0]?.id ?? '', lessons: '10', price: '0', validDays: '180', active: true }])}
       />
-      <LimitNote kind="maxPackages" count={activeCount} what="pacchetti richiedibili" />
+      <LimitNote kind="maxPackages" count={activeCount} what={t('pacchetti richiedibili')} />
       <ErrorText>{err}</ErrorText>
       {!!msg && <Muted>{msg}</Muted>}
-      {list.length > 0 && <Button title="Salva pacchetti" onPress={save} loading={saving} />}
+      {list.length > 0 && <Button title={t('Salva pacchetti')} onPress={save} loading={saving} />}
     </>
   );
 }

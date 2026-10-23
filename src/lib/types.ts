@@ -1,3 +1,5 @@
+import { t, tKey } from '@/lib/i18n';
+
 export type Settings = {
   id: 1;
   field_name: string;
@@ -154,11 +156,13 @@ export type Invoice = {
 export const invoiceTitle = (i: Invoice) =>
   i.kind === 'receipt'
     ? i.status === 'sent'
-      ? `Scontrino${i.receipt_number ? ` ${i.receipt_number}` : ''}`
-      : 'Scontrino da emettere'
+      ? i.receipt_number
+        ? t('Scontrino {numero}', { numero: i.receipt_number })
+        : t('Scontrino')
+      : t('Scontrino da emettere')
     : i.number
-      ? `Fattura ${i.number}/${i.year}`
-      : 'Fattura in preparazione';
+      ? t('Fattura {numero}', { numero: `${i.number}/${i.year}` })
+      : t('Fattura in preparazione');
 
 /** Pacchetto attivo, non scaduto e con lezioni rimaste. */
 export const usable = (cp: ClientPackage, now = Date.now()) =>
@@ -192,7 +196,8 @@ export type Penalty = {
 
 export type BusySlot = { field_id: string; day: string; start_min: number; dur_min: number; mine: boolean };
 
-export const PENALTY_REASONS = ['Assenza senza disdetta', 'Ritardo', 'Disdetta tardiva', 'Comportamento'];
+/** Motivi delle penalità: si salvano in italiano, si mostrano tradotti con t(). */
+export const PENALTY_REASONS = [tKey('Assenza senza disdetta'), tKey('Ritardo'), tKey('Disdetta tardiva'), tKey('Comportamento')];
 
 export const fullName = (p: Pick<Profile, 'first_name' | 'last_name'> | null | undefined) =>
   p ? `${p.first_name} ${p.last_name}`.trim() : '';
@@ -200,9 +205,9 @@ export const fullName = (p: Pick<Profile, 'first_name' | 'last_name'> | null | u
 /** Testo completo del regolamento: regole automatiche più quelle scritte dal proprietario. */
 export function rulesLines(s: Settings, types: LessonType[]): string[] {
   const auto = [
-    `Si prenota solo negli orari aperti dal campo. ${types.map((t) => `${t.label}: turni da ${t.duration_min} minuti`).join('. ')}.`,
-    `La disdetta è possibile fino a ${s.cancel_hours} ore prima dell'inizio del turno.` +
-      (s.penalty_limit > 0 ? ` Assenze e ritardi comportano penalità: alla ${s.penalty_limit}ª le prenotazioni del cane vengono sospese.` : ''),
+    `${t('Si prenota solo negli orari aperti dal campo.')} ${types.map((l) => t('{lezione}: turni da {min} minuti', { lezione: l.label, min: l.duration_min })).join('. ')}.`,
+    t("La disdetta è possibile fino a {ore} ore prima dell'inizio del turno.", { ore: s.cancel_hours }) +
+      (s.penalty_limit > 0 ? ` ${t('Assenze e ritardi comportano penalità: alla {n}ª le prenotazioni del cane vengono sospese.', { n: s.penalty_limit })}` : ''),
   ];
   return [...auto, ...s.rules.split('\n').map((l) => l.trim()).filter(Boolean)];
 }

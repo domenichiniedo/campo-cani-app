@@ -6,8 +6,9 @@ import { InvoicesPanel } from '@/components/invoices-panel';
 import { LicensePanel } from '@/components/license-panel';
 import { LimitNote } from '@/components/limit-note';
 import { PackagesEditor } from '@/components/packages-editor';
-import { Body, Button, Card, ErrorText, Field, H1, Muted, Row, Screen, Step, Toggle } from '@/components/ui';
+import { Body, Button, Card, ErrorText, Field, H1, LangPicker, Muted, Row, Screen, Step, Toggle } from '@/components/ui';
 import { hm, parseHm, STEP } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { pickAndUpload, removeImage, type Source } from '@/lib/images';
 import { licensingEnabled } from '@/lib/license';
 import { planWith, usePlan } from '@/lib/plans';
@@ -36,7 +37,7 @@ function PlanNote({ title, plan }: { title: string; plan: string }) {
   return (
     <>
       <Step title={title} />
-      <Muted>Compresi dal piano {plan} in su. Per passare a un piano superiore chiedi un nuovo codice di licenza.</Muted>
+      <Muted>{t('Compresi dal piano {piano} in su. Per passare a un piano superiore chiedi un nuovo codice di licenza.', { piano: plan })}</Muted>
     </>
   );
 }
@@ -110,7 +111,7 @@ export default function OwnerSettings() {
     const added: FieldDraft[] = [];
     const spare = [...spareFields];
     for (let i = fieldList.length; i < n; i++) {
-      added.push(spare.shift() ?? { name: `Campo ${i + 1}`, address: fieldList[0]?.address ?? address });
+      added.push(spare.shift() ?? { name: t('Campo {n}', { n: i + 1 }), address: fieldList[0]?.address ?? address });
     }
     setSpareFields(spare);
     setFieldList([...fieldList, ...added]);
@@ -145,6 +146,7 @@ export default function OwnerSettings() {
   // Il piano conta le lezioni prenotabili: quelle spente non pesano.
   const activeTypes = types.filter((t) => t.active).length;
   const typesFull = plan.maxLessonTypes !== null && activeTypes >= plan.maxLessonTypes;
+  const fieldsText = plan.maxFields === 1 ? t('1 campo') : t('{n} campi', { n: plan.maxFields ?? 0 });
   const setType = (i: number, patch: Partial<TypeDraft>) => setTypes(types.map((t, j) => (j === i ? { ...t, ...patch } : t)));
 
   async function pickLogo(source: Source) {
@@ -158,7 +160,7 @@ export default function OwnerSettings() {
       if (error) throw error;
       await removeImage('branding', old);
       await refresh();
-      setMsg('Logo aggiornato.');
+      setMsg(t('Logo aggiornato.'));
     } catch (e) {
       setErr(errorText(e));
     }
@@ -177,29 +179,29 @@ export default function OwnerSettings() {
     setMsg('');
     const o = parseHm(openAt), cl = parseHm(closeAt);
     if (o == null || cl == null || o % STEP || cl % STEP || o >= cl)
-      return setErr('Apertura e chiusura vanno scritte come 08:00 o 08:30, con la chiusura dopo l’apertura.');
+      return setErr(t('Apertura e chiusura vanno scritte come 08:00 o 08:30, con la chiusura dopo l’apertura.'));
     const ch = Number(cancelHours), pl = Number(penaltyLimit);
-    if (!Number.isInteger(ch) || ch < 0) return setErr('Le ore per la disdetta devono essere un numero intero.');
-    if (!Number.isInteger(pl) || pl < 0) return setErr('Il limite di penalità deve essere un numero intero (0 = spento).');
+    if (!Number.isInteger(ch) || ch < 0) return setErr(t('Le ore per la disdetta devono essere un numero intero.'));
+    if (!Number.isInteger(pl) || pl < 0) return setErr(t('Il limite di penalità deve essere un numero intero (0 = spento).'));
 
-    if (fieldList.some((f) => !f.name.trim())) return setErr('Ogni campo deve avere un nome.');
-    if (trainerList.some((t) => !t.name.trim())) return setErr('Ogni trainer deve avere un nome.');
+    if (fieldList.some((f) => !f.name.trim())) return setErr(t('Ogni campo deve avere un nome.'));
+    if (trainerList.some((t) => !t.name.trim())) return setErr(t('Ogni trainer deve avere un nome.'));
 
     const typeRows = [];
-    for (const [i, t] of types.entries()) {
-      const dur = Number(t.duration), price = Math.round(Number(t.price.replace(',', '.')) * 100);
-      if (!t.label.trim()) return setErr('Ogni lezione deve avere un nome.');
-      if (!Number.isInteger(dur) || dur <= 0 || dur % STEP) return setErr(`${t.label}: la durata deve essere un multiplo di 30 minuti.`);
-      if (!Number.isFinite(price) || price < 0) return setErr(`${t.label}: prezzo non valido.`);
+    for (const [i, ty] of types.entries()) {
+      const dur = Number(ty.duration), price = Math.round(Number(ty.price.replace(',', '.')) * 100);
+      if (!ty.label.trim()) return setErr(t('Ogni lezione deve avere un nome.'));
+      if (!Number.isInteger(dur) || dur <= 0 || dur % STEP) return setErr(t('{lezione}: la durata deve essere un multiplo di 30 minuti.', { lezione: ty.label }));
+      if (!Number.isFinite(price) || price < 0) return setErr(t('{lezione}: prezzo non valido.', { lezione: ty.label }));
       typeRows.push({
-        id: t.id,
-        label: t.label.trim(),
-        description: t.description.trim(),
+        id: ty.id,
+        label: ty.label.trim(),
+        description: ty.description.trim(),
         duration_min: dur,
         price_cents: price,
-        options: t.options.split(',').map((x) => x.trim()).filter(Boolean),
+        options: ty.options.split(',').map((x) => x.trim()).filter(Boolean),
         sort: i,
-        active: t.active,
+        active: ty.active,
       });
     }
 
@@ -217,8 +219,8 @@ export default function OwnerSettings() {
         privacy,
       })
       .eq('id', 1);
-    const t = s.error ? s : await supabase.from('lesson_types').upsert(typeRows);
-    const ft = t.error ? t.error : await saveFieldsAndTrainers();
+    const lt = s.error ? s : await supabase.from('lesson_types').upsert(typeRows);
+    const ft = lt.error ? lt.error : await saveFieldsAndTrainers();
     setSaving(false);
     if (ft) return setErr(errorText(ft));
     await refresh();
@@ -234,7 +236,7 @@ export default function OwnerSettings() {
     const allT = (t2.data ?? []) as Trainer[];
     setTrainerList(allT.map((x) => ({ id: x.id, name: x.name, lessons: x.lessons })));
     setActiveTrainerIds(allT.map((x) => x.id));
-    setMsg('Impostazioni salvate.');
+    setMsg(t('Impostazioni salvate.'));
   }
 
   if (!settings) return null;
@@ -242,35 +244,35 @@ export default function OwnerSettings() {
 
   return (
     <Screen>
-      <H1>Impostazioni</H1>
+      <H1>{t('Impostazioni')}</H1>
 
       {licensingEnabled && (
         <>
-          <Step title="Licenza" />
+          <Step title={t('Licenza')} />
           <LicensePanel />
         </>
       )}
 
-      <Step title="Centro e logo" />
+      <Step title={t('Centro e logo')} />
       <Card>
         <Row>
           <View style={{ width: 72, height: 72, borderRadius: 36, overflow: 'hidden', backgroundColor: c.pitch }}>
             {logoUrl && <Image source={{ uri: logoUrl }} style={{ width: '100%', height: '100%' }} contentFit="contain" />}
           </View>
           <View style={{ gap: 8, flex: 1 }}>
-            <Button small title={logoUrl ? 'Cambia logo' : 'Carica logo'} onPress={() => pickLogo('library')} loading={uploading} />
-            <Button small kind="ghost" title="Scatta foto del logo" onPress={() => pickLogo('camera')} disabled={uploading} />
-            {logoUrl && <Button small kind="ghost" title="Togli logo" onPress={removeLogo} />}
+            <Button small title={logoUrl ? t('Cambia logo') : t('Carica logo')} onPress={() => pickLogo('library')} loading={uploading} />
+            <Button small kind="ghost" title={t('Scatta foto del logo')} onPress={() => pickLogo('camera')} disabled={uploading} />
+            {logoUrl && <Button small kind="ghost" title={t('Togli logo')} onPress={removeLogo} />}
           </View>
         </Row>
-        <Field label="Nome del centro" value={name} onChangeText={setName} />
-        <Field label="Indirizzo della sede" value={address} onChangeText={setAddress} />
+        <Field label={t('Nome del centro')} value={name} onChangeText={setName} />
+        <Field label={t('Indirizzo della sede')} value={address} onChangeText={setAddress} />
       </Card>
 
-      <Step title="Campi" />
+      <Step title={t('Campi')} />
       <Card>
         <Row style={{ justifyContent: 'space-between' }}>
-          <Body bold>Numero di campi</Body>
+          <Body bold>{t('Numero di campi')}</Body>
           <Row>
             <Button small kind="ghost" title="−" onPress={() => setFieldCount(fieldList.length - 1)} disabled={fieldList.length <= 1} />
             <Text style={{ color: c.text, fontSize: 22, fontWeight: '800', minWidth: 28, textAlign: 'center' }}>{fieldList.length}</Text>
@@ -284,92 +286,91 @@ export default function OwnerSettings() {
           </Row>
         </Row>
         <Muted style={{ fontSize: 13 }}>
-          Ogni campo ha orari e prenotazioni suoi. Più campi possono stare allo stesso indirizzo. Se togli un campo, le
-          prenotazioni già fatte restano nel piano.
+          {t('Ogni campo ha orari e prenotazioni suoi. Più campi possono stare allo stesso indirizzo. Se togli un campo, le prenotazioni già fatte restano nel piano.')}
         </Muted>
         {plan.maxFields !== null && (
           <Muted style={{ fontSize: 13, color: fieldList.length > plan.maxFields ? c.brassText : c.muted }}>
             {fieldList.length > plan.maxFields
-              ? `Il piano ${plan.label} prevede ${plan.maxFields === 1 ? '1 campo' : `${plan.maxFields} campi`}: si prenotano solo i primi.`
-              : `Il piano ${plan.label} prevede fino a ${plan.maxFields === 1 ? '1 campo' : `${plan.maxFields} campi`}. Per averne di più serve un piano superiore.`}
+              ? t('Il piano {piano} prevede {campi}: si prenotano solo i primi.', { piano: plan.label, campi: fieldsText })
+              : t('Il piano {piano} prevede fino a {campi}. Per averne di più serve un piano superiore.', { piano: plan.label, campi: fieldsText })}
           </Muted>
         )}
       </Card>
       {fieldList.map((f, i) => (
         <Card key={f.id ?? `new-${i}`}>
-          <Field label={`Campo ${i + 1}: nome`} value={f.name} onChangeText={(v) => setFieldAt(i, { name: v })} />
-          <Field label="Indirizzo" value={f.address} onChangeText={(v) => setFieldAt(i, { address: v })} />
+          <Field label={t('Campo {n}: nome', { n: i + 1 })} value={f.name} onChangeText={(v) => setFieldAt(i, { name: v })} />
+          <Field label={t('Indirizzo')} value={f.address} onChangeText={(v) => setFieldAt(i, { address: v })} />
         </Card>
       ))}
 
       {plan.trainers ? (
         <>
-          <Step title="Trainer" />
-          <Muted>Assegni il trainer a ogni lezione dal piano del giorno. Un trainer non può avere due lezioni alla stessa ora.</Muted>
-          {trainerList.map((t, i) => (
-            <Card key={t.id ?? `new-${i}`}>
-              <Field label="Nome" value={t.name} onChangeText={(v) => setTrainerAt(i, { name: v })} />
-              <Muted style={{ fontSize: 13 }}>Lezioni che segue (nessuna scelta = tutte)</Muted>
+          <Step title={t('Trainer')} />
+          <Muted>{t('Assegni il trainer a ogni lezione dal piano del giorno. Un trainer non può avere due lezioni alla stessa ora.')}</Muted>
+          {trainerList.map((tr, i) => (
+            <Card key={tr.id ?? `new-${i}`}>
+              <Field label={t('Nome')} value={tr.name} onChangeText={(v) => setTrainerAt(i, { name: v })} />
+              <Muted style={{ fontSize: 13 }}>{t('Lezioni che segue (nessuna scelta = tutte)')}</Muted>
               <Row>
                 {types.map((lt) => {
-                  const on = t.lessons.includes(lt.id);
+                  const on = tr.lessons.includes(lt.id);
                   return (
                     <Button
                       key={lt.id}
                       small
                       kind={on ? 'primary' : 'ghost'}
                       title={lt.label}
-                      onPress={() => setTrainerAt(i, { lessons: on ? t.lessons.filter((x) => x !== lt.id) : [...t.lessons, lt.id] })}
+                      onPress={() => setTrainerAt(i, { lessons: on ? tr.lessons.filter((x) => x !== lt.id) : [...tr.lessons, lt.id] })}
                     />
                   );
                 })}
               </Row>
-              <Button small kind="danger" title="Togli trainer" onPress={() => setTrainerList(trainerList.filter((_, j) => j !== i))} />
+              <Button small kind="danger" title={t('Togli trainer')} onPress={() => setTrainerList(trainerList.filter((_, j) => j !== i))} />
             </Card>
           ))}
           <Button
-            title="+ Aggiungi trainer"
+            title={t('+ Aggiungi trainer')}
             kind="ghost"
             disabled={plan.maxTrainers !== null && trainerList.length >= plan.maxTrainers}
             onPress={() => setTrainerList([...trainerList, { name: '', lessons: [] }])}
           />
-          <LimitNote kind="maxTrainers" count={trainerList.length} what="trainer" />
+          <LimitNote kind="maxTrainers" count={trainerList.length} what={t('trainer')} />
         </>
       ) : (
-        <PlanNote title="Trainer" plan={planWith('trainers')} />
+        <PlanNote title={t('Trainer')} plan={planWith('trainers')} />
       )}
 
-      <Step title="Orari e regole" />
+      <Step title={t('Orari e regole')} />
       <Card>
         <Row>
-          <Field label="Apre alle" value={openAt} onChangeText={setOpenAt} style={{ flex: 1, minWidth: 120 }} />
-          <Field label="Chiude alle" value={closeAt} onChangeText={setCloseAt} style={{ flex: 1, minWidth: 120 }} />
+          <Field label={t('Apre alle')} value={openAt} onChangeText={setOpenAt} style={{ flex: 1, minWidth: 120 }} />
+          <Field label={t('Chiude alle')} value={closeAt} onChangeText={setCloseAt} style={{ flex: 1, minWidth: 120 }} />
         </Row>
         <Row>
-          <Field label="Disdetta fino a (ore prima)" value={cancelHours} onChangeText={setCancelHours} keyboardType="number-pad" style={{ flex: 1, minWidth: 140 }} />
-          <Field label="Sospendi alla penalità n° (0 = mai)" value={penaltyLimit} onChangeText={setPenaltyLimit} keyboardType="number-pad" style={{ flex: 1, minWidth: 140 }} />
+          <Field label={t('Disdetta fino a (ore prima)')} value={cancelHours} onChangeText={setCancelHours} keyboardType="number-pad" style={{ flex: 1, minWidth: 140 }} />
+          <Field label={t('Sospendi alla penalità n° (0 = mai)')} value={penaltyLimit} onChangeText={setPenaltyLimit} keyboardType="number-pad" style={{ flex: 1, minWidth: 140 }} />
         </Row>
-        <Toggle label="Pagamento online" value={settings.online_payments} onChange={() => {}} disabled />
+        <Toggle label={t('Pagamento online')} value={settings.online_payments} onChange={() => {}} disabled />
         <Muted style={{ fontSize: 13 }}>
-          Il pagamento online si attiva dopo aver collegato un conto Stripe. Per ora i clienti pagano al campo.
+          {t('Il pagamento online si attiva dopo aver collegato un conto Stripe. Per ora i clienti pagano al campo.')}
         </Muted>
       </Card>
 
-      <Step title="Lezioni" />
-      {types.map((t, i) => (
-        <Card key={t.id}>
-          <Field label="Nome" value={t.label} onChangeText={(v) => setType(i, { label: v })} />
-          <Field label="Descrizione" value={t.description} onChangeText={(v) => setType(i, { description: v })} />
+      <Step title={t('Lezioni')} />
+      {types.map((ty, i) => (
+        <Card key={ty.id}>
+          <Field label={t('Nome')} value={ty.label} onChangeText={(v) => setType(i, { label: v })} />
+          <Field label={t('Descrizione')} value={ty.description} onChangeText={(v) => setType(i, { description: v })} />
           <Row>
-            <Field label="Durata (min)" value={t.duration} onChangeText={(v) => setType(i, { duration: v })} keyboardType="number-pad" style={{ flex: 1, minWidth: 120 }} />
-            <Field label="Prezzo (€)" value={t.price} onChangeText={(v) => setType(i, { price: v })} keyboardType="decimal-pad" style={{ flex: 1, minWidth: 120 }} />
+            <Field label={t('Durata (min)')} value={ty.duration} onChangeText={(v) => setType(i, { duration: v })} keyboardType="number-pad" style={{ flex: 1, minWidth: 120 }} />
+            <Field label={t('Prezzo (€)')} value={ty.price} onChangeText={(v) => setType(i, { price: v })} keyboardType="decimal-pad" style={{ flex: 1, minWidth: 120 }} />
           </Row>
-          <Field label="Opzioni, separate da virgola" value={t.options} onChangeText={(v) => setType(i, { options: v })} />
-          <Toggle label="Prenotabile" value={t.active} onChange={(v) => setType(i, { active: v })} disabled={!t.active && typesFull} />
+          <Field label={t('Opzioni, separate da virgola')} value={ty.options} onChangeText={(v) => setType(i, { options: v })} />
+          <Toggle label={t('Prenotabile')} value={ty.active} onChange={(v) => setType(i, { active: v })} disabled={!ty.active && typesFull} />
         </Card>
       ))}
       <Button
-        title="+ Aggiungi lezione"
+        title={t('+ Aggiungi lezione')}
         kind="ghost"
         disabled={typesFull}
         onPress={() =>
@@ -381,48 +382,51 @@ export default function OwnerSettings() {
         }
       />
       <Muted style={{ fontSize: 13 }}>
-        Per togliere una lezione spegni &quot;Prenotabile&quot;: i clienti non la vedono più, ma restano le prenotazioni già fatte.
+        {t('Per togliere una lezione spegni "Prenotabile": i clienti non la vedono più, ma restano le prenotazioni già fatte.')}
       </Muted>
-      <LimitNote kind="maxLessonTypes" count={activeTypes} what="lezioni prenotabili" />
+      <LimitNote kind="maxLessonTypes" count={activeTypes} what={t('lezioni prenotabili')} />
 
       {plan.packages ? (
         <>
-          <Step title="Pacchetti" />
+          <Step title={t('Pacchetti')} />
           <PackagesEditor />
         </>
       ) : (
-        <PlanNote title="Pacchetti" plan={planWith('packages')} />
+        <PlanNote title={t('Pacchetti')} plan={planWith('packages')} />
       )}
 
       {plan.invoices ? (
         <>
-          <Step title="Fatture" />
+          <Step title={t('Fatture')} />
           <InvoicesPanel />
         </>
       ) : (
-        <PlanNote title="Fatture e scontrini" plan={planWith('invoices')} />
+        <PlanNote title={t('Fatture e scontrini')} plan={planWith('invoices')} />
       )}
 
-      <Step title="Regolamento e privacy" />
+      <Step title={t('Regolamento e privacy')} />
       <Card>
         <Muted>
-          Le regole su orari, disdetta e penalità sono già scritte dall&apos;app. Qui aggiungi le tue, una per riga.
+          {t("Le regole su orari, disdetta e penalità sono già scritte dall'app. Qui aggiungi le tue, una per riga.")}
         </Muted>
-        <Field label="Regolamento" value={rules} onChangeText={setRules} multiline />
-        <Field label="Informativa privacy" value={privacy} onChangeText={setPrivacy} multiline />
+        <Field label={t('Regolamento')} value={rules} onChangeText={setRules} multiline />
+        <Field label={t('Informativa privacy')} value={privacy} onChangeText={setPrivacy} multiline />
         {consentsChanged && (
           <Body style={{ color: c.brassText }}>
-            Salvando, i clienti dovranno accettare di nuovo il testo modificato prima di prenotare.
+            {t('Salvando, i clienti dovranno accettare di nuovo il testo modificato prima di prenotare.')}
           </Body>
         )}
       </Card>
 
       <ErrorText>{err}</ErrorText>
       {!!msg && <Muted>{msg}</Muted>}
-      <Button title="Salva impostazioni" onPress={save} loading={saving} />
+      <Button title={t('Salva impostazioni')} onPress={save} loading={saving} />
 
-      <Muted style={{ textAlign: 'center' }}>Accesso come proprietario: {profile?.email}</Muted>
-      <Button title="Esci" kind="ghost" onPress={() => supabase.auth.signOut()} />
+      <Step title={t('Lingua')} />
+      <LangPicker />
+
+      <Muted style={{ textAlign: 'center' }}>{t('Accesso come proprietario: {email}', { email: profile?.email ?? '' })}</Muted>
+      <Button title={t('Esci')} kind="ghost" onPress={() => supabase.auth.signOut()} />
     </Screen>
   );
 }

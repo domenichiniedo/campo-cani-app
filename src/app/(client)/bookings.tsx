@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { Avatar } from '@/components/photo';
 import { Badge, Body, Card, ConfirmButton, ErrorText, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { dayKey, euro, hm, longDay, slotDate, today } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import type { Booking } from '@/lib/types';
@@ -47,9 +48,9 @@ export default function MyBookings() {
 
   return (
     <Screen onRefresh={load} refreshing={loading}>
-      <H1>Le mie lezioni</H1>
+      <H1>{t('Le mie lezioni')}</H1>
       <ErrorText>{err}</ErrorText>
-      {rows.length === 0 && !loading && <Muted>Non hai lezioni in programma.</Muted>}
+      {rows.length === 0 && !loading && <Muted>{t('Non hai lezioni in programma.')}</Muted>}
       {rows.map((b) => {
         const startsAt = slotDate(b.day, b.start_min);
         const canCancel = startsAt.getTime() - now >= limitMs;
@@ -59,7 +60,7 @@ export default function MyBookings() {
             <Step title={`${longDay(b.day)} · ${hm(b.start_min)}`} />
             <Body bold>
               {b.lesson_types?.label ?? b.lesson_type}
-              {b.lesson_option ? ` · ${b.lesson_option}` : ''} per {b.dogs?.name}
+              {b.lesson_option ? ` · ${b.lesson_option}` : ''} {t('per {cane}', { cane: b.dogs?.name ?? '' })}
             </Body>
             {fields.length > 1 && b.fields && (
               <Muted>
@@ -70,17 +71,17 @@ export default function MyBookings() {
             {trainer && (
               <Row>
                 <Avatar name={trainer.name} path={trainer.photo_path} size={32} />
-                <Muted>{`Con ${trainer.name}`}</Muted>
+                <Muted>{t('Con {nome}', { nome: trainer.name })}</Muted>
               </Row>
             )}
             <Row>
               <Badge>{`${b.dur_min} min`}</Badge>
-              <Badge tone={b.paid ? 'ok' : 'warn'}>{b.pay === 'package' ? 'Dal pacchetto' : b.paid ? 'Pagato' : b.pay === 'online' ? 'Online' : `Al campo ${euro(b.price_cents)}`}</Badge>
-              {b.checked_in_at && <Badge tone="ok">Entrato</Badge>}
+              <Badge tone={b.paid ? 'ok' : 'warn'}>{b.pay === 'package' ? t('Dal pacchetto') : b.paid ? t('Pagato') : b.pay === 'online' ? t('Online') : t('Al campo {prezzo}', { prezzo: euro(b.price_cents) })}</Badge>
+              {b.checked_in_at && <Badge tone="ok">{t('Entrato')}</Badge>}
             </Row>
             {canCancel ? (
               <ConfirmButton
-                title="Disdici"
+                title={t('Disdici')}
                 onConfirm={async () => {
                   setErr('');
                   const { error } = await supabase.rpc('cancel_booking', { p_id: b.id });
@@ -89,7 +90,7 @@ export default function MyBookings() {
                 }}
               />
             ) : (
-              <Muted style={{ fontSize: 13 }}>Non si può più disdire online: chiama il campo.</Muted>
+              <Muted style={{ fontSize: 13 }}>{t('Non si può più disdire online: chiama il campo.')}</Muted>
             )}
           </Card>
         );

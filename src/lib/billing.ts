@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n';
 import type { Profile } from '@/lib/types';
 
 const ODD: Record<string, number> = {
@@ -48,11 +49,11 @@ export const billingFromProfile = (p: Profile | null): BillingDraft => ({
 
 /** Messaggio d'errore per il primo dato mancante o sbagliato, oppure null se è tutto a posto. */
 export function billingError(b: BillingDraft): string | null {
-  if (!isValidTaxCode(b.taxCode)) return 'Il codice fiscale non è valido. Controlla le lettere e i numeri.';
-  if (!b.street.trim()) return 'Inserisci via e numero civico per la fatturazione.';
-  if (!/^\d{5}$/.test(b.zip.trim())) return 'Il CAP deve avere 5 cifre.';
-  if (!b.city.trim()) return 'Inserisci il comune per la fatturazione.';
-  if (b.province.trim() && !/^[A-Za-z]{2}$/.test(b.province.trim())) return 'La provincia va scritta con la sigla, per esempio BO.';
+  if (!isValidTaxCode(b.taxCode)) return t('Il codice fiscale non è valido. Controlla le lettere e i numeri.');
+  if (!b.street.trim()) return t('Inserisci via e numero civico per la fatturazione.');
+  if (!/^\d{5}$/.test(b.zip.trim())) return t('Il CAP deve avere 5 cifre.');
+  if (!b.city.trim()) return t('Inserisci il comune per la fatturazione.');
+  if (b.province.trim() && !/^[A-Za-z]{2}$/.test(b.province.trim())) return t('La provincia va scritta con la sigla, per esempio BO.');
   return null;
 }
 

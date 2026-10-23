@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { Button, ErrorText, Row } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { imageUrl, pickAndUpload, pickImage, removeImage, uploadImage, type Picked, type Source } from '@/lib/images';
 import { errorText, supabase } from '@/lib/supabase';
 import { fullName, type Profile, type Trainer } from '@/lib/types';
@@ -32,7 +33,7 @@ export function Avatar({ name, path, uri, size = 40 }: { name: string; path: str
         justifyContent: 'center',
       }}>
       {url ? (
-        <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} contentFit="cover" accessibilityLabel={`Foto di ${name}`} />
+        <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} contentFit="cover" accessibilityLabel={t('Foto di {nome}', { nome: name })} />
       ) : (
         <Text style={{ color: c.accent, fontWeight: '800', fontSize: size * 0.38 }}>{initials(name)}</Text>
       )}
@@ -83,9 +84,9 @@ export function PhotoEditor({
       <Row>
         <Avatar name={name} path={path} size={72} />
         <View style={{ gap: 8, flex: 1, minWidth: 160 }}>
-          <Button small title="Scatta foto" onPress={() => change('camera')} loading={busy === 'camera'} disabled={!!busy} />
-          <Button small kind="ghost" title="Dalla galleria" onPress={() => change('library')} loading={busy === 'library'} disabled={!!busy} />
-          {!!path && <Button small kind="ghost" title="Togli foto" onPress={() => change(null)} loading={busy === 'remove'} disabled={!!busy} />}
+          <Button small title={t('Scatta foto')} onPress={() => change('camera')} loading={busy === 'camera'} disabled={!!busy} />
+          <Button small kind="ghost" title={t('Dalla galleria')} onPress={() => change('library')} loading={busy === 'library'} disabled={!!busy} />
+          {!!path && <Button small kind="ghost" title={t('Togli foto')} onPress={() => change(null)} loading={busy === 'remove'} disabled={!!busy} />}
         </View>
       </Row>
       <ErrorText>{err}</ErrorText>
@@ -110,8 +111,8 @@ export function PhotoPicker({ name, value, onChange }: { name: string; value: Pi
       <Row>
         <Avatar name={name || '?'} path={null} uri={value?.uri} size={72} />
         <View style={{ gap: 8, flex: 1, minWidth: 160 }}>
-          <Button small title={value ? 'Scatta di nuovo' : 'Scatta foto'} onPress={() => pick('camera')} />
-          <Button small kind="ghost" title="Dalla galleria" onPress={() => pick('library')} />
+          <Button small title={value ? t('Scatta di nuovo') : t('Scatta foto')} onPress={() => pick('camera')} />
+          <Button small kind="ghost" title={t('Dalla galleria')} onPress={() => pick('library')} />
         </View>
       </Row>
       <ErrorText>{err}</ErrorText>

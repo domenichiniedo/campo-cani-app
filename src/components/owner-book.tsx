@@ -3,6 +3,7 @@ import { Modal, ScrollView, View } from 'react-native';
 
 import { Body, Button, Chips, ErrorText, Field, H1, Muted, Row } from '@/components/ui';
 import { hm, isDayKey, parseHm, STEP } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
@@ -85,12 +86,12 @@ export function OwnerBook({ start, onClose, onDone }: { start: BookStart | null;
 
   async function save() {
     setErr('');
-    if (!client || !dog) return setErr('Scegli il cliente e il cane.');
-    if (!lesson) return setErr('Scegli la lezione.');
-    if (lesson.options.length && !option) return setErr('Scegli la specialità.');
-    if (!field) return setErr('Scegli il campo.');
-    if (!isDayKey(day)) return setErr('Scrivi il giorno come AAAA-MM-GG.');
-    if (startMin === null || startMin % STEP) return setErr('Scrivi l’ora come 10:00 o 10:30.');
+    if (!client || !dog) return setErr(t('Scegli il cliente e il cane.'));
+    if (!lesson) return setErr(t('Scegli la lezione.'));
+    if (lesson.options.length && !option) return setErr(t('Scegli la specialità.'));
+    if (!field) return setErr(t('Scegli il campo.'));
+    if (!isDayKey(day)) return setErr(t('Scrivi il giorno come AAAA-MM-GG.'));
+    if (startMin === null || startMin % STEP) return setErr(t('Scrivi l’ora come 10:00 o 10:30.'));
     setBusy(true);
     const { error } = await supabase.rpc('owner_book', {
       p_user: client.id,
@@ -112,16 +113,16 @@ export function OwnerBook({ start, onClose, onDone }: { start: BookStart | null;
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
         <View style={{ backgroundColor: c.bg, borderRadius: 14, width: '100%', maxWidth: 620, maxHeight: '92%' }}>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 14 }} keyboardShouldPersistTaps="handled">
-            <H1>Prenota per un cliente</H1>
+            <H1>{t('Prenota per un cliente')}</H1>
 
             {client ? (
               <Row style={{ justifyContent: 'space-between' }}>
                 <Body bold>{fullName(client)}</Body>
-                <Button small kind="ghost" title="Cambia cliente" onPress={() => setClient(null)} />
+                <Button small kind="ghost" title={t('Cambia cliente')} onPress={() => setClient(null)} />
               </Row>
             ) : (
               <>
-                <Field label="Cliente" value={q} onChangeText={setQ} placeholder="Nome, telefono o nome del cane" autoFocus />
+                <Field label={t('Cliente')} value={q} onChangeText={setQ} placeholder={t('Nome, telefono o nome del cane')} autoFocus />
                 <View style={{ gap: 6 }}>
                   {matches.slice(0, 8).map((p) => (
                     <Button
@@ -132,25 +133,25 @@ export function OwnerBook({ start, onClose, onDone }: { start: BookStart | null;
                       onPress={() => pickClient(p)}
                     />
                   ))}
-                  {matches.length === 0 && <Muted>Nessun cliente trovato. I clienti nuovi si iscrivono dall&apos;app.</Muted>}
+                  {matches.length === 0 && <Muted>{t("Nessun cliente trovato. I clienti nuovi si iscrivono dall'app.")}</Muted>}
                 </View>
               </>
             )}
 
             {client && (
               <>
-                <Muted style={{ fontSize: 13 }}>Cane</Muted>
+                <Muted style={{ fontSize: 13 }}>{t('Cane')}</Muted>
                 {dogs.length ? (
-                  <Chips items={dogs.map((d) => ({ value: d.id, label: d.blocked ? `${d.name} (sospeso)` : d.name }))} value={dog} onChange={setDog} />
+                  <Chips items={dogs.map((d) => ({ value: d.id, label: d.blocked ? `${d.name} (${t('sospeso')})` : d.name }))} value={dog} onChange={setDog} />
                 ) : (
-                  <Muted>Questo cliente non ha cani registrati.</Muted>
+                  <Muted>{t('Questo cliente non ha cani registrati.')}</Muted>
                 )}
               </>
             )}
 
-            <Muted style={{ fontSize: 13 }}>Lezione</Muted>
+            <Muted style={{ fontSize: 13 }}>{t('Lezione')}</Muted>
             <Chips
-              items={lessonTypes.map((t) => ({ value: t.id, label: t.label }))}
+              items={lessonTypes.map((lt) => ({ value: lt.id, label: lt.label }))}
               value={type}
               onChange={(v) => {
                 setType(v);
@@ -162,21 +163,21 @@ export function OwnerBook({ start, onClose, onDone }: { start: BookStart | null;
 
             {fields.length > 1 && (
               <>
-                <Muted style={{ fontSize: 13 }}>Campo</Muted>
+                <Muted style={{ fontSize: 13 }}>{t('Campo')}</Muted>
                 <Chips items={fields.map((f) => ({ value: f.id, label: f.name }))} value={field} onChange={setField} />
               </>
             )}
 
             {trainers.length > 0 && (
               <>
-                <Muted style={{ fontSize: 13 }}>Trainer</Muted>
+                <Muted style={{ fontSize: 13 }}>{t('Trainer')}</Muted>
                 <Chips
                   items={[
-                    { value: '', label: 'Da assegnare' },
+                    { value: '', label: t('Da assegnare') },
                     // Solo i trainer che seguono questa lezione (lista vuota = tutte).
                     ...trainers
-                      .filter((t) => !t.lessons.length || (type && t.lessons.includes(type)))
-                      .map((t) => ({ value: t.id, label: t.name })),
+                      .filter((tr) => !tr.lessons.length || (type && tr.lessons.includes(type)))
+                      .map((tr) => ({ value: tr.id, label: tr.name })),
                   ]}
                   value={trainer}
                   onChange={setTrainer}
@@ -185,20 +186,20 @@ export function OwnerBook({ start, onClose, onDone }: { start: BookStart | null;
             )}
 
             <Row>
-              <Field label="Giorno" value={day} onChangeText={setDay} placeholder="2026-10-23" style={{ flex: 1, minWidth: 140 }} />
-              <Field label="Ora" value={time} onChangeText={setTime} placeholder="10:00" style={{ flex: 1, minWidth: 100 }} />
+              <Field label={t('Giorno')} value={day} onChangeText={setDay} placeholder="2026-10-23" style={{ flex: 1, minWidth: 140 }} />
+              <Field label={t('Ora')} value={time} onChangeText={setTime} placeholder="10:00" style={{ flex: 1, minWidth: 100 }} />
             </Row>
-            {closed && <Body style={{ color: c.brassText }}>A quell&apos;ora il campo risulta chiuso: puoi prenotare lo stesso.</Body>}
+            {closed && <Body style={{ color: c.brassText }}>{t("A quell'ora il campo risulta chiuso: puoi prenotare lo stesso.")}</Body>}
             {lesson && (
               <Muted style={{ fontSize: 13 }}>
-                Dura {lesson.duration_min} minuti. Se il cliente ha un pacchetto valido si scala da lì, altrimenti paga al campo.
+                {t('Dura {min} minuti. Se il cliente ha un pacchetto valido si scala da lì, altrimenti paga al campo.', { min: lesson.duration_min })}
               </Muted>
             )}
 
             <ErrorText>{err}</ErrorText>
             <Row style={{ justifyContent: 'flex-end' }}>
-              <Button small kind="ghost" title="Annulla" onPress={onClose} />
-              <Button small title="Prenota" onPress={save} loading={busy} />
+              <Button small kind="ghost" title={t('Annulla')} onPress={onClose} />
+              <Button small title={t('Prenota')} onPress={save} loading={busy} />
             </Row>
           </ScrollView>
         </View>

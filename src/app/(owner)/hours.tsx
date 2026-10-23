@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { SlotEditor, editableDays } from '@/components/slot-editor';
 import { Body, Button, Chips, H1, Muted, Screen } from '@/components/ui';
 import { hm, STEP } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
@@ -71,12 +72,12 @@ export default function OwnerHours() {
 
   return (
     <Screen>
-      <H1>{forTrainer ? 'Orari dei trainer' : 'Orari di apertura'}</H1>
+      <H1>{forTrainer ? t('Orari dei trainer') : t('Orari di apertura')}</H1>
       {trainers.length > 0 && (
         <Chips
           items={[
-            { value: 'field', label: 'Campi' },
-            { value: 'trainer', label: 'Trainer' },
+            { value: 'field', label: t('Campi') },
+            { value: 'trainer', label: t('Trainer') },
           ]}
           value={kind}
           onChange={setKind}
@@ -84,8 +85,8 @@ export default function OwnerHours() {
       )}
       <Muted>
         {forTrainer
-          ? "Scegli un giorno e tocca le mezz'ore in cui il trainer è disponibile. Le mezz'ore in cui ha già una lezione sono segnate in oro. Il trainer può cambiarle anche dalla sua app."
-          : "Scegli un giorno e tocca le mezz'ore per aprirle o chiuderle. I clienti vedono solo quelle aperte. Le mezz'ore già prenotate sono segnate in oro."}
+          ? t("Scegli un giorno e tocca le mezz'ore in cui il trainer è disponibile. Le mezz'ore in cui ha già una lezione sono segnate in oro. Il trainer può cambiarle anche dalla sua app.")
+          : t("Scegli un giorno e tocca le mezz'ore per aprirle o chiuderle. I clienti vedono solo quelle aperte. Le mezz'ore già prenotate sono segnate in oro.")}
       </Muted>
 
       {!forTrainer && fields.length > 1 && (
@@ -94,8 +95,7 @@ export default function OwnerHours() {
       {forTrainer && <Chips items={trainers.map((t) => ({ value: t.id, label: t.name }))} value={subject.id} onChange={setTrainerPick} />}
       {neverSet && (
         <Body style={{ color: c.brassText }}>
-          Per {subject.name} non hai ancora impostato orari, quindi è disponibile sempre. Appena salvi un giorno, potrà avere lezioni solo nelle
-          mezz&apos;ore segnate.
+          {t("Per {nome} non hai ancora impostato orari, quindi è disponibile sempre. Appena salvi un giorno, potrà avere lezioni solo nelle mezz'ore segnate.", { nome: subject.name })}
         </Body>
       )}
 
@@ -112,15 +112,14 @@ export default function OwnerHours() {
           fields.length > 1 && (
             <Button
               kind="ghost"
-              title="Usa questi orari su tutti i campi"
-              onPress={() => save(() => upsert([day], slots, fields.map((f) => f.id)), `Orari copiati su tutti i ${fields.length} campi.`)}
+              title={t('Usa questi orari su tutti i campi')}
+              onPress={() => save(() => upsert([day], slots, fields.map((f) => f.id)), t('Orari copiati su tutti i {n} campi.', { n: fields.length }))}
             />
           )
         }
       />
       <Muted style={{ fontSize: 13 }}>
-        La griglia va dalle {hm(settings.open_min)} alle {hm(settings.close_min)}: puoi cambiarla in Impostazioni. Chiudere una mezz&apos;ora non
-        cancella le prenotazioni già fatte.
+        {t("La griglia va dalle {da} alle {a}: puoi cambiarla in Impostazioni. Chiudere una mezz'ora non cancella le prenotazioni già fatte.", { da: hm(settings.open_min), a: hm(settings.close_min) })}
       </Muted>
     </Screen>
   );

@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 
 import { DogDiary } from '@/components/dog-diary';
 import { Card, Chips, H1, Muted, Screen } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 
@@ -30,8 +31,8 @@ export default function TrainerDogs() {
   const dog = dogs.find((d) => d.id === pick) ?? dogs[0] ?? null;
   return (
     <Screen onRefresh={load}>
-      <H1>Diari dei cani</H1>
-      {dogs.length === 0 && <Muted>Qui trovi i diari dei cani che hanno fatto lezione con te.</Muted>}
+      <H1>{t('Diari dei cani')}</H1>
+      {dogs.length === 0 && <Muted>{t('Qui trovi i diari dei cani che hanno fatto lezione con te.')}</Muted>}
       {dogs.length > 0 && (
         <Chips items={dogs.map((d) => ({ value: d.id, label: d.name }))} value={dog?.id ?? null} onChange={setPick} />
       )}

@@ -6,6 +6,7 @@ import { Badge, Button, Card, ErrorText, H1, Muted, Row, Screen, Stat } from '@/
 import { OwnerBook, type BookStart } from '@/components/owner-book';
 import { WeekGrid } from '@/components/week-grid';
 import { addDays, cap, dayKey, hm, longDay, monthShort, today } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { useLessonColors } from '@/lib/lesson-colors';
 import { mondayOf, ownerBookings, type OwnerBooking } from '@/lib/owner';
 import { useSession } from '@/lib/session';
@@ -60,16 +61,16 @@ export default function OwnerWeek() {
         {`${monday.getDate()} ${monthShort(monday)} – ${sunday.getDate()} ${monthShort(sunday)}`}
       </H1>
       <Row>
-        <Button small kind="ghost" title="‹ Settimana prima" onPress={() => setMonday(addDays(monday, -7))} />
-        <Button small kind="ghost" title="Questa" onPress={() => setMonday(mondayOf(today()))} />
-        <Button small kind="ghost" title="Dopo ›" onPress={() => setMonday(addDays(monday, 7))} />
+        <Button small kind="ghost" title={t('‹ Settimana prima')} onPress={() => setMonday(addDays(monday, -7))} />
+        <Button small kind="ghost" title={t('Questa')} onPress={() => setMonday(mondayOf(today()))} />
+        <Button small kind="ghost" title={t('Dopo ›')} onPress={() => setMonday(addDays(monday, 7))} />
       </Row>
       <Button
-        title="+ Prenota per un cliente"
+        title={t('+ Prenota per un cliente')}
         onPress={() => setBooking({ day: days.includes(todayKey) ? todayKey : from, start: settings?.open_min ?? 540 })}
       />
       <Row>
-        <Stat label="Lezioni" value={rows.length} />
+        <Stat label={t('Lezioni')} value={rows.length} />
       </Row>
       <ErrorText>{err}</ErrorText>
       {wide && <WeekGrid days={days} rows={rows} open={open} onSlot={(day, fieldId, start) => setBooking({ day, fieldId, start })} />}
@@ -88,7 +89,7 @@ export default function OwnerWeek() {
             <Card accent={k === todayKey}>
               <Row style={{ justifyContent: 'space-between' }}>
                 <Text style={{ color: c.text, fontSize: 16, fontWeight: '800' }}>{cap(longDay(k))}</Text>
-                <Badge tone={list.length ? 'ok' : 'neutral'}>{list.length ? (list.length === 1 ? '1 lezione' : `${list.length} lezioni`) : 'Libero'}</Badge>
+                <Badge tone={list.length ? 'ok' : 'neutral'}>{list.length ? (list.length === 1 ? t('1 lezione') : t('{n} lezioni', { n: list.length })) : t('Libero')}</Badge>
               </Row>
               {list.map((b) => (
                 <View key={b.id} style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
@@ -103,7 +104,7 @@ export default function OwnerWeek() {
                   {b.checked_in_at && <Text style={{ color: c.accent, fontWeight: '800' }}>✓</Text>}
                 </View>
               ))}
-              {list.length > 0 && <Muted style={{ fontSize: 12 }}>Tocca per aprire il giorno</Muted>}
+              {list.length > 0 && <Muted style={{ fontSize: 12 }}>{t('Tocca per aprire il giorno')}</Muted>}
             </Card>
           </Pressable>
         );

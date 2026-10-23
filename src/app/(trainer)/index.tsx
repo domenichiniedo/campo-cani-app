@@ -6,6 +6,7 @@ import { NoteEditor, type NoteTarget } from '@/components/dog-diary';
 import { Avatar } from '@/components/photo';
 import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, H1, Muted, Row, Screen, Stat } from '@/components/ui';
 import { addDays, cap, dayKey, fromKey, hm, longDay, timeOf, today } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
@@ -95,16 +96,16 @@ export default function TrainerLessons() {
     <Screen onRefresh={load} refreshing={loading}>
       <H1>{cap(longDay(day))}</H1>
       <Row>
-        <Button small kind="ghost" title="‹ Prima" onPress={() => move(-1)} />
-        <Button small kind="ghost" title="Oggi" onPress={() => setDay(dayKey(today()))} />
-        <Button small kind="ghost" title="Dopo ›" onPress={() => move(1)} />
+        <Button small kind="ghost" title={t('‹ Prima')} onPress={() => move(-1)} />
+        <Button small kind="ghost" title={t('Oggi')} onPress={() => setDay(dayKey(today()))} />
+        <Button small kind="ghost" title={t('Dopo ›')} onPress={() => move(1)} />
       </Row>
       <Row>
-        <Stat label="Lezioni" value={rows.length} />
-        <Stat label="Entrati" value={`${arrived}/${rows.length}`} />
+        <Stat label={t('Lezioni')} value={rows.length} />
+        <Stat label={t('Entrati')} value={`${arrived}/${rows.length}`} />
       </Row>
       <ErrorText>{err}</ErrorText>
-      {!loading && rows.length === 0 && <Muted>Nessuna lezione con te in questo giorno.</Muted>}
+      {!loading && rows.length === 0 && <Muted>{t('Nessuna lezione con te in questo giorno.')}</Muted>}
       {rows.map((b) => {
         const lesson = `${b.lesson_types?.label ?? b.lesson_type}${b.lesson_option ? ` · ${b.lesson_option}` : ''}`;
         return (
@@ -116,8 +117,8 @@ export default function TrainerLessons() {
               </Text>
               <Row>
                 {fields.length > 1 && b.fields && <Badge>{b.fields.name}</Badge>}
-                {b.checked_in_at && <Badge tone="ok">{`Entrato ${timeOf(b.checked_in_at)}`}</Badge>}
-                {b.dogs?.blocked && <Badge tone="bad">Sospeso</Badge>}
+                {b.checked_in_at && <Badge tone="ok">{t('Entrato {ora}', { ora: timeOf(b.checked_in_at) })}</Badge>}
+                {b.dogs?.blocked && <Badge tone="bad">{t('Sospeso')}</Badge>}
               </Row>
             </Row>
             <View style={{ gap: 2 }}>
@@ -135,8 +136,8 @@ export default function TrainerLessons() {
             </View>
             {(b.penalties ?? []).map((p) => (
               <Row key={p.id}>
-                <Badge tone="bad">{`Penalità: ${p.reason}`}</Badge>
-                <ConfirmButton title="Togli" onConfirm={() => removePenalty(p.id)} />
+                <Badge tone="bad">{t('Penalità: {motivo}', { motivo: t(p.reason) })}</Badge>
+                <ConfirmButton title={t('Togli')} onConfirm={() => removePenalty(p.id)} />
               </Row>
             ))}
             <Row>
@@ -144,7 +145,7 @@ export default function TrainerLessons() {
                 <Button
                   small
                   kind={b.checked_in_at ? 'ghost' : 'primary'}
-                  title={b.checked_in_at ? 'Annulla ingresso' : 'Fai entrare in campo'}
+                  title={b.checked_in_at ? t('Annulla ingresso') : t('Fai entrare in campo')}
                   loading={busy === b.id}
                   disabled={!b.checked_in_at && !!b.dogs?.blocked}
                   onPress={() => checkIn(b)}
@@ -153,24 +154,24 @@ export default function TrainerLessons() {
               <Button
                 small
                 kind="ghost"
-                title={(Array.isArray(b.dog_notes) ? b.dog_notes.length > 0 : !!b.dog_notes) ? 'Diario ✓' : 'Scrivi il diario'}
+                title={(Array.isArray(b.dog_notes) ? b.dog_notes.length > 0 : !!b.dog_notes) ? t('Diario ✓') : t('Scrivi il diario')}
                 onPress={() => setNote({ bookingId: b.id, dogId: b.dog_id, dogName: b.dogs?.name ?? '', day: b.day, lesson })}
               />
               {canPenalize && (
-                <Button small kind="ghost" title="Penalità" onPress={() => setPenaltyFor(penaltyFor === b.id ? null : b.id)} />
+                <Button small kind="ghost" title={t('Penalità')} onPress={() => setPenaltyFor(penaltyFor === b.id ? null : b.id)} />
               )}
             </Row>
             {penaltyFor === b.id && (
               <View style={{ gap: 8 }}>
-                <Chips items={PENALTY_REASONS.map((r) => ({ value: r, label: r }))} value={reason} onChange={setReason} />
-                <Button small kind="danger" title="Dai penalità" disabled={!reason} loading={busy === b.id} onPress={() => penalize(b)} />
-                <Muted style={{ fontSize: 13 }}>La vedono il cliente e il centro. Alla soglia del regolamento il cane viene sospeso.</Muted>
+                <Chips items={PENALTY_REASONS.map((r) => ({ value: r, label: t(r) }))} value={reason} onChange={setReason} />
+                <Button small kind="danger" title={t('Dai penalità')} disabled={!reason} loading={busy === b.id} onPress={() => penalize(b)} />
+                <Muted style={{ fontSize: 13 }}>{t('La vedono il cliente e il centro. Alla soglia del regolamento il cane viene sospeso.')}</Muted>
               </View>
             )}
           </Card>
         );
       })}
-      {!isToday && rows.length > 0 && <Muted style={{ fontSize: 13 }}>Il cane si fa entrare in campo il giorno della lezione.</Muted>}
+      {!isToday && rows.length > 0 && <Muted style={{ fontSize: 13 }}>{t('Il cane si fa entrare in campo il giorno della lezione.')}</Muted>}
       <NoteEditor
         target={note}
         onClose={() => {

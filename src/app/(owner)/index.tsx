@@ -5,6 +5,7 @@ import { OwnerBookingCard } from '@/components/booking-card';
 import { OwnerBook, type BookStart } from '@/components/owner-book';
 import { Button, Chips, ErrorText, H1, Muted, Row, Screen, Stat } from '@/components/ui';
 import { addDays, cap, dayKey, euro, fromKey, isDayKey, longDay, today } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { ownerBookings, type OwnerBooking } from '@/lib/owner';
 import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
@@ -50,31 +51,31 @@ export default function OwnerDay() {
     <Screen onRefresh={load} refreshing={loading}>
       <H1>{cap(longDay(day))}</H1>
       <Row>
-        <Button small kind="ghost" title="‹ Prima" onPress={() => move(-1)} />
-        <Button small kind="ghost" title="Oggi" onPress={() => setDay(dayKey(today()))} />
-        <Button small kind="ghost" title="Dopo ›" onPress={() => move(1)} />
+        <Button small kind="ghost" title={t('‹ Prima')} onPress={() => move(-1)} />
+        <Button small kind="ghost" title={t('Oggi')} onPress={() => setDay(dayKey(today()))} />
+        <Button small kind="ghost" title={t('Dopo ›')} onPress={() => move(1)} />
       </Row>
       <Button
-        title="+ Prenota per un cliente"
+        title={t('+ Prenota per un cliente')}
         onPress={() => setBooking({ day, start: settings?.open_min ?? 540, fieldId: fieldFilter || undefined })}
       />
       <Row>
-        <Stat label="Lezioni" value={rows.length} />
-        <Stat label="Entrati" value={`${arrived}/${rows.length}`} />
-        {plan.payments && <Stat label="Da incassare" value={euro(toCollect)} />}
+        <Stat label={t('Lezioni')} value={rows.length} />
+        <Stat label={t('Entrati')} value={`${arrived}/${rows.length}`} />
+        {plan.payments && <Stat label={t('Da incassare')} value={euro(toCollect)} />}
       </Row>
       {fields.length > 1 && (
         <Chips
-          items={[{ value: '', label: 'Tutti i campi' }, ...fields.map((f) => ({ value: f.id, label: f.name }))]}
+          items={[{ value: '', label: t('Tutti i campi') }, ...fields.map((f) => ({ value: f.id, label: f.name }))]}
           value={fieldFilter}
           onChange={setFieldFilter}
         />
       )}
       {trainers.length > 0 && unassigned > 0 && (
-        <Muted>{unassigned === 1 ? '1 lezione senza trainer.' : `${unassigned} lezioni senza trainer.`}</Muted>
+        <Muted>{unassigned === 1 ? t('1 lezione senza trainer.') : t('{n} lezioni senza trainer.', { n: unassigned })}</Muted>
       )}
       <ErrorText>{err}</ErrorText>
-      {shown.length === 0 && !loading && <Muted>Nessuna lezione prenotata.</Muted>}
+      {shown.length === 0 && !loading && <Muted>{t('Nessuna lezione prenotata.')}</Muted>}
       {shown.map((b) => (
         <OwnerBookingCard key={b.id} b={b} onChange={load} showField={fields.length > 1} />
       ))}

@@ -3,9 +3,10 @@ import { useCallback, useState } from 'react';
 
 import { BillingFields } from '@/components/billing-fields';
 import { PhotoEditor } from '@/components/photo';
-import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
+import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Expandable, Field, H1, LangPicker, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingColumns, billingError, billingFromProfile } from '@/lib/billing';
 import { euro, isDayKey, shortDate } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { invoiceTitle, rulesLines, type Dog, type Invoice, type Penalty } from '@/lib/types';
@@ -68,13 +69,13 @@ export default function Profile() {
       .update({ first_name: first.trim(), last_name: last.trim(), phone: phone.trim(), doc_pref: docPref, ...billingColumns(billing) })
       .eq('id', profile.id);
     if (error) return setErr(errorText(error));
-    setMsg('Dati salvati.');
+    setMsg(t('Dati salvati.'));
     refresh();
   }
 
   async function addDog() {
     if (!profile || !newDog.name.trim()) return;
-    if (newDog.birth && !isDayKey(newDog.birth)) return setErr('Scrivi la data di nascita come AAAA-MM-GG.');
+    if (newDog.birth && !isDayKey(newDog.birth)) return setErr(t('Scrivi la data di nascita come AAAA-MM-GG.'));
     setErr('');
     const { error } = await supabase
       .from('dogs')
@@ -92,9 +93,9 @@ export default function Profile() {
 
   return (
     <Screen>
-      <H1>Profilo</H1>
+      <H1>{t('Profilo')}</H1>
 
-      <Step title="I tuoi dati" />
+      <Step title={t('I tuoi dati')} />
       <Card>
         {profile && (
           <PhotoEditor
@@ -110,19 +111,19 @@ export default function Profile() {
           />
         )}
         <Row>
-          <Field label="Nome" value={first} onChangeText={setFirst} style={{ flex: 1, minWidth: 140 }} />
-          <Field label="Cognome" value={last} onChangeText={setLast} style={{ flex: 1, minWidth: 140 }} />
+          <Field label={t('Nome')} value={first} onChangeText={setFirst} style={{ flex: 1, minWidth: 140 }} />
+          <Field label={t('Cognome')} value={last} onChangeText={setLast} style={{ flex: 1, minWidth: 140 }} />
         </Row>
-        <Field label="Telefono" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-        <Muted>Email: {profile?.email}</Muted>
+        <Field label={t('Telefono')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+        <Muted>{t('Email: {email}', { email: profile?.email ?? '' })}</Muted>
         <BillingFields value={billing} onChange={setBilling} />
         {plan.invoices && (
           <>
-            <Muted style={{ fontSize: 13 }}>Per pacchetti e pagamenti online vuoi</Muted>
+            <Muted style={{ fontSize: 13 }}>{t('Per pacchetti e pagamenti online vuoi')}</Muted>
             <Chips
               items={[
-                { value: 'invoice', label: 'Fattura' },
-                { value: 'receipt', label: 'Scontrino' },
+                { value: 'invoice', label: t('Fattura') },
+                { value: 'receipt', label: t('Scontrino') },
               ]}
               value={docPref}
               onChange={setDocPref}
@@ -130,47 +131,47 @@ export default function Profile() {
           </>
         )}
         {!!msg && <Muted>{msg}</Muted>}
-        <Button title="Salva" onPress={saveMe} small />
+        <Button title={t('Salva')} onPress={saveMe} small />
       </Card>
 
-      <Step title="I tuoi cani" />
+      <Step title={t('I tuoi cani')} />
       {dogs.map((d) => {
         const own = penalties.filter((p) => p.dog_id === d.id);
         return (
           <Card key={d.id}>
             <Row style={{ justifyContent: 'space-between' }}>
               <Body bold>{d.name}</Body>
-              {d.blocked ? <Badge tone="bad">Sospeso</Badge> : own.length > 0 && <Badge tone="warn">{`${own.length} penalità`}</Badge>}
+              {d.blocked ? <Badge tone="bad">{t('Sospeso')}</Badge> : own.length > 0 && <Badge tone="warn">{t('{n} penalità', { n: own.length })}</Badge>}
             </Row>
             <Muted>
-              {[d.breed, d.birth && `nato il ${shortDate(d.birth)}`].filter(Boolean).join(' · ') || 'Nessun dettaglio'}
+              {[d.breed, d.birth && t('nato il {data}', { data: shortDate(d.birth) })].filter(Boolean).join(' · ') || t('Nessun dettaglio')}
             </Muted>
             {own.map((p) => (
               <Muted key={p.id} style={{ fontSize: 13 }}>
-                {shortDate(p.created_at)}: {p.reason}
+                {shortDate(p.created_at)}: {t(p.reason)}
               </Muted>
             ))}
-            <Button title="Rimuovi dal profilo" kind="danger" small onPress={() => archiveDog(d.id)} />
+            <Button title={t('Rimuovi dal profilo')} kind="danger" small onPress={() => archiveDog(d.id)} />
           </Card>
         );
       })}
       <Card>
-        <Body bold>Aggiungi un cane</Body>
-        <Field label="Nome" value={newDog.name} onChangeText={(v) => setNewDog({ ...newDog, name: v })} />
-        <Field label="Razza" value={newDog.breed} onChangeText={(v) => setNewDog({ ...newDog, breed: v })} />
-        <Field label="Nato il (AAAA-MM-GG)" value={newDog.birth} onChangeText={(v) => setNewDog({ ...newDog, birth: v })} placeholder="2024-03-15" />
-        <Button title="Aggiungi" small kind="ghost" onPress={addDog} disabled={!newDog.name.trim()} />
+        <Body bold>{t('Aggiungi un cane')}</Body>
+        <Field label={t('Nome')} value={newDog.name} onChangeText={(v) => setNewDog({ ...newDog, name: v })} />
+        <Field label={t('Razza')} value={newDog.breed} onChangeText={(v) => setNewDog({ ...newDog, breed: v })} />
+        <Field label={t('Nato il (AAAA-MM-GG)')} value={newDog.birth} onChangeText={(v) => setNewDog({ ...newDog, birth: v })} placeholder="2024-03-15" />
+        <Button title={t('Aggiungi')} small kind="ghost" onPress={addDog} disabled={!newDog.name.trim()} />
       </Card>
       <ErrorText>{err}</ErrorText>
 
       {invoices.length > 0 && (
         <>
-          <Step title="Fatture e scontrini" />
+          <Step title={t('Fatture e scontrini')} />
           {invoices.map((i) => (
             <Card key={i.id}>
               <Row style={{ justifyContent: 'space-between' }}>
                 <Body bold>{invoiceTitle(i)}</Body>
-                {i.status === 'sent' ? <Badge tone="ok">Emesso</Badge> : <Badge tone="warn">In preparazione</Badge>}
+                {i.status === 'sent' ? <Badge tone="ok">{t('Emesso')}</Badge> : <Badge tone="warn">{t('In preparazione')}</Badge>}
               </Row>
               <Muted>
                 {i.description} · {euro(i.total_cents)}
@@ -178,31 +179,34 @@ export default function Profile() {
             </Card>
           ))}
           <Muted style={{ fontSize: 13 }}>
-            Le fatture inviate le trovi anche nel tuo cassetto fiscale sul sito dell&apos;Agenzia delle Entrate. Lo scontrino te lo
-            consegna il campo.
+            {t("Le fatture inviate le trovi anche nel tuo cassetto fiscale sul sito dell'Agenzia delle Entrate. Lo scontrino te lo consegna il campo.")}
           </Muted>
         </>
       )}
 
-      <Step title="Documenti" />
+      <Step title={t('Documenti')} />
       <Card>
-        {settings && <Expandable title="il regolamento" lines={rulesLines(settings, lessonTypes)} />}
-        {settings && <Expandable title="l'informativa privacy" lines={settings.privacy.split('\n').filter(Boolean)} />}
+        {settings && <Expandable title={t('il regolamento')} lines={rulesLines(settings, lessonTypes)} />}
+        {settings && <Expandable title={t("l'informativa privacy")} lines={settings.privacy.split('\n').filter(Boolean)} />}
         <Muted style={{ fontSize: 13 }}>
-          Consensi dati il {shortDate(profile?.rules_accepted_at)} (regolamento) e il {shortDate(profile?.privacy_accepted_at)} (privacy).
+          {t('Consensi dati il {regolamento} (regolamento) e il {privacy} (privacy).', {
+            regolamento: shortDate(profile?.rules_accepted_at),
+            privacy: shortDate(profile?.privacy_accepted_at),
+          })}
         </Muted>
       </Card>
 
-      <Button title="Esci" kind="ghost" onPress={() => supabase.auth.signOut()} />
+      <Step title={t('Lingua')} />
+      <LangPicker />
 
-      <Step title="Cancella account" />
+      <Button title={t('Esci')} kind="ghost" onPress={() => supabase.auth.signOut()} />
+
+      <Step title={t('Cancella account')} />
       <Card>
         <Muted>
-          Annulla le tue lezioni in programma e cancella i tuoi dati, i cani e i pacchetti. Le fatture già emesse restano al
-          campo, come chiede la legge. Le lezioni rimaste nei pacchetti non vengono rimborsate dall&apos;app: parlane con il
-          campo prima di procedere.
+          {t("Annulla le tue lezioni in programma e cancella i tuoi dati, i cani e i pacchetti. Le fatture già emesse restano al campo, come chiede la legge. Le lezioni rimaste nei pacchetti non vengono rimborsate dall'app: parlane con il campo prima di procedere.")}
         </Muted>
-        <ConfirmButton title="Cancella il mio account" onConfirm={deleteAccount} />
+        <ConfirmButton title={t('Cancella il mio account')} onConfirm={deleteAccount} />
         <ErrorText>{deleteErr}</ErrorText>
       </Card>
     </Screen>

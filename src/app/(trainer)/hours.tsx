@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { SlotEditor, editableDays } from '@/components/slot-editor';
 import { Body, H1, Muted, Screen } from '@/components/ui';
 import { STEP } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
@@ -45,14 +46,13 @@ export default function TrainerHours() {
 
   return (
     <Screen>
-      <H1>La mia disponibilità</H1>
+      <H1>{t('La mia disponibilità')}</H1>
       <Muted>
-        Scegli un giorno e tocca le mezz&apos;ore in cui puoi fare lezione. Il campo ti assegna lezioni solo lì. In oro le mezz&apos;ore in cui hai già
-        una lezione.
+        {t("Scegli un giorno e tocca le mezz'ore in cui puoi fare lezione. Il campo ti assegna lezioni solo lì. In oro le mezz'ore in cui hai già una lezione.")}
       </Muted>
       {!everSet && (
         <Body style={{ color: c.brassText }}>
-          Non hai ancora segnato orari, quindi per il campo sei disponibile sempre. Appena salvi un giorno, conteranno solo le mezz&apos;ore segnate.
+          {t("Non hai ancora segnato orari, quindi per il campo sei disponibile sempre. Appena salvi un giorno, conteranno solo le mezz'ore segnate.")}
         </Body>
       )}
       <SlotEditor

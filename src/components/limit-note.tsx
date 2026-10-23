@@ -1,4 +1,5 @@
 import { Muted } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { planAbove, usePlan } from '@/lib/plans';
 
 /** Avviso sotto una lista che il piano limita, per esempio "fino a 3 lezioni prenotabili". */
@@ -9,8 +10,8 @@ export function LimitNote({ kind, count, what }: { kind: Parameters<typeof planA
   return (
     <Muted style={{ fontSize: 13 }}>
       {count >= max
-        ? `Il piano ${plan.label} comprende fino a ${max} ${what}. Per averne di più serve il piano ${planAbove(kind, max)}.`
-        : `Il piano ${plan.label} comprende fino a ${max} ${what}.`}
+        ? t('Il piano {piano} comprende fino a {max} {cosa}. Per averne di più serve il piano {altro}.', { piano: plan.label, max, cosa: what, altro: planAbove(kind, max) })
+        : t('Il piano {piano} comprende fino a {max} {cosa}.', { piano: plan.label, max, cosa: what })}
     </Muted>
   );
 }

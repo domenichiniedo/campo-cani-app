@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { useColorScheme, View } from 'react-native';
 
 import { Body, Button, H1, Muted } from '@/components/ui';
+import { t, useLang } from '@/lib/i18n';
 import { SessionProvider, useSession } from '@/lib/session';
 import { Activate } from '@/components/activate';
 import { ownerOnly } from '@/lib/edition';
@@ -19,6 +20,8 @@ SplashScreen.preventAutoHideAsync();
 function Navigator() {
   const { ready, session, profile, isOwner, isTrainer, needsTerms, needsBilling } = useSession();
   const plan = usePlan();
+  // Cambiando lingua tutte le schermate si ridisegnano.
+  const l = useLang();
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
@@ -26,13 +29,13 @@ function Navigator() {
 
   // Il programma per Windows si apre solo con una licenza del piano che lo comprende.
   if (ownerOnly && !plan.desktop)
-    return <Activate reason={`Il programma per Windows è compreso nel piano ${planWith('desktop')}, la tua licenza è del piano ${plan.label}. Inserisci un codice ${planWith('desktop')}, oppure usa l'app sul telefono.`} />;
+    return <Activate reason={t("Il programma per Windows è compreso nel piano {piano}, la tua licenza è del piano {tuo}. Inserisci un codice {piano}, oppure usa l'app sul telefono.", { piano: planWith('desktop'), tuo: plan.label })} />;
   if (!ready) return null;
   const signedIn = !!session && !!profile;
   if (ownerOnly && signedIn && !isOwner) return <OwnerOnly />;
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack key={l} screenOptions={{ headerShown: false }}>
       <Stack.Screen name="attiva" />
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="(auth)" />
@@ -61,9 +64,9 @@ function OwnerOnly() {
   const c = useColors();
   return (
     <View style={{ flex: 1, padding: 24, justifyContent: 'center', gap: 12, backgroundColor: c.bg }}>
-      <H1>Solo per il proprietario</H1>
-      <Body>Questo programma serve a gestire il campo. Per prenotare, o per le lezioni da trainer, usa l&apos;app sul telefono.</Body>
-      <Button title="Esci" onPress={() => supabase.auth.signOut()} />
+      <H1>{t('Solo per il proprietario')}</H1>
+      <Body>{t("Questo programma serve a gestire il campo. Per prenotare, o per le lezioni da trainer, usa l'app sul telefono.")}</Body>
+      <Button title={t('Esci')} onPress={() => supabase.auth.signOut()} />
     </View>
   );
 }
@@ -75,12 +78,12 @@ function NotConfigured() {
   }, []);
   return (
     <View style={{ flex: 1, padding: 24, justifyContent: 'center', gap: 12, backgroundColor: c.bg }}>
-      <H1>Manca il collegamento</H1>
-      <Body>L&apos;app non sa ancora a quale database collegarsi.</Body>
+      <H1>{t('Manca il collegamento')}</H1>
+      <Body>{t("L'app non sa ancora a quale database collegarsi.")}</Body>
       <Muted>
         {ownerOnly
-          ? 'Su GitHub, in Settings → Secrets and variables → Actions → Variables, inserisci EXPO_PUBLIC_SUPABASE_URL ed EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY del tuo progetto Supabase, poi ricostruisci il programma (Actions → App per Windows → Run workflow).'
-          : 'Copia il file .env.example in .env.local e inserisci EXPO_PUBLIC_SUPABASE_URL ed EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY del tuo progetto Supabase, poi riavvia con npx expo start.'}
+          ? t('Su GitHub, in Settings → Secrets and variables → Actions → Variables, inserisci EXPO_PUBLIC_SUPABASE_URL ed EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY del tuo progetto Supabase, poi ricostruisci il programma (Actions → App per Windows → Run workflow).')
+          : t('Copia il file .env.example in .env.local e inserisci EXPO_PUBLIC_SUPABASE_URL ed EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY del tuo progetto Supabase, poi riavvia con npx expo start.')}
       </Muted>
     </View>
   );
