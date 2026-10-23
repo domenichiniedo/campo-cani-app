@@ -64,7 +64,7 @@ code { font-family: ui-monospace, monospace; color: var(--text); }
   var people = document.querySelectorAll('#people button'), planButtons = document.querySelectorAll('#plans button');
   // Licenze di prova, firmate con una chiave solo per la demo.
   var CODES = {"base": "CC1.eyJ2IjoxLCJpZCI6ImRlbW8iLCJjYW1wbyI6IkNlbnRybyBDaW5vZmlsbyBMZSBRdWVyY2UiLCJwaWFubyI6ImJhc2UiLCJzY2FkZSI6bnVsbCwiZW1lc3NhIjoiMjAyNi0xMC0yMiIsInVybCI6Imh0dHBzOi8vZGVtby5zdXBhYmFzZS5jbyIsImNoaWF2ZSI6InNiX3B1Ymxpc2hhYmxlX2RlbW8ifQ.M03U9XHbE6lsFNpPJGfJbQkk3M5rdx9wJ-1GwPSKH0iTKjEUXsyOWQTFX0hP9EI0avz9Nv_gAtbo5gNKN1P2AQ", "professional": "CC1.eyJ2IjoxLCJpZCI6ImRlbW8iLCJjYW1wbyI6IkNlbnRybyBDaW5vZmlsbyBMZSBRdWVyY2UiLCJwaWFubyI6InByb2Zlc3Npb25hbCIsInNjYWRlIjpudWxsLCJlbWVzc2EiOiIyMDI2LTEwLTIyIiwidXJsIjoiaHR0cHM6Ly9kZW1vLnN1cGFiYXNlLmNvIiwiY2hpYXZlIjoic2JfcHVibGlzaGFibGVfZGVtbyJ9._wTTU6c1k4nN_LEEO6It5zWSBrDnqzqzljRwVcwFgjPH46cpLEfTbF0TGCu3h7mVoA9iMlKn1b7_dRjgYJe6Aw", "pro": "CC1.eyJ2IjoxLCJpZCI6ImRlbW8iLCJjYW1wbyI6IkNlbnRybyBDaW5vZmlsbyBMZSBRdWVyY2UiLCJwaWFubyI6InBybyIsInNjYWRlIjpudWxsLCJlbWVzc2EiOiIyMDI2LTEwLTIyIiwidXJsIjoiaHR0cHM6Ly9kZW1vLnN1cGFiYXNlLmNvIiwiY2hpYXZlIjoic2JfcHVibGlzaGFibGVfZGVtbyJ9.XNRhCot2sINDgFDcbcTkYID8Ccr1w82Nq1NOvXNFcsPsujj5tucI_xYxLGvJmVuJKoTjmtIX_0InOgXhUX_dBQ"};
-  var PLAN = 'campo-cani-demo-piano', LICENSE = 'campo-cani-licenza', DB = 'campo-demo-db-v9';
+  var PLAN = 'campo-cani-demo-piano', LICENSE = 'campo-cani-licenza', DB = 'campo-demo-db-v10';
   function currentPlan() { try { return CODES[localStorage.getItem(PLAN)] ? localStorage.getItem(PLAN) : 'pro'; } catch (e) { return 'pro'; } }
   function markPlan(p) { planButtons.forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-plan') === p); }); }
   function usePlan(p) {
