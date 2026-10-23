@@ -6,7 +6,7 @@
 #   supabase_url   https://xxxx.supabase.co del progetto (vuoto: la variabile EXPO_PUBLIC_SUPABASE_URL del repository)
 #   supabase_key   la chiave publishable sb_publishable_... (vuoto: EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY)
 #   giorni         durata della prova; 0 = senza scadenza
-# Esce nelle Releases: "Prova per Android – xxxx" (K9Manager-Prova.apk, una per ogni progetto, così più prove
+# Esce nelle Releases: "Prova di K9 Manager – xxxx" (K9Manager-Prova.apk, una per ogni progetto, così più prove
 # non si sovrascrivono) o "App per Android" (K9Manager.apk). Con il repository privato il file si scarica solo
 # con il tuo account GitHub: a chi prova l'app mandalo tu (WhatsApp, email).
 # Mai la chiave segreta di Supabase: quella publishable è fatta per stare nell'app.
@@ -133,8 +133,12 @@ jobs:
         run: |
           if [ -n "$EXPO_PUBLIC_PROVA_FINO" ]; then
             REF=$(echo "$EXPO_PUBLIC_SUPABASE_URL" | sed 's#https://##; s#\.supabase\.co.*##')
-            TAG=prova-$REF; TITLE="Prova per Android – $REF"
-            NOTES="Prova di K9 Manager nel piano Pro, collegata al database della prova. Vale fino al $(echo $EXPO_PUBLIC_PROVA_FINO | awk -F- '{print $3"/"$2"/"$1}') compreso, poi l'app mostra che la prova è finita. Scarica K9Manager-Prova.apk dal telefono e aprilo per installarlo."
+            TAG=prova-$REF; TITLE="Prova di K9 Manager – $REF"
+            FINO=$(echo $EXPO_PUBLIC_PROVA_FINO | awk -F- '{print $3"/"$2"/"$1}')
+            NOTES="Prova di K9 Manager nel piano Pro, collegata al database della prova. Vale fino al $FINO compreso, poi l'app mostra che la prova è finita.
+
+          - Android: scarica K9Manager-Prova.apk dal telefono e aprilo per installarlo.
+          - Windows (programma del proprietario): scarica K9Manager-Prova-Windows.exe e aprilo per installarlo."
           else
             TAG=app-android; TITLE="App per Android"
             NOTES="K9 Manager per Android, da installare senza Play Store. Scarica K9Manager.apk dal telefono e aprilo per installarlo."

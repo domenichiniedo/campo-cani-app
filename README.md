@@ -320,7 +320,8 @@ salvalo nel repository in **Settings → Secrets and variables → Actions → N
 `SUPABASE_ACCESS_TOKEN`. Poi per ogni prova: **Actions → Prova con database → Run workflow** con il nome del centro,
 l'email del proprietario e i giorni (se hai già creato il progetto su supabase.com, scrivi anche il suo codice, quello
 di `xxxx.supabase.co`). Il workflow crea il progetto Supabase gratuito con il database pronto (senza
-conferma via email) e costruisce l'APK: in una quindicina di minuti è in **Releases → Prova per Android – xxxx**.
+conferma via email) e costruisce l'APK per Android e il programma per Windows del proprietario: in una quindicina
+di minuti sono in **Releases → Prova di K9 Manager – xxxx** (`K9Manager-Prova.apk` e `K9Manager-Prova-Windows.exe`).
 Poi segui i punti 4 e 5 qui sotto.
 
 **A mano**, se preferisci:
@@ -333,8 +334,10 @@ Poi segui i punti 4 e 5 qui sotto.
 2. In **Project Settings → API Keys** copia l'URL del progetto e la **Publishable key** (`sb_publishable_...`). Mai la
    Secret key.
 3. Su GitHub: **Actions → App per Android → Run workflow**, con l'URL, la publishable key e i giorni (3). In una decina
-   di minuti esce in **Releases → Prova per Android – xxxx** il file `K9Manager-Prova.apk`, che vale fino a oggi più i
-   giorni scelti, compreso l'ultimo.
+   di minuti esce in **Releases → Prova di K9 Manager – xxxx** il file `K9Manager-Prova.apk`, che vale fino a oggi più
+   i giorni scelti, compreso l'ultimo. Per il programma Windows del proprietario: **Actions → App per Windows → Run
+   workflow** con gli stessi dati; esce `K9Manager-Prova-Windows.exe` nella stessa release, e si installa accanto
+   alla demo.
 4. Il repository è privato: scarica l'APK con il tuo account e mandalo tu a chi prova (WhatsApp, email). Si installa
    come la demo; è un'app a parte, quindi può stare accanto alla demo.
 5. Il proprietario si iscrive dall'app con l'email scritta in `setup.sql` (punto 2), poi imposta il centro. Clienti e
