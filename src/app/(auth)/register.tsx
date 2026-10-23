@@ -28,6 +28,7 @@ export default function Register() {
   const [dogs, setDogs] = useState<DogDraft[]>([{ name: '', breed: '', birth: '' }]);
   const [rulesOk, setRulesOk] = useState(false);
   const [privacyOk, setPrivacyOk] = useState(false);
+  const [socialOk, setSocialOk] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [sent, setSent] = useState(false);
@@ -67,6 +68,7 @@ export default function Register() {
           ...(asTrainer ? {} : billingColumns(billing)),
           rules_ver: settings.rules_ver,
           privacy_ver: settings.privacy_ver,
+          social_consent: !asTrainer && socialOk,
           dogs: asTrainer ? [] : cleanDogs.map((d) => ({ name: d.name.trim(), breed: d.breed.trim(), birth: d.birth || null })),
         },
       },
@@ -166,6 +168,14 @@ export default function Register() {
         <Check value={privacyOk} onChange={setPrivacyOk}>
           {t("Ho letto l'informativa e acconsento al trattamento dei miei dati per gestire le prenotazioni.")}
         </Check>
+        {!asTrainer && (
+          <>
+            <Check value={socialOk} onChange={setSocialOk}>
+              {t('Acconsento alla pubblicazione sui social del centro di foto e video in cui compaiono i miei cani o io.')}
+            </Check>
+            <Muted style={{ fontSize: 13 }}>{t('Facoltativo: puoi iscriverti anche senza, e cambiare idea quando vuoi dal Profilo.')}</Muted>
+          </>
+        )}
       </Card>
 
       <ErrorText>{err}</ErrorText>

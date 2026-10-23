@@ -61,8 +61,10 @@
       var look = looks[db.profiles.length % looks.length], photo = role === 'client' ? 'cliente-' + id + '-demo.svg' : null;
       if (photo) db.files['foto/' + photo] = avatar(look[0], look[1], look[2]);
       db.profiles.push({ id: id, first_name: first, last_name: last, phone: phone, email: email, role: role, photo_path: photo,
-        tax_code: cf || '', billing_street: cf ? 'Via Saragozza 15' : '', billing_zip: cf ? '40123' : '', billing_city: cf ? 'Bologna' : '', billing_province: cf ? 'BO' : '', doc_pref: id === 'c3' ? 'receipt' : 'invoice', rules_ver: 1, privacy_ver: 1, rules_accepted_at: nowIso(), privacy_accepted_at: nowIso(), created_at: addDays(t, -40).toISOString() });
+        tax_code: cf || '', billing_street: cf ? 'Via Saragozza 15' : '', billing_zip: cf ? '40123' : '', billing_city: cf ? 'Bologna' : '', billing_province: cf ? 'BO' : '', doc_pref: id === 'c3' ? 'receipt' : 'invoice', social_consent: role === 'client' && id !== 'c2' && db.profiles.length % 3 !== 0, social_consent_at: null, rules_ver: 1, privacy_ver: 1, rules_accepted_at: nowIso(), privacy_accepted_at: nowIso(), created_at: addDays(t, -40).toISOString() });
       db.passwords[email] = 'demo1234';
+      var me0 = db.profiles[db.profiles.length - 1];
+      if (me0.social_consent) me0.social_consent_at = me0.created_at;
     }
     person('owner', 'Edo', 'Proprietario', '333 000 0000', 'proprietario@demo.it', 'owner');
     // Luca entra nell'app come trainer, collegato al trainer t1.
@@ -380,6 +382,7 @@
           if (r.status === 'cancelled') { b.status = 'cancelled'; b.cancelled_at = nowIso(); refund(b); } else b.trainer_id = r.trainer_id;
         });
         if (table === 'profiles' && who.role !== 'owner') r.role = old.role;
+        if (table === 'profiles') r.social_consent_at = r.social_consent !== old.social_consent ? nowIso() : old.social_consent_at;
       });
     } else if (method === 'POST') {
       var list = Array.isArray(body) ? body : [body];
@@ -712,7 +715,7 @@
       if ((body.password || '').length < 8) return json(422, { code: 'weak_password', msg: 'Password should be at least 8 characters', message: 'Password should be at least 8 characters' });
       var d = body.data || {};
       var np = { id: uid(), first_name: d.first_name || '', last_name: d.last_name || '', phone: d.phone || '', email: email, role: 'client',
-        tax_code: d.tax_code || '', billing_street: d.billing_street || '', billing_zip: d.billing_zip || '', billing_city: d.billing_city || '', billing_province: d.billing_province || '', rules_ver: d.rules_ver, privacy_ver: d.privacy_ver, rules_accepted_at: nowIso(), privacy_accepted_at: nowIso(), created_at: nowIso() };
+        tax_code: d.tax_code || '', billing_street: d.billing_street || '', billing_zip: d.billing_zip || '', billing_city: d.billing_city || '', billing_province: d.billing_province || '', social_consent: !!d.social_consent, social_consent_at: d.social_consent ? nowIso() : null, rules_ver: d.rules_ver, privacy_ver: d.privacy_ver, rules_accepted_at: nowIso(), privacy_accepted_at: nowIso(), created_at: nowIso() };
       db.profiles.push(np);
       db.passwords[email] = body.password;
       // Come nel database vero: chi si iscrive con l'email di un trainer diventa trainer.

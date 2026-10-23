@@ -18,7 +18,8 @@ export default function TrainerLayout() {
         headerShown: false,
         tabBarActiveTintColor: c.accent,
         tabBarInactiveTintColor: c.muted,
-        tabBarStyle: { backgroundColor: c.surface, borderTopColor: c.line },
+        // Altezza secondo il contenuto: con le scritte ingrandite del telefono le etichette non si tagliano.
+        tabBarStyle: { backgroundColor: c.surface, borderTopColor: c.line, height: 'auto', minHeight: 49 },
       }}>
       <Tabs.Screen name="index" options={{ title: t('Lezioni'), tabBarIcon: tabIcon('◷') }} />
       <Tabs.Screen name="hours" options={{ title: t('Disponibilità'), tabBarIcon: tabIcon('◑') }} />

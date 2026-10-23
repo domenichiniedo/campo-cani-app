@@ -69,6 +69,9 @@ export type Profile = {
   billing_province: string;
   /** Foto nello spazio "foto", messa dal cliente; null = iniziali. */
   photo_path: string | null;
+  /** Consenso facoltativo a pubblicare foto e video sui social del centro, con la data dell'ultima scelta. */
+  social_consent: boolean;
+  social_consent_at: string | null;
 };
 
 export type Dog = {

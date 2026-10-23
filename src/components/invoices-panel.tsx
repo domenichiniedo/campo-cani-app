@@ -24,7 +24,7 @@ const RECEIPT_MODES: { value: InvoiceSettings['receipt_mode']; label: string; he
   {
     value: 'device',
     label: tKey('Registratore al campo'),
-    help: tKey('Il telefono o il PC Windows lo stampa sul registratore Epson RT del campo: devono essere sulla sua stessa rete.'),
+    help: tKey('Il telefono o il computer lo stampa sul registratore Epson RT del campo: devono essere sulla sua stessa rete.'),
   },
 ];
 
