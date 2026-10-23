@@ -55,6 +55,8 @@ jobs:
         working-directory: desktop
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          # La firma è ad-hoc, senza certificati: si può fare anche nelle PR.
+          CSC_FOR_PULL_REQUEST: 'true'
       # Il programma deve aprirsi e restare aperto: la schermata finisce negli Artifacts.
       - name: Prova che si apre
         run: |
