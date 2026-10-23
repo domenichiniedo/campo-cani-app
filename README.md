@@ -9,19 +9,11 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
 ## 1. Crea il database (una volta sola)
 
 1. Vai su <https://supabase.com>, crea un account e un nuovo progetto. Come regione scegli Europa (per esempio Frankfurt).
-2. Nel progetto apri **SQL Editor**, incolla tutto il file `supabase/migrations/0001_init.sql` e premi **Run**.
-   Crea tabelle, regole di accesso, le due lezioni di partenza e lo spazio per il logo.
-   Poi fai lo stesso con `supabase/migrations/0002_campi_trainer.sql`, che aggiunge campi e trainer.
-   Se avevi già eseguito il primo file, esegui solo il secondo: orari e prenotazioni esistenti passano al primo campo.
-   Poi, in ordine, `0003_fatturazione.sql` (codice fiscale e indirizzo di fatturazione), `0004_pacchetti.sql` (pacchetti
-   di lezioni), `0005_cancellazione_account.sql` (il cliente può cancellare il proprio account), `0006_fatture.sql`
-   (fatture dei pagamenti online), `0007_scontrini.sql` (scontrino elettronico in alternativa alla fattura) e
-   `0008_licenza.sql` (licenza per l'app venduta ad altri centri), `0009_piani.sql` (piani Base, Professional e Pro),
-   `0010_prenota_proprietario.sql` (il proprietario prenota per i clienti), `0011_disponibilita_trainer.sql` (orari dei
-   trainer), `0012_documento_pacchetti.sql` (fattura o scontrino all'incasso dei pacchetti), `0013_area_trainer.sql`
-   (app dei trainer e diario di allenamento dei cani) e `0014_foto_e_penalita.sql` (foto di trainer e clienti,
-   penalità date dal trainer).
-   Ogni file va eseguito una volta sola.
+2. Apri il file `supabase/setup.sql`, scrivi nell'**ultima riga** la tua email al posto di `titolare@esempio.it`, poi
+   nel progetto apri **SQL Editor**, incolla tutto il file e premi **Run**. Crea in un colpo tabelle, regole di accesso,
+   lezioni di partenza e spazi per logo e foto, e segna la tua email come quella del proprietario.
+   `setup.sql` è solo per un progetto **nuovo**. Se il database esiste già, esegui solo le migrazioni nuove di
+   `supabase/migrations`, una volta ciascuna e in ordine (l'ultima è `0015_proprietario_automatico.sql`).
 3. In **Project Settings → API Keys** copia l'URL del progetto e la **Publishable key** (inizia con `sb_publishable_`).
    Non usare mai la Secret key nell'app.
 4. Copia il file `.env.example` in `.env.local` e incolla i due valori:
@@ -50,15 +42,16 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
 
 La password la scegli tu e non passa da nessun altro.
 
-1. Avvia l'app (punto 3) e iscriviti come un cliente qualsiasi, con la tua email e la tua password. Come cane puoi scrivere
-   quello che vuoi.
-2. Su Supabase, in **SQL Editor**, esegui (con la tua email):
+1. Avvia l'app (punto 3) e iscriviti con **la stessa email** che hai scritto in `setup.sql`, con la tua password. Come
+   cane puoi scrivere quello che vuoi.
+2. Entri già come proprietario: il database riconosce la tua email. Se ti eri iscritto prima di eseguire `setup.sql`, o
+   vuoi cambiare l'email del proprietario, esegui nel **SQL Editor** (con la tua email):
 
    ```sql
-   update public.profiles set role = 'owner' where email = 'tua@email.it';
+   select public.set_owner_email('tua@email.it');
    ```
 
-3. Esci e rientra nell'app: vedrai le schede del proprietario (Giorno, Settimana, Orari, Clienti, Impostazioni).
+3. Se eri già dentro, esci e rientra: vedrai le schede del proprietario (Giorno, Settimana, Orari, Clienti, Impostazioni).
 
 Per prima cosa vai in **Impostazioni**: nome del centro, logo, numero di campi con nome e indirizzo, trainer, prezzi,
 regolamento e privacy. Poi in **Orari** apri, campo per campo, i giorni e le mezz'ore prenotabili.
@@ -169,17 +162,39 @@ firmato con una chiave privata che resta sul tuo computer: chi non ce l'ha non p
 2. Pubblica l'app sugli store (punto 4) **senza** `.env.local`: così chiede il codice al primo avvio. Anche il tuo campo
    userà un suo codice. Nelle note per la revisione di Apple e Google metti un codice di prova e un utente di prova.
 
-**Per ogni centro che compra**
+**Per ogni centro che compra: un solo comando**
 
-1. Crea il suo progetto Supabase (meglio sul suo account, così i dati dei suoi clienti sono suoi) ed esegui le
-   migrazioni, dalla `0001` alla `0014`, come al punto 1.
+Sul tuo computer (dove c'è la chiave privata delle licenze):
+
+1. La prima volta crea un token del tuo account Supabase in **supabase.com → Account → Access Tokens** e salvalo, da
+   solo su una riga, nel file `~/.campo-cani/supabase-token` (oppure nella variabile `SUPABASE_ACCESS_TOKEN`). Il token
+   crea progetti sul tuo account: non metterlo mai nell'app né su GitHub.
+2. Lancia:
+   ```sh
+   node tools/nuovo-centro.mjs --campo "Centro Cinofilo Le Querce" --email titolare@lequerce.it \
+     --piano professional --scadenza 2027-12-31
+   ```
+   In 2-3 minuti il comando crea il progetto Supabase (in Europa), esegue tutte le migrazioni, segna l'email del titolare
+   come proprietario, imposta l'email per la password dimenticata, prende la **publishable key** e genera la licenza.
+   Alla fine stampa il codice e il **link di attivazione** da mandare al titolare. I dati del centro (compresa la
+   password del database) restano in `~/.campo-cani/centri/<id>.json`: servono per rinnovi e cambi di piano.
+3. Il titolare apre il link dal telefono, si iscrive con la sua email ed entra già come proprietario. Da
+   **Impostazioni → Licenza** manda ai suoi clienti il link di attivazione.
+
+Opzioni: `--id` (di solito lo ricava dal nome), `--regione` (predefinita `eu-central-1`), `--org` se hai più
+organizzazioni Supabase.
+
+**A mano, senza il comando** (per esempio se il progetto sta sull'account Supabase del centro):
+
+1. Crea il progetto, scrivi l'email del titolare nell'ultima riga di `supabase/setup.sql` ed eseguilo nel SQL Editor,
+   come al punto 1. Imposta l'email della password dimenticata (punto 1, **Email**).
 2. Genera la licenza con il piano, l'indirizzo e la **publishable key** del suo progetto:
    ```sh
    node tools/licenza.mjs genera --campo "Centro Cinofilo Le Querce" --id querce --piano professional \
      --scadenza 2027-12-31 --url https://xxxx.supabase.co --chiave sb_publishable_xxxx
    ```
-3. Manda il codice al centro. Il titolare installa l'app, incolla il codice, si iscrive e lo rendi proprietario come al
-   punto 2. Da **Impostazioni → Licenza** manda ai suoi clienti il link di attivazione.
+3. Manda il codice al centro. Il titolare installa l'app, incolla il codice, si iscrive con la sua email ed entra già
+   come proprietario.
 
 **Rinnovo e sospensione**
 

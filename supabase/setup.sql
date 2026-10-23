@@ -1,0 +1,1341 @@
+-- K9 Manager: tutto il database in un solo file, per un progetto Supabase NUOVO.
+-- 1. Scrivi l'email del titolare del centro nell'ultima riga, al posto di titolare@esempio.it.
+-- 2. Incolla tutto il file nel SQL Editor di Supabase e premi Run.
+-- Il titolare poi si iscrive dall'app con quella email ed entra già come proprietario.
+-- Non eseguirlo su un database che ha già i dati: lì servono solo le migrazioni nuove.
+-- File generato da tools/setup-sql.mjs: non modificarlo a mano.
+
+-- ===== 0001_init.sql =====
+
+-- Campo cani: schema iniziale.
+-- Da eseguire una volta nel SQL Editor di Supabase (o con `supabase db push`).
+
+create extension if not exists pgcrypto;
+
+-- ---------------------------------------------------------------
+-- Impostazioni del campo (una sola riga)
+-- ---------------------------------------------------------------
+create table public.settings (
+  id int primary key default 1 check (id = 1),
+  field_name text not null default 'Il tuo campo',
+  field_address text not null default '',
+  logo_path text,
+  open_min int not null default 480 check (open_min between 0 and 1440),
+  close_min int not null default 1200 check (close_min between 0 and 1440),
+  cancel_hours int not null default 2 check (cancel_hours >= 0),
+  penalty_limit int not null default 3 check (penalty_limit >= 0),
+  online_payments boolean not null default false,
+  rules text not null default E'È richiesto il libretto vaccinale in regola.\nRaccogli sempre le deiezioni del cane.',
+  privacy text not null default E'Informativa sul trattamento dei dati personali (testo di esempio da completare)\n\nTitolare del trattamento: [nome e cognome o ragione sociale], [indirizzo], [email di contatto].\n\nDati raccolti: nome, cognome, telefono, email, dati dei cani e prenotazioni.\n\nFinalità: gestire l''iscrizione, le prenotazioni del campo, i pagamenti e le comunicazioni di servizio.\n\nConservazione: i dati sono conservati per il tempo necessario a fornire il servizio e agli obblighi di legge.\n\nDiritti: puoi chiedere in ogni momento accesso, rettifica o cancellazione dei tuoi dati scrivendo a [email di contatto].',
+  rules_ver int not null default 1,
+  privacy_ver int not null default 1,
+  updated_at timestamptz not null default now(),
+  check (close_min > open_min)
+);
+insert into public.settings (id) values (1);
+
+-- Ogni modifica al testo di regolamento o privacy alza la versione:
+-- i clienti già iscritti dovranno riaccettarlo.
+create function public.bump_consent_versions() returns trigger
+language plpgsql as $$
+begin
+  if new.rules is distinct from old.rules then new.rules_ver := old.rules_ver + 1; end if;
+  if new.privacy is distinct from old.privacy then new.privacy_ver := old.privacy_ver + 1; end if;
+  new.updated_at := now();
+  return new;
+end $$;
+create trigger settings_versions before update on public.settings
+  for each row execute function public.bump_consent_versions();
+
+-- ---------------------------------------------------------------
+-- Tipi di lezione
+-- ---------------------------------------------------------------
+create table public.lesson_types (
+  id text primary key,
+  label text not null,
+  description text not null default '',
+  duration_min int not null check (duration_min > 0 and duration_min % 30 = 0),
+  price_cents int not null default 0 check (price_cents >= 0),
+  options text[] not null default '{}',
+  sort int not null default 0,
+  active boolean not null default true
+);
+insert into public.lesson_types (id, label, description, duration_min, price_cents, options, sort) values
+  ('igp', 'IGP', 'Scegli la fase da allenare', 60, 2500, array['Pista','Obbedienza','Attacco'], 1),
+  ('base', 'Educazione base', 'Primi comandi e gestione', 30, 1500, array['Cucciolo (meno di 1,5 anni)','Adulto (più di 1,5 anni)'], 2);
+
+-- ---------------------------------------------------------------
+-- Profili (clienti e proprietario)
+-- ---------------------------------------------------------------
+create table public.profiles (
+  id uuid primary key references auth.users on delete cascade,
+  first_name text not null default '',
+  last_name text not null default '',
+  phone text not null default '',
+  email text not null default '',
+  role text not null default 'client' check (role in ('client','owner')),
+  rules_ver int,
+  privacy_ver int,
+  rules_accepted_at timestamptz,
+  privacy_accepted_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create function public.is_owner() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.profiles where id = auth.uid() and role = 'owner')
+$$;
+
+-- Un cliente non può cambiarsi il ruolo da solo.
+create function public.guard_profile() returns trigger
+language plpgsql as $$
+begin
+  if new.role is distinct from old.role and auth.uid() is not null and not public.is_owner() then
+    raise exception 'Non puoi cambiare il ruolo';
+  end if;
+  return new;
+end $$;
+create trigger profiles_guard before update on public.profiles
+  for each row execute function public.guard_profile();
+
+-- ---------------------------------------------------------------
+-- Cani
+-- ---------------------------------------------------------------
+create table public.dogs (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references public.profiles on delete cascade,
+  name text not null check (length(trim(name)) > 0),
+  breed text not null default '',
+  birth date,
+  blocked boolean not null default false,
+  archived boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index on public.dogs (owner_id);
+
+create function public.guard_dog() returns trigger
+language plpgsql as $$
+begin
+  if new.blocked is distinct from old.blocked and auth.uid() is not null and not public.is_owner() then
+    raise exception 'Solo il proprietario può sospendere o riattivare un cane';
+  end if;
+  return new;
+end $$;
+create trigger dogs_guard before update on public.dogs
+  for each row execute function public.guard_dog();
+
+-- Alla registrazione crea profilo e cani dai dati inviati con l'iscrizione,
+-- così funziona anche quando l'email va confermata prima del primo accesso.
+create function public.handle_new_user() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  m jsonb := coalesce(new.raw_user_meta_data, '{}'::jsonb);
+  d jsonb;
+begin
+  insert into public.profiles (id, first_name, last_name, phone, email, rules_ver, privacy_ver, rules_accepted_at, privacy_accepted_at)
+  values (new.id, coalesce(m->>'first_name',''), coalesce(m->>'last_name',''), coalesce(m->>'phone',''), coalesce(new.email,''),
+          (m->>'rules_ver')::int, (m->>'privacy_ver')::int,
+          case when m ? 'rules_ver' then now() end, case when m ? 'privacy_ver' then now() end);
+  for d in select * from jsonb_array_elements(coalesce(m->'dogs','[]'::jsonb)) loop
+    if length(trim(coalesce(d->>'name',''))) > 0 then
+      insert into public.dogs (owner_id, name, breed, birth)
+      values (new.id, trim(d->>'name'), coalesce(d->>'breed',''), nullif(d->>'birth','')::date);
+    end if;
+  end loop;
+  return new;
+end $$;
+create trigger on_auth_user_created after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- ---------------------------------------------------------------
+-- Orari aperti: per ogni giorno, i minuti di inizio delle mezz'ore aperte
+-- ---------------------------------------------------------------
+create table public.availability (
+  day date primary key,
+  slots int[] not null default '{}'
+);
+
+-- ---------------------------------------------------------------
+-- Prenotazioni
+-- ---------------------------------------------------------------
+create table public.bookings (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles on delete cascade,
+  dog_id uuid not null references public.dogs on delete cascade,
+  lesson_type text not null references public.lesson_types,
+  lesson_option text not null default '',
+  day date not null,
+  start_min int not null check (start_min between 0 and 1439),
+  dur_min int not null check (dur_min > 0),
+  price_cents int not null default 0,
+  pay text not null default 'onsite' check (pay in ('online','onsite')),
+  paid boolean not null default false,
+  checked_in_at timestamptz,
+  note text not null default '',
+  status text not null default 'active' check (status in ('active','cancelled')),
+  cancelled_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index on public.bookings (day) where status = 'active';
+create index on public.bookings (user_id);
+
+-- ---------------------------------------------------------------
+-- Penalità
+-- ---------------------------------------------------------------
+create table public.penalties (
+  id uuid primary key default gen_random_uuid(),
+  dog_id uuid not null references public.dogs on delete cascade,
+  booking_id uuid references public.bookings on delete set null,
+  reason text not null,
+  created_at timestamptz not null default now()
+);
+create index on public.penalties (dog_id);
+
+-- Alla soglia impostata il cane viene sospeso in automatico.
+create function public.auto_block_dog() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare lim int; n int;
+begin
+  select penalty_limit into lim from public.settings where id = 1;
+  select count(*) into n from public.penalties where dog_id = new.dog_id;
+  if lim > 0 and n >= lim then
+    update public.dogs set blocked = true where id = new.dog_id;
+  end if;
+  return new;
+end $$;
+create trigger penalties_auto_block after insert on public.penalties
+  for each row execute function public.auto_block_dog();
+
+-- ---------------------------------------------------------------
+-- Funzioni per i clienti (girano con permessi controllati)
+-- ---------------------------------------------------------------
+
+-- Turni occupati in un intervallo, senza dati personali degli altri.
+create function public.busy_slots(from_day date, to_day date)
+returns table (day date, start_min int, dur_min int, mine boolean)
+language sql stable security definer set search_path = public as $$
+  select b.day, b.start_min, b.dur_min, b.user_id = auth.uid()
+  from public.bookings b
+  where b.status = 'active' and b.day between from_day and to_day
+$$;
+
+-- Prenota in modo sicuro: controlla consensi, cane, orari aperti e sovrapposizioni.
+create function public.book_slot(p_dog uuid, p_type text, p_option text, p_day date, p_start int, p_pay text)
+returns public.bookings
+language plpgsql security definer set search_path = public as $$
+declare
+  s public.settings; t public.lesson_types; pr public.profiles; dg public.dogs; av int[]; m int; res public.bookings;
+begin
+  if auth.uid() is null then raise exception 'Devi accedere per prenotare'; end if;
+  select * into s from public.settings where id = 1;
+  select * into pr from public.profiles where id = auth.uid();
+  if pr.rules_ver is distinct from s.rules_ver or pr.privacy_ver is distinct from s.privacy_ver then
+    raise exception 'Devi prima accettare regolamento e privacy aggiornati';
+  end if;
+  select * into dg from public.dogs where id = p_dog and owner_id = auth.uid() and not archived;
+  if dg.id is null then raise exception 'Cane non trovato'; end if;
+  if dg.blocked then raise exception 'Le prenotazioni per questo cane sono sospese. Contatta il campo.'; end if;
+  select * into t from public.lesson_types where id = p_type and active;
+  if t.id is null then raise exception 'Tipo di lezione non valido'; end if;
+  if cardinality(t.options) > 0 and not (p_option = any(t.options)) then raise exception 'Specialità non valida'; end if;
+  if p_pay = 'online' and not s.online_payments then raise exception 'Il pagamento online non è ancora attivo'; end if;
+  if p_start % 30 <> 0 or p_start < s.open_min or p_start + t.duration_min > s.close_min then raise exception 'Orario fuori apertura'; end if;
+  if (p_day + make_interval(mins => p_start)) <= (now() at time zone 'Europe/Rome') then raise exception 'Orario già passato'; end if;
+
+  perform pg_advisory_xact_lock(hashtext('book-' || p_day::text));
+  select slots into av from public.availability where day = p_day;
+  m := p_start;
+  while m < p_start + t.duration_min loop
+    if av is null or not (m = any(av)) then raise exception 'Orario non aperto'; end if;
+    m := m + 30;
+  end loop;
+  if exists (select 1 from public.bookings b where b.status = 'active' and b.day = p_day
+             and b.start_min < p_start + t.duration_min and p_start < b.start_min + b.dur_min) then
+    raise exception 'Questo orario non è più disponibile';
+  end if;
+
+  insert into public.bookings (user_id, dog_id, lesson_type, lesson_option, day, start_min, dur_min, price_cents, pay, paid)
+  values (auth.uid(), p_dog, p_type, coalesce(p_option,''), p_day, p_start, t.duration_min, t.price_cents, coalesce(p_pay,'onsite'), false)
+  returning * into res;
+  return res;
+end $$;
+
+-- Disdetta del cliente, entro il limite di ore impostato.
+create function public.cancel_booking(p_id uuid) returns void
+language plpgsql security definer set search_path = public as $$
+declare b public.bookings; s public.settings;
+begin
+  select * into b from public.bookings where id = p_id and user_id = auth.uid() and status = 'active';
+  if b.id is null then raise exception 'Prenotazione non trovata'; end if;
+  select * into s from public.settings where id = 1;
+  if (b.day + make_interval(mins => b.start_min)) - (now() at time zone 'Europe/Rome') < make_interval(hours => s.cancel_hours) then
+    raise exception 'Troppo tardi per annullare: contatta il campo';
+  end if;
+  update public.bookings set status = 'cancelled', cancelled_at = now() where id = p_id;
+end $$;
+
+-- Riaccettazione di regolamento e privacy aggiornati.
+create function public.accept_terms() returns void
+language plpgsql security definer set search_path = public as $$
+declare s public.settings;
+begin
+  select * into s from public.settings where id = 1;
+  update public.profiles set rules_ver = s.rules_ver, privacy_ver = s.privacy_ver,
+    rules_accepted_at = now(), privacy_accepted_at = now() where id = auth.uid();
+end $$;
+
+-- ---------------------------------------------------------------
+-- Regole di accesso (Row Level Security)
+-- ---------------------------------------------------------------
+alter table public.settings enable row level security;
+alter table public.lesson_types enable row level security;
+alter table public.profiles enable row level security;
+alter table public.dogs enable row level security;
+alter table public.availability enable row level security;
+alter table public.bookings enable row level security;
+alter table public.penalties enable row level security;
+
+create policy "settings leggibili" on public.settings for select using (true);
+create policy "settings proprietario" on public.settings for update using (public.is_owner()) with check (public.is_owner());
+
+create policy "lezioni leggibili" on public.lesson_types for select using (true);
+create policy "lezioni proprietario" on public.lesson_types for all using (public.is_owner()) with check (public.is_owner());
+
+create policy "profilo proprio o proprietario" on public.profiles for select using (id = auth.uid() or public.is_owner());
+create policy "modifica profilo proprio" on public.profiles for update using (id = auth.uid() or public.is_owner()) with check (id = auth.uid() or public.is_owner());
+
+create policy "cani propri o proprietario" on public.dogs for select using (owner_id = auth.uid() or public.is_owner());
+create policy "aggiungi cane proprio" on public.dogs for insert with check (owner_id = auth.uid() and not blocked);
+create policy "modifica cane" on public.dogs for update using (owner_id = auth.uid() or public.is_owner()) with check (owner_id = auth.uid() or public.is_owner());
+
+create policy "orari leggibili" on public.availability for select to authenticated using (true);
+create policy "orari proprietario" on public.availability for all using (public.is_owner()) with check (public.is_owner());
+
+-- I clienti creano e annullano solo tramite book_slot e cancel_booking.
+create policy "prenotazioni proprie o proprietario" on public.bookings for select using (user_id = auth.uid() or public.is_owner());
+create policy "prenotazioni proprietario" on public.bookings for all using (public.is_owner()) with check (public.is_owner());
+
+create policy "penalità proprie o proprietario" on public.penalties for select
+  using (public.is_owner() or exists (select 1 from public.dogs d where d.id = dog_id and d.owner_id = auth.uid()));
+create policy "penalità proprietario" on public.penalties for all using (public.is_owner()) with check (public.is_owner());
+
+revoke all on function public.book_slot, public.cancel_booking, public.accept_terms, public.busy_slots from anon;
+
+-- ---------------------------------------------------------------
+-- Logo: archivio immagini pubblico in lettura, scrivibile dal proprietario
+-- ---------------------------------------------------------------
+insert into storage.buckets (id, name, public) values ('branding', 'branding', true)
+  on conflict (id) do nothing;
+create policy "logo leggibile" on storage.objects for select using (bucket_id = 'branding');
+create policy "logo proprietario inserisce" on storage.objects for insert with check (bucket_id = 'branding' and public.is_owner());
+create policy "logo proprietario modifica" on storage.objects for update using (bucket_id = 'branding' and public.is_owner());
+create policy "logo proprietario elimina" on storage.objects for delete using (bucket_id = 'branding' and public.is_owner());
+
+-- ---------------------------------------------------------------
+-- Account del proprietario: registrati nell'app con la tua email e la
+-- password che scegli tu, poi esegui una sola volta (con la tua email):
+--
+--   update public.profiles set role = 'owner' where email = 'tua@email.it';
+-- ---------------------------------------------------------------
+
+-- ===== 0002_campi_trainer.sql =====
+
+-- Campo Cani: più campi e trainer.
+-- Ogni campo ha nome e indirizzo (anche lo stesso indirizzo per campi diversi).
+-- Orari aperti e prenotazioni diventano per campo. Il numero di campi si cambia
+-- dall'app, in Impostazioni: i campi tolti vengono disattivati, non cancellati,
+-- così lo storico delle prenotazioni resta.
+-- I trainer seguono le lezioni: il cliente prenota senza sceglierlo e il
+-- proprietario lo assegna o lo cambia dal piano del giorno.
+-- Un trainer non può avere due lezioni sovrapposte, su nessun campo.
+-- Da eseguire nel SQL Editor di Supabase dopo 0001_init.sql.
+
+create table public.fields (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  address text not null default '',
+  sort int not null default 0,
+  active boolean not null default true
+);
+insert into public.fields (name, address, sort)
+  select 'Campo 1', field_address, 1 from public.settings where id = 1;
+
+-- Orari: una riga per campo e per giorno. Quelli già inseriti vanno al primo campo.
+alter table public.availability add column field_id uuid references public.fields on delete cascade;
+update public.availability set field_id = (select id from public.fields order by sort limit 1);
+alter table public.availability alter column field_id set not null;
+alter table public.availability drop constraint availability_pkey;
+alter table public.availability add primary key (field_id, day);
+
+-- Prenotazioni: ogni prenotazione è su un campo. Quelle già fatte vanno al primo campo.
+alter table public.bookings add column field_id uuid references public.fields;
+update public.bookings set field_id = (select id from public.fields order by sort limit 1);
+alter table public.bookings alter column field_id set not null;
+create index on public.bookings (field_id, day) where status = 'active';
+
+-- Trainer: lessons vuoto vuol dire che segue tutti i tipi di lezione.
+create table public.trainers (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  lessons text[] not null default '{}',
+  sort int not null default 0,
+  active boolean not null default true
+);
+alter table public.bookings add column trainer_id uuid references public.trainers on delete set null;
+create index on public.bookings (trainer_id, day) where status = 'active';
+
+-- Controlla ogni assegnazione del trainer, anche quando si sposta una lezione.
+create function public.guard_trainer() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare tr public.trainers;
+begin
+  if new.trainer_id is null or new.status <> 'active' then return new; end if;
+  perform pg_advisory_xact_lock(hashtext('trainer-' || new.trainer_id::text || '-' || new.day::text));
+  select * into tr from public.trainers where id = new.trainer_id;
+  if cardinality(tr.lessons) > 0 and not (new.lesson_type = any(tr.lessons)) then
+    raise exception '% non segue questo tipo di lezione', tr.name;
+  end if;
+  if exists (select 1 from public.bookings b where b.status = 'active' and b.trainer_id = new.trainer_id
+             and b.day = new.day and b.id <> new.id
+             and b.start_min < new.start_min + new.dur_min and new.start_min < b.start_min + b.dur_min) then
+    raise exception '% ha già una lezione in questo orario', tr.name;
+  end if;
+  return new;
+end $$;
+create trigger bookings_trainer before insert or update of trainer_id, day, start_min, dur_min, status on public.bookings
+  for each row execute function public.guard_trainer();
+
+alter table public.trainers enable row level security;
+create policy "trainer leggibili" on public.trainers for select using (true);
+create policy "trainer proprietario" on public.trainers for all using (public.is_owner()) with check (public.is_owner());
+
+alter table public.fields enable row level security;
+create policy "campi leggibili" on public.fields for select using (true);
+create policy "campi proprietario" on public.fields for all using (public.is_owner()) with check (public.is_owner());
+
+-- Turni occupati, ora con il campo.
+drop function public.busy_slots(date, date);
+create function public.busy_slots(from_day date, to_day date)
+returns table (field_id uuid, day date, start_min int, dur_min int, mine boolean)
+language sql stable security definer set search_path = public as $$
+  select b.field_id, b.day, b.start_min, b.dur_min, b.user_id = auth.uid()
+  from public.bookings b
+  where b.status = 'active' and b.day between from_day and to_day
+$$;
+
+-- Prenotazione su un campo: stessi controlli di prima, sovrapposizioni solo sullo stesso campo.
+drop function public.book_slot(uuid, text, text, date, int, text);
+create function public.book_slot(p_field uuid, p_dog uuid, p_type text, p_option text, p_day date, p_start int, p_pay text)
+returns public.bookings
+language plpgsql security definer set search_path = public as $$
+declare
+  s public.settings; t public.lesson_types; pr public.profiles; dg public.dogs; f public.fields; av int[]; m int; res public.bookings;
+begin
+  if auth.uid() is null then raise exception 'Devi accedere per prenotare'; end if;
+  select * into s from public.settings where id = 1;
+  select * into pr from public.profiles where id = auth.uid();
+  if pr.rules_ver is distinct from s.rules_ver or pr.privacy_ver is distinct from s.privacy_ver then
+    raise exception 'Devi prima accettare regolamento e privacy aggiornati';
+  end if;
+  select * into f from public.fields where id = p_field and active;
+  if f.id is null then raise exception 'Campo non disponibile'; end if;
+  select * into dg from public.dogs where id = p_dog and owner_id = auth.uid() and not archived;
+  if dg.id is null then raise exception 'Cane non trovato'; end if;
+  if dg.blocked then raise exception 'Le prenotazioni per questo cane sono sospese. Contatta il campo.'; end if;
+  select * into t from public.lesson_types where id = p_type and active;
+  if t.id is null then raise exception 'Tipo di lezione non valido'; end if;
+  if cardinality(t.options) > 0 and not (p_option = any(t.options)) then raise exception 'Specialità non valida'; end if;
+  if p_pay = 'online' and not s.online_payments then raise exception 'Il pagamento online non è ancora attivo'; end if;
+  if p_start % 30 <> 0 or p_start < s.open_min or p_start + t.duration_min > s.close_min then raise exception 'Orario fuori apertura'; end if;
+  if (p_day + make_interval(mins => p_start)) <= (now() at time zone 'Europe/Rome') then raise exception 'Orario già passato'; end if;
+
+  perform pg_advisory_xact_lock(hashtext('book-' || p_field::text || '-' || p_day::text));
+  select slots into av from public.availability where field_id = p_field and day = p_day;
+  m := p_start;
+  while m < p_start + t.duration_min loop
+    if av is null or not (m = any(av)) then raise exception 'Orario non aperto'; end if;
+    m := m + 30;
+  end loop;
+  if exists (select 1 from public.bookings b where b.status = 'active' and b.field_id = p_field and b.day = p_day
+             and b.start_min < p_start + t.duration_min and p_start < b.start_min + b.dur_min) then
+    raise exception 'Questo orario non è più disponibile';
+  end if;
+
+  insert into public.bookings (user_id, dog_id, field_id, lesson_type, lesson_option, day, start_min, dur_min, price_cents, pay, paid)
+  values (auth.uid(), p_dog, p_field, p_type, coalesce(p_option,''), p_day, p_start, t.duration_min, t.price_cents, coalesce(p_pay,'onsite'), false)
+  returning * into res;
+  return res;
+end $$;
+
+revoke all on function public.book_slot, public.busy_slots from anon;
+
+-- ===== 0003_fatturazione.sql =====
+
+-- Campo Cani: dati di fatturazione dei clienti.
+-- Codice fiscale (16 caratteri, oppure 11 cifre per chi ha una partita IVA) e
+-- indirizzo di fatturazione, chiesti all'iscrizione. Chi era già iscritto li
+-- inserisce al primo accesso: l'app non lo fa prenotare finché mancano.
+-- Da eseguire nel SQL Editor di Supabase dopo 0002_campi_trainer.sql.
+
+alter table public.profiles
+  add column tax_code text not null default '',
+  add column billing_street text not null default '',
+  add column billing_zip text not null default '',
+  add column billing_city text not null default '',
+  add column billing_province text not null default '';
+
+alter table public.profiles add constraint profiles_tax_code_format
+  check (tax_code = '' or tax_code ~ '^[A-Z0-9]{16}$' or tax_code ~ '^[0-9]{11}$');
+alter table public.profiles add constraint profiles_billing_zip_format
+  check (billing_zip = '' or billing_zip ~ '^[0-9]{5}$');
+
+-- Vero quando il cliente ha tutti i dati per la fattura.
+create function public.has_billing(p public.profiles) returns boolean
+language sql immutable as $$
+  select p.tax_code <> '' and p.billing_street <> '' and p.billing_zip <> '' and p.billing_city <> ''
+$$;
+
+-- L'iscrizione salva anche i dati di fatturazione inviati dall'app.
+create or replace function public.handle_new_user() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  m jsonb := coalesce(new.raw_user_meta_data, '{}'::jsonb);
+  d jsonb;
+begin
+  insert into public.profiles (id, first_name, last_name, phone, email, rules_ver, privacy_ver, rules_accepted_at, privacy_accepted_at,
+                               tax_code, billing_street, billing_zip, billing_city, billing_province)
+  values (new.id, coalesce(m->>'first_name',''), coalesce(m->>'last_name',''), coalesce(m->>'phone',''), coalesce(new.email,''),
+          (m->>'rules_ver')::int, (m->>'privacy_ver')::int,
+          case when m ? 'rules_ver' then now() end, case when m ? 'privacy_ver' then now() end,
+          upper(regexp_replace(coalesce(m->>'tax_code',''), '\s', '', 'g')),
+          trim(coalesce(m->>'billing_street','')), trim(coalesce(m->>'billing_zip','')),
+          trim(coalesce(m->>'billing_city','')), upper(trim(coalesce(m->>'billing_province',''))));
+  for d in select * from jsonb_array_elements(coalesce(m->'dogs','[]'::jsonb)) loop
+    if length(trim(coalesce(d->>'name',''))) > 0 then
+      insert into public.dogs (owner_id, name, breed, birth)
+      values (new.id, trim(d->>'name'), coalesce(d->>'breed',''), nullif(d->>'birth','')::date);
+    end if;
+  end loop;
+  return new;
+end $$;
+
+-- Senza dati di fatturazione non si prenota: si aggiunge il controllo a book_slot.
+create or replace function public.book_slot(p_field uuid, p_dog uuid, p_type text, p_option text, p_day date, p_start int, p_pay text)
+returns public.bookings
+language plpgsql security definer set search_path = public as $$
+declare
+  s public.settings; t public.lesson_types; pr public.profiles; dg public.dogs; f public.fields; av int[]; m int; res public.bookings;
+begin
+  if auth.uid() is null then raise exception 'Devi accedere per prenotare'; end if;
+  select * into s from public.settings where id = 1;
+  select * into pr from public.profiles where id = auth.uid();
+  if pr.rules_ver is distinct from s.rules_ver or pr.privacy_ver is distinct from s.privacy_ver then
+    raise exception 'Devi prima accettare regolamento e privacy aggiornati';
+  end if;
+  if not public.has_billing(pr) then raise exception 'Completa codice fiscale e indirizzo di fatturazione nel Profilo'; end if;
+  select * into f from public.fields where id = p_field and active;
+  if f.id is null then raise exception 'Campo non disponibile'; end if;
+  select * into dg from public.dogs where id = p_dog and owner_id = auth.uid() and not archived;
+  if dg.id is null then raise exception 'Cane non trovato'; end if;
+  if dg.blocked then raise exception 'Le prenotazioni per questo cane sono sospese. Contatta il campo.'; end if;
+  select * into t from public.lesson_types where id = p_type and active;
+  if t.id is null then raise exception 'Tipo di lezione non valido'; end if;
+  if cardinality(t.options) > 0 and not (p_option = any(t.options)) then raise exception 'Specialità non valida'; end if;
+  if p_pay = 'online' and not s.online_payments then raise exception 'Il pagamento online non è ancora attivo'; end if;
+  if p_start % 30 <> 0 or p_start < s.open_min or p_start + t.duration_min > s.close_min then raise exception 'Orario fuori apertura'; end if;
+  if (p_day + make_interval(mins => p_start)) <= (now() at time zone 'Europe/Rome') then raise exception 'Orario già passato'; end if;
+
+  perform pg_advisory_xact_lock(hashtext('book-' || p_field::text || '-' || p_day::text));
+  select slots into av from public.availability where field_id = p_field and day = p_day;
+  m := p_start;
+  while m < p_start + t.duration_min loop
+    if av is null or not (m = any(av)) then raise exception 'Orario non aperto'; end if;
+    m := m + 30;
+  end loop;
+  if exists (select 1 from public.bookings b where b.status = 'active' and b.field_id = p_field and b.day = p_day
+             and b.start_min < p_start + t.duration_min and p_start < b.start_min + b.dur_min) then
+    raise exception 'Questo orario non è più disponibile';
+  end if;
+
+  insert into public.bookings (user_id, dog_id, field_id, lesson_type, lesson_option, day, start_min, dur_min, price_cents, pay, paid)
+  values (auth.uid(), p_dog, p_field, p_type, coalesce(p_option,''), p_day, p_start, t.duration_min, t.price_cents, coalesce(p_pay,'onsite'), false)
+  returning * into res;
+  return res;
+end $$;
+
+revoke all on function public.book_slot from anon;
+
+-- ===== 0004_pacchetti.sql =====
+
+-- Campo Cani: pacchetti di lezioni.
+-- Il proprietario crea i pacchetti (per esempio 10 lezioni IGP a 220 €, validi 6 mesi).
+-- Il cliente ne richiede uno dall'app, il proprietario lo attiva quando incassa.
+-- Da quel momento ogni prenotazione di quel tipo scala una lezione dal pacchetto
+-- invece di essere pagata al campo; se la lezione viene annullata, torna nel pacchetto.
+-- Da eseguire nel SQL Editor di Supabase dopo 0003_fatturazione.sql.
+
+create table public.packages (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  lesson_type text references public.lesson_types,   -- null: vale per tutte le lezioni
+  lessons int not null check (lessons > 0),
+  price_cents int not null default 0 check (price_cents >= 0),
+  valid_days int check (valid_days > 0),             -- null: non scade
+  sort int not null default 0,
+  active boolean not null default true
+);
+
+create table public.client_packages (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles on delete cascade,
+  package_id uuid references public.packages on delete set null,
+  name text not null,
+  lesson_type text references public.lesson_types,
+  lessons_total int not null check (lessons_total > 0),
+  lessons_used int not null default 0 check (lessons_used >= 0),
+  price_cents int not null default 0,
+  status text not null default 'requested' check (status in ('requested','active','cancelled')),
+  requested_at timestamptz not null default now(),
+  activated_at timestamptz,
+  expires_at timestamptz,
+  check (lessons_used <= lessons_total)
+);
+create index on public.client_packages (user_id);
+
+alter table public.bookings drop constraint bookings_pay_check;
+alter table public.bookings add constraint bookings_pay_check check (pay in ('online','onsite','package'));
+alter table public.bookings add column package_id uuid references public.client_packages on delete set null;
+
+-- All'attivazione fissa data e scadenza. I clienti non possono modificare i pacchetti
+-- (lo impediscono le regole di accesso): le lezioni usate le aggiorna solo book_slot.
+create function public.guard_client_package() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare days int;
+begin
+  if new.status = 'active' and old.status <> 'active' then
+    select valid_days into days from public.packages where id = new.package_id;
+    new.activated_at := now();
+    new.expires_at := case when days is null then null else now() + make_interval(days => days) end;
+  end if;
+  return new;
+end $$;
+create trigger client_packages_guard before update on public.client_packages
+  for each row execute function public.guard_client_package();
+
+-- Una lezione annullata torna nel pacchetto, sia se disdice il cliente sia se annulla il campo.
+create function public.refund_package_lesson() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if old.status = 'active' and new.status = 'cancelled' and new.package_id is not null then
+    update public.client_packages set lessons_used = greatest(lessons_used - 1, 0) where id = new.package_id;
+  end if;
+  return new;
+end $$;
+create trigger bookings_refund_package after update of status on public.bookings
+  for each row execute function public.refund_package_lesson();
+
+-- Il cliente chiede un pacchetto: resta "richiesto" finché il campo non lo attiva.
+create function public.request_package(p_package uuid) returns public.client_packages
+language plpgsql security definer set search_path = public as $$
+declare pk public.packages; res public.client_packages;
+begin
+  if auth.uid() is null then raise exception 'Devi accedere'; end if;
+  select * into pk from public.packages where id = p_package and active;
+  if pk.id is null then raise exception 'Pacchetto non disponibile'; end if;
+  if exists (select 1 from public.client_packages where user_id = auth.uid() and package_id = p_package and status = 'requested') then
+    raise exception 'Hai già richiesto questo pacchetto: il campo lo attiva quando paghi';
+  end if;
+  insert into public.client_packages (user_id, package_id, name, lesson_type, lessons_total, price_cents)
+  values (auth.uid(), pk.id, pk.name, pk.lesson_type, pk.lessons, pk.price_cents)
+  returning * into res;
+  return res;
+end $$;
+
+-- Prenotazione: se il cliente ha un pacchetto attivo, valido e con lezioni per quel tipo,
+-- la lezione si scala da lì (prima quello che scade prima).
+create or replace function public.book_slot(p_field uuid, p_dog uuid, p_type text, p_option text, p_day date, p_start int, p_pay text)
+returns public.bookings
+language plpgsql security definer set search_path = public as $$
+declare
+  s public.settings; t public.lesson_types; pr public.profiles; dg public.dogs; f public.fields; av int[]; m int;
+  cp public.client_packages; res public.bookings;
+begin
+  if auth.uid() is null then raise exception 'Devi accedere per prenotare'; end if;
+  select * into s from public.settings where id = 1;
+  select * into pr from public.profiles where id = auth.uid();
+  if pr.rules_ver is distinct from s.rules_ver or pr.privacy_ver is distinct from s.privacy_ver then
+    raise exception 'Devi prima accettare regolamento e privacy aggiornati';
+  end if;
+  if not public.has_billing(pr) then raise exception 'Completa codice fiscale e indirizzo di fatturazione nel Profilo'; end if;
+  select * into f from public.fields where id = p_field and active;
+  if f.id is null then raise exception 'Campo non disponibile'; end if;
+  select * into dg from public.dogs where id = p_dog and owner_id = auth.uid() and not archived;
+  if dg.id is null then raise exception 'Cane non trovato'; end if;
+  if dg.blocked then raise exception 'Le prenotazioni per questo cane sono sospese. Contatta il campo.'; end if;
+  select * into t from public.lesson_types where id = p_type and active;
+  if t.id is null then raise exception 'Tipo di lezione non valido'; end if;
+  if cardinality(t.options) > 0 and not (p_option = any(t.options)) then raise exception 'Specialità non valida'; end if;
+  if p_pay = 'online' and not s.online_payments then raise exception 'Il pagamento online non è ancora attivo'; end if;
+  if p_start % 30 <> 0 or p_start < s.open_min or p_start + t.duration_min > s.close_min then raise exception 'Orario fuori apertura'; end if;
+  if (p_day + make_interval(mins => p_start)) <= (now() at time zone 'Europe/Rome') then raise exception 'Orario già passato'; end if;
+
+  perform pg_advisory_xact_lock(hashtext('book-' || p_field::text || '-' || p_day::text));
+  select slots into av from public.availability where field_id = p_field and day = p_day;
+  m := p_start;
+  while m < p_start + t.duration_min loop
+    if av is null or not (m = any(av)) then raise exception 'Orario non aperto'; end if;
+    m := m + 30;
+  end loop;
+  if exists (select 1 from public.bookings b where b.status = 'active' and b.field_id = p_field and b.day = p_day
+             and b.start_min < p_start + t.duration_min and p_start < b.start_min + b.dur_min) then
+    raise exception 'Questo orario non è più disponibile';
+  end if;
+
+  select * into cp from public.client_packages
+  where user_id = auth.uid() and status = 'active' and lessons_used < lessons_total
+    and (lesson_type is null or lesson_type = p_type)
+    and (expires_at is null or expires_at > now())
+  order by expires_at nulls last, activated_at
+  limit 1
+  for update;
+
+  if cp.id is not null then
+    update public.client_packages set lessons_used = lessons_used + 1 where id = cp.id;
+    insert into public.bookings (user_id, dog_id, field_id, lesson_type, lesson_option, day, start_min, dur_min, price_cents, pay, paid, package_id)
+    values (auth.uid(), p_dog, p_field, p_type, coalesce(p_option,''), p_day, p_start, t.duration_min, 0, 'package', true, cp.id)
+    returning * into res;
+  else
+    insert into public.bookings (user_id, dog_id, field_id, lesson_type, lesson_option, day, start_min, dur_min, price_cents, pay, paid)
+    values (auth.uid(), p_dog, p_field, p_type, coalesce(p_option,''), p_day, p_start, t.duration_min, t.price_cents, coalesce(p_pay,'onsite'), false)
+    returning * into res;
+  end if;
+  return res;
+end $$;
+
+alter table public.packages enable row level security;
+alter table public.client_packages enable row level security;
+create policy "pacchetti leggibili" on public.packages for select using (true);
+create policy "pacchetti proprietario" on public.packages for all using (public.is_owner()) with check (public.is_owner());
+create policy "pacchetti cliente propri o proprietario" on public.client_packages for select using (user_id = auth.uid() or public.is_owner());
+create policy "pacchetti cliente proprietario" on public.client_packages for all using (public.is_owner()) with check (public.is_owner());
+
+revoke all on function public.book_slot, public.request_package from anon;
+
+-- ===== 0005_cancellazione_account.sql =====
+
+-- Campo Cani: il cliente può cancellare il proprio account dall'app.
+-- Le lezioni future vengono annullate (gli orari tornano liberi), poi si cancella
+-- l'utente: profilo, cani, prenotazioni, penalità e pacchetti se ne vanno con lui.
+-- Il proprietario non può cancellarsi da qui, per non restare senza accesso.
+-- Da eseguire nel SQL Editor di Supabase dopo 0004_pacchetti.sql.
+
+create function public.delete_my_account() returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then raise exception 'Devi accedere'; end if;
+  if public.is_owner() then raise exception 'L''account del proprietario non si può cancellare dall''app'; end if;
+  update public.bookings set status = 'cancelled', cancelled_at = now()
+  where user_id = auth.uid() and status = 'active' and day >= (now() at time zone 'Europe/Rome')::date;
+  delete from auth.users where id = auth.uid();
+end $$;
+
+revoke all on function public.delete_my_account from anon;
+
+-- ===== 0006_fatture.sql =====
+
+-- Campo Cani: fatture automatiche per i pagamenti online.
+-- Quando una lezione pagata online risulta incassata, il database prepara la fattura
+-- con una copia dei dati del cliente. La funzione fatture-in-cloud la crea su Fatture
+-- in Cloud, che assegna il numero, e la invia allo SDI. Finché non è collegata, le
+-- fatture restano "da inviare". Le fatture si conservano anche se il cliente cancella l'account.
+-- Da eseguire nel SQL Editor di Supabase dopo 0005_cancellazione_account.sql.
+
+-- Come si fattura. I dati di chi emette la fattura stanno già sull'account Fatture in Cloud.
+-- Li vede e li modifica solo il proprietario.
+create table public.invoice_settings (
+  id int primary key default 1 check (id = 1),
+  -- RF01 regime ordinario, RF19 forfettario (senza IVA).
+  tax_regime text not null default 'RF01' check (tax_regime in ('RF01', 'RF19')),
+  vat_rate numeric(4, 2) not null default 22 check (vat_rate >= 0 and vat_rate < 100),
+  auto_invoice boolean not null default true,
+  updated_at timestamptz not null default now()
+);
+insert into public.invoice_settings (id) values (1);
+
+create table public.invoices (
+  id uuid primary key default gen_random_uuid(),
+  year int not null default extract(year from now() at time zone 'Europe/Rome'),
+  -- Numero assegnato da Fatture in Cloud quando la fattura viene creata lì.
+  number int,
+  issued_on date not null default (now() at time zone 'Europe/Rome')::date,
+  user_id uuid references public.profiles on delete set null,
+  booking_id uuid unique references public.bookings on delete set null,
+  buyer_name text not null,
+  buyer_tax_code text,
+  buyer_street text,
+  buyer_zip text,
+  buyer_city text,
+  buyer_province text,
+  description text not null,
+  total_cents int not null check (total_cents >= 0),
+  taxable_cents int not null,
+  vat_cents int not null,
+  vat_rate numeric(4, 2) not null,
+  -- Natura dell'operazione senza IVA (N2.2 per il forfettario), altrimenti null.
+  nature text,
+  status text not null default 'pending' check (status in ('pending', 'sent', 'error')),
+  -- Id del documento su Fatture in Cloud: se c'è, la fattura esiste già lì e va solo inviata.
+  provider_ref text,
+  error text,
+  created_at timestamptz not null default now(),
+  sent_at timestamptz,
+  unique (year, number)
+);
+create index on public.invoices (user_id);
+create index on public.invoices (status) where status <> 'sent';
+
+-- Crea la fattura di una lezione pagata online, una sola volta.
+create function public.invoice_online_booking() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  cfg public.invoice_settings; pr public.profiles; lt public.lesson_types; taxable int;
+begin
+  if new.pay <> 'online' or not new.paid or new.price_cents <= 0 then return new; end if;
+  if tg_op = 'UPDATE' and old.paid then return new; end if;
+  select * into cfg from public.invoice_settings where id = 1;
+  if not cfg.auto_invoice then return new; end if;
+  if exists (select 1 from public.invoices where booking_id = new.id) then return new; end if;
+  select * into pr from public.profiles where id = new.user_id;
+  select * into lt from public.lesson_types where id = new.lesson_type;
+  taxable := case when cfg.tax_regime = 'RF19' then new.price_cents
+                  else round(new.price_cents / (1 + cfg.vat_rate / 100)) end;
+  insert into public.invoices (user_id, booking_id, buyer_name, buyer_tax_code, buyer_street, buyer_zip, buyer_city, buyer_province,
+    description, total_cents, taxable_cents, vat_cents, vat_rate, nature)
+  values (new.user_id, new.id, trim(pr.first_name || ' ' || pr.last_name), pr.tax_code,
+    pr.billing_street, pr.billing_zip, pr.billing_city, nullif(pr.billing_province, ''),
+    concat_ws(' · ', 'Lezione ' || coalesce(lt.label, new.lesson_type), nullif(new.lesson_option, ''), to_char(new.day, 'DD/MM/YYYY')),
+    new.price_cents, taxable, new.price_cents - taxable,
+    case when cfg.tax_regime = 'RF19' then 0 else cfg.vat_rate end,
+    case when cfg.tax_regime = 'RF19' then 'N2.2' end);
+  return new;
+end $$;
+
+create trigger bookings_invoice after insert or update of paid on public.bookings
+  for each row execute function public.invoice_online_booking();
+
+alter table public.invoice_settings enable row level security;
+alter table public.invoices enable row level security;
+create policy "dati fattura proprietario" on public.invoice_settings for all using (public.is_owner()) with check (public.is_owner());
+create policy "fatture proprietario" on public.invoices for select using (public.is_owner());
+create policy "fatture proprie" on public.invoices for select using (user_id = auth.uid());
+-- Le fatture non si modificano dall'app: le aggiorna solo la funzione di invio, con la chiave di servizio.
+-- Il proprietario può solo rimettere in coda una fattura andata in errore.
+create function public.retry_invoice(p_id uuid) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_owner() then raise exception 'Solo il proprietario'; end if;
+  update public.invoices set status = 'pending', error = null where id = p_id and status = 'error';
+end $$;
+revoke all on function public.retry_invoice from anon;
+
+-- ===== 0007_scontrini.sql =====
+
+-- Campo Cani: scontrino elettronico come alternativa alla fattura.
+-- Il cliente sceglie nel Profilo se per i pagamenti online vuole la fattura o lo scontrino.
+-- Lo scontrino (documento commerciale) si emette in uno dei tre modi scelti dal proprietario:
+--   manual  lo batte lui sul registratore telematico e lo segna come battuto;
+--   cloud   lo trasmette la funzione scontrini-openapi con un registratore virtuale (Openapi);
+--   device  lo stampa il telefono del proprietario sul registratore Epson del campo, in Wi-Fi.
+-- Da eseguire nel SQL Editor di Supabase dopo 0006_fatture.sql.
+
+alter table public.profiles add column doc_pref text not null default 'invoice'
+  check (doc_pref in ('invoice', 'receipt'));
+
+alter table public.invoice_settings
+  add column receipt_mode text not null default 'manual' check (receipt_mode in ('manual', 'cloud', 'device')),
+  -- Indirizzo del registratore nella rete del campo, per esempio 192.168.1.50.
+  add column printer_url text not null default '';
+
+alter table public.invoices add column kind text not null default 'invoice' check (kind in ('invoice', 'receipt'));
+-- Numero del documento commerciale stampato dal registratore (facoltativo).
+alter table public.invoices add column receipt_number text;
+
+create or replace function public.invoice_online_booking() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  cfg public.invoice_settings; pr public.profiles; lt public.lesson_types; taxable int;
+begin
+  if new.pay <> 'online' or not new.paid or new.price_cents <= 0 then return new; end if;
+  if tg_op = 'UPDATE' and old.paid then return new; end if;
+  select * into cfg from public.invoice_settings where id = 1;
+  if not cfg.auto_invoice then return new; end if;
+  if exists (select 1 from public.invoices where booking_id = new.id) then return new; end if;
+  select * into pr from public.profiles where id = new.user_id;
+  select * into lt from public.lesson_types where id = new.lesson_type;
+  taxable := case when cfg.tax_regime = 'RF19' then new.price_cents
+                  else round(new.price_cents / (1 + cfg.vat_rate / 100)) end;
+  insert into public.invoices (kind, user_id, booking_id, buyer_name, buyer_tax_code, buyer_street, buyer_zip, buyer_city, buyer_province,
+    description, total_cents, taxable_cents, vat_cents, vat_rate, nature)
+  values (case when pr.doc_pref = 'receipt' then 'receipt' else 'invoice' end, new.user_id, new.id, trim(pr.first_name || ' ' || pr.last_name), pr.tax_code,
+    pr.billing_street, pr.billing_zip, pr.billing_city, nullif(pr.billing_province, ''),
+    concat_ws(' · ', 'Lezione ' || coalesce(lt.label, new.lesson_type), nullif(new.lesson_option, ''), to_char(new.day, 'DD/MM/YYYY')),
+    new.price_cents, taxable, new.price_cents - taxable,
+    case when cfg.tax_regime = 'RF19' then 0 else cfg.vat_rate end,
+    case when cfg.tax_regime = 'RF19' then 'N2.2' end);
+  return new;
+end $$;
+
+create function public.mark_receipt_done(p_id uuid, p_number text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_owner() then raise exception 'Solo il proprietario'; end if;
+  update public.invoices set status = 'sent', sent_at = now(), error = null, receipt_number = nullif(trim(p_number), '')
+  where id = p_id and kind = 'receipt' and status <> 'sent';
+end $$;
+revoke all on function public.mark_receipt_done from anon;
+
+-- Uno scontrino rifiutato dal registratore in cloud si rimanda da capo, come nuovo documento.
+create or replace function public.retry_invoice(p_id uuid) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_owner() then raise exception 'Solo il proprietario'; end if;
+  update public.invoices set status = 'pending', error = null,
+    provider_ref = case when kind = 'receipt' then null else provider_ref end
+  where id = p_id and status = 'error';
+end $$;
+
+-- ===== 0008_licenza.sql =====
+
+-- Campo Cani: codice di licenza del centro, per l'app venduta ad altri centri.
+-- Il centro incolla qui il codice rinnovato (da Impostazioni → Licenza) e tutti i suoi
+-- clienti lo ricevono all'apertura dell'app. Il codice è firmato: modificarlo lo rende non valido.
+-- Da eseguire nel SQL Editor di Supabase dopo 0007_scontrini.sql.
+
+alter table public.settings add column license_code text not null default '';
+
+-- ===== 0009_piani.sql =====
+
+-- Campo Cani: piani Base, Professional e Pro dell'app venduta.
+-- Il piano e il numero massimo di clienti stanno nella licenza firmata; qui serve solo
+-- sapere quanti clienti ha il centro, anche prima di accedere (al momento dell'iscrizione).
+-- Da eseguire nel SQL Editor di Supabase dopo 0008_licenza.sql.
+
+create function public.client_count() returns integer
+language sql stable security definer set search_path = public as $$
+  select count(*)::integer from public.profiles where role = 'client'
+$$;
+grant execute on function public.client_count() to anon, authenticated;
+
+-- ===== 0010_prenota_proprietario.sql =====
+
+-- Campo Cani: il proprietario prenota per un cliente già iscritto (dal programma Windows o dall'app).
+-- Valgono i controlli sul campo, sul cane e sulle sovrapposizioni; il proprietario può invece
+-- prenotare anche fuori dagli orari aperti o nel passato (per segnare una lezione già fatta).
+-- Se il cliente ha un pacchetto valido per quella lezione, si scala da lì come quando prenota lui.
+-- Il trainer è facoltativo; il controllo che non abbia due lezioni alla stessa ora resta quello di 0002.
+-- Da eseguire nel SQL Editor di Supabase dopo 0009_piani.sql.
+
+create function public.owner_book(p_user uuid, p_field uuid, p_dog uuid, p_type text, p_option text, p_day date, p_start int,
+  p_trainer uuid default null)
+returns public.bookings
+language plpgsql security definer set search_path = public as $$
+declare
+  t public.lesson_types; f public.fields; dg public.dogs; cp public.client_packages; res public.bookings;
+begin
+  if not public.is_owner() then raise exception 'Solo il proprietario può prenotare per un cliente'; end if;
+  select * into f from public.fields where id = p_field and active;
+  if f.id is null then raise exception 'Campo non disponibile'; end if;
+  select * into dg from public.dogs where id = p_dog and owner_id = p_user and not archived;
+  if dg.id is null then raise exception 'Cane non trovato per questo cliente'; end if;
+  select * into t from public.lesson_types where id = p_type;
+  if t.id is null then raise exception 'Tipo di lezione non valido'; end if;
+  if cardinality(t.options) > 0 and not (p_option = any(t.options)) then raise exception 'Specialità non valida'; end if;
+  if p_start % 30 <> 0 or p_start < 0 or p_start + t.duration_min > 1440 then raise exception 'Orario non valido'; end if;
+
+  perform pg_advisory_xact_lock(hashtext('book-' || p_field::text || '-' || p_day::text));
+  if exists (select 1 from public.bookings b where b.status = 'active' and b.field_id = p_field and b.day = p_day
+             and b.start_min < p_start + t.duration_min and p_start < b.start_min + b.dur_min) then
+    raise exception 'Il campo è già occupato a quell''ora';
+  end if;
+
+  select * into cp from public.client_packages
+  where user_id = p_user and status = 'active' and lessons_used < lessons_total
+    and (lesson_type is null or lesson_type = p_type)
+    and (expires_at is null or expires_at > now())
+  order by expires_at nulls last, activated_at
+  limit 1
+  for update;
+
+  if cp.id is not null then
+    update public.client_packages set lessons_used = lessons_used + 1 where id = cp.id;
+    insert into public.bookings (user_id, dog_id, field_id, lesson_type, lesson_option, day, start_min, dur_min, price_cents, pay, paid, package_id, trainer_id)
+    values (p_user, p_dog, p_field, p_type, coalesce(p_option,''), p_day, p_start, t.duration_min, 0, 'package', true, cp.id, p_trainer)
+    returning * into res;
+  else
+    insert into public.bookings (user_id, dog_id, field_id, lesson_type, lesson_option, day, start_min, dur_min, price_cents, pay, paid, trainer_id)
+    values (p_user, p_dog, p_field, p_type, coalesce(p_option,''), p_day, p_start, t.duration_min, t.price_cents, 'onsite', false, p_trainer)
+    returning * into res;
+  end if;
+  return res;
+end $$;
+grant execute on function public.owner_book(uuid, uuid, uuid, text, text, date, int, uuid) to authenticated;
+
+-- ===== 0011_disponibilita_trainer.sql =====
+
+-- Campo Cani: orari di disponibilità dei trainer, come quelli dei campi (mezz'ore aperte per giorno).
+-- Un trainer per cui non hai mai impostato orari resta disponibile sempre, come prima.
+-- Appena gli imposti un giorno, può avere lezioni solo nelle mezz'ore segnate.
+-- Da eseguire nel SQL Editor di Supabase dopo 0010_prenota_proprietario.sql.
+
+create table public.trainer_availability (
+  trainer_id uuid not null references public.trainers on delete cascade,
+  day date not null,
+  slots int[] not null default '{}',
+  primary key (trainer_id, day)
+);
+alter table public.trainer_availability enable row level security;
+create policy "disponibilita trainer leggibile" on public.trainer_availability for select to authenticated using (true);
+create policy "disponibilita trainer proprietario" on public.trainer_availability for all using (public.is_owner()) with check (public.is_owner());
+
+-- Stesso controllo di 0002 (tipo di lezione e sovrapposizioni), più la disponibilità.
+create or replace function public.guard_trainer() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare tr public.trainers; av int[]; m int;
+begin
+  if new.trainer_id is null or new.status <> 'active' then return new; end if;
+  perform pg_advisory_xact_lock(hashtext('trainer-' || new.trainer_id::text || '-' || new.day::text));
+  select * into tr from public.trainers where id = new.trainer_id;
+  if cardinality(tr.lessons) > 0 and not (new.lesson_type = any(tr.lessons)) then
+    raise exception '% non segue questo tipo di lezione', tr.name;
+  end if;
+  if exists (select 1 from public.trainer_availability where trainer_id = new.trainer_id) then
+    select slots into av from public.trainer_availability where trainer_id = new.trainer_id and day = new.day;
+    m := new.start_min;
+    while m < new.start_min + new.dur_min loop
+      if av is null or not (m = any(av)) then raise exception '% non è disponibile a quell''ora', tr.name; end if;
+      m := m + 30;
+    end loop;
+  end if;
+  if exists (select 1 from public.bookings b where b.status = 'active' and b.trainer_id = new.trainer_id
+             and b.day = new.day and b.id <> new.id
+             and b.start_min < new.start_min + new.dur_min and new.start_min < b.start_min + b.dur_min) then
+    raise exception '% ha già una lezione in questo orario', tr.name;
+  end if;
+  return new;
+end $$;
+
+-- ===== 0012_documento_pacchetti.sql =====
+
+-- Campo Cani: fattura o scontrino anche per i pacchetti.
+-- Quando il proprietario segna il pacchetto come incassato (lo attiva), il database prepara
+-- il documento come per le lezioni pagate online: fattura o scontrino secondo la scelta del
+-- cliente nel Profilo, poi lo inviano le funzioni fatture-in-cloud o scontrini-openapi
+-- (o il proprietario lo batte sul registratore, se lo scontrino è "a mano").
+-- Da eseguire nel SQL Editor di Supabase dopo 0011_disponibilita_trainer.sql.
+
+alter table public.invoices add column package_id uuid unique references public.client_packages on delete set null;
+
+create function public.invoice_package() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  cfg public.invoice_settings; pr public.profiles; taxable int;
+begin
+  if new.status <> 'active' or old.status = 'active' or new.price_cents <= 0 then return new; end if;
+  select * into cfg from public.invoice_settings where id = 1;
+  if not cfg.auto_invoice then return new; end if;
+  if exists (select 1 from public.invoices where package_id = new.id) then return new; end if;
+  select * into pr from public.profiles where id = new.user_id;
+  taxable := case when cfg.tax_regime = 'RF19' then new.price_cents
+                  else round(new.price_cents / (1 + cfg.vat_rate / 100)) end;
+  insert into public.invoices (kind, user_id, package_id, buyer_name, buyer_tax_code, buyer_street, buyer_zip, buyer_city, buyer_province,
+    description, total_cents, taxable_cents, vat_cents, vat_rate, nature)
+  values (case when pr.doc_pref = 'receipt' then 'receipt' else 'invoice' end, new.user_id, new.id, trim(pr.first_name || ' ' || pr.last_name), pr.tax_code,
+    pr.billing_street, pr.billing_zip, pr.billing_city, nullif(pr.billing_province, ''),
+    'Pacchetto ' || new.name || ' · ' || new.lessons_total || ' lezioni',
+    new.price_cents, taxable, new.price_cents - taxable,
+    case when cfg.tax_regime = 'RF19' then 0 else cfg.vat_rate end,
+    case when cfg.tax_regime = 'RF19' then 'N2.2' end);
+  return new;
+end $$;
+
+create trigger client_packages_invoice after update of status on public.client_packages
+  for each row execute function public.invoice_package();
+
+-- ===== 0013_area_trainer.sql =====
+
+-- Campo Cani: area dei trainer e diario di allenamento dei cani.
+-- Il proprietario collega un trainer a un account con la sua email: se l'account esiste diventa
+-- subito "trainer", altrimenti lo diventa quando quella persona si iscrive dall'app.
+-- Il trainer vede le sue lezioni con cane e cliente, gestisce i suoi orari, fa entrare il cane
+-- in campo e scrive nel diario del cane cosa si è fatto e i suoi commenti.
+-- Il diario lo leggono il cliente (per i suoi cani), il proprietario e i trainer del cane.
+-- Da eseguire nel SQL Editor di Supabase dopo 0012_documento_pacchetti.sql.
+
+alter table public.profiles drop constraint profiles_role_check;
+alter table public.profiles add constraint profiles_role_check check (role in ('client', 'owner', 'trainer'));
+
+-- Collegamento trainer-account in una tabella a parte: i trainer sono leggibili da tutti,
+-- le loro email no.
+create table public.trainer_accounts (
+  trainer_id uuid primary key references public.trainers on delete cascade,
+  email text not null unique check (email = lower(trim(email)) and email <> ''),
+  user_id uuid unique references public.profiles on delete set null
+);
+alter table public.trainer_accounts enable row level security;
+create policy "account trainer proprietario" on public.trainer_accounts for select using (public.is_owner());
+create policy "account trainer proprio" on public.trainer_accounts for select using (user_id = auth.uid());
+
+-- Il trainer dell'utente connesso, se è un trainer.
+create function public.my_trainer() returns uuid
+language sql stable security definer set search_path = public as $$
+  select a.trainer_id from public.trainer_accounts a join public.profiles p on p.id = a.user_id
+  where a.user_id = auth.uid() and p.role = 'trainer'
+$$;
+
+-- Clienti e cani che un trainer può vedere: quelli che hanno o hanno avuto lezioni con lui.
+create function public.trainer_sees_user(p_user uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select public.my_trainer() is not null and exists (
+    select 1 from public.bookings where user_id = p_user and trainer_id = public.my_trainer())
+$$;
+create function public.trainer_sees_dog(p_dog uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select public.my_trainer() is not null and exists (
+    select 1 from public.bookings where dog_id = p_dog and trainer_id = public.my_trainer())
+$$;
+
+create policy "lezioni del trainer" on public.bookings for select using (trainer_id = public.my_trainer());
+create policy "clienti del trainer" on public.profiles for select using (public.trainer_sees_user(id));
+create policy "cani del trainer" on public.dogs for select using (public.trainer_sees_dog(id));
+create policy "orari propri del trainer" on public.trainer_availability for all
+  using (trainer_id = public.my_trainer()) with check (trainer_id = public.my_trainer());
+
+-- Il proprietario collega (o scollega, con email vuota) un trainer a un account.
+create function public.link_trainer(p_trainer uuid, p_email text) returns void
+language plpgsql security definer set search_path = public as $$
+declare a public.trainer_accounts; pr public.profiles; e text := lower(trim(coalesce(p_email, '')));
+begin
+  if not public.is_owner() then raise exception 'Solo il proprietario'; end if;
+  if not exists (select 1 from public.trainers where id = p_trainer) then raise exception 'Trainer non trovato'; end if;
+  select * into a from public.trainer_accounts where trainer_id = p_trainer for update;
+  if a.user_id is not null then
+    update public.profiles set role = 'client' where id = a.user_id and role = 'trainer';
+  end if;
+  delete from public.trainer_accounts where trainer_id = p_trainer;
+  if e = '' then return; end if;
+  if exists (select 1 from public.trainer_accounts where email = e) then
+    raise exception 'Questa email è già collegata a un altro trainer';
+  end if;
+  select * into pr from public.profiles where lower(email) = e;
+  if pr.role = 'owner' then raise exception 'Questa è l''email del proprietario'; end if;
+  if pr.id is not null then update public.profiles set role = 'trainer' where id = pr.id; end if;
+  insert into public.trainer_accounts (trainer_id, email, user_id) values (p_trainer, e, pr.id);
+end $$;
+
+-- Chi si iscrive con l'email di un trainer diventa trainer.
+create function public.link_new_trainer() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  update public.trainer_accounts set user_id = new.id where email = lower(trim(new.email)) and user_id is null;
+  if found then update public.profiles set role = 'trainer' where id = new.id; end if;
+  return new;
+end $$;
+create trigger profiles_link_trainer after insert on public.profiles
+  for each row execute function public.link_new_trainer();
+
+-- Ingresso in campo: il trainer della lezione, il giorno stesso; il proprietario sempre.
+create function public.trainer_check_in(p_booking uuid, p_in boolean default true) returns public.bookings
+language plpgsql security definer set search_path = public as $$
+declare b public.bookings; d public.dogs;
+begin
+  select * into b from public.bookings where id = p_booking for update;
+  if b.id is null or b.status <> 'active' then raise exception 'Lezione non trovata'; end if;
+  if not public.is_owner() then
+    if b.trainer_id is null or b.trainer_id is distinct from public.my_trainer() then raise exception 'Non è una tua lezione'; end if;
+    if b.day <> (now() at time zone 'Europe/Rome')::date then raise exception 'Il cane si fa entrare il giorno della lezione'; end if;
+  end if;
+  select * into d from public.dogs where id = b.dog_id;
+  if p_in and d.blocked then raise exception '% è sospeso: non può entrare in campo', d.name; end if;
+  update public.bookings set checked_in_at = case when p_in then coalesce(checked_in_at, now()) end
+  where id = b.id returning * into b;
+  return b;
+end $$;
+
+-- Diario di allenamento: una pagina per lezione, attaccata al cane.
+create table public.dog_notes (
+  id uuid primary key default gen_random_uuid(),
+  dog_id uuid not null references public.dogs on delete cascade,
+  booking_id uuid unique references public.bookings on delete set null,
+  trainer_id uuid references public.trainers on delete set null,
+  author_name text not null default '',
+  day date not null,
+  lesson text not null default '',
+  work text not null default '',
+  comment text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index on public.dog_notes (dog_id, day desc);
+alter table public.dog_notes enable row level security;
+create policy "diario leggibile" on public.dog_notes for select using (
+  public.is_owner()
+  or exists (select 1 from public.dogs where id = dog_id and owner_id = auth.uid())
+  or public.trainer_sees_dog(dog_id));
+create policy "diario proprietario" on public.dog_notes for delete using (public.is_owner());
+
+-- Il trainer scrive (o corregge) la pagina di una sua lezione; il proprietario di qualunque lezione.
+create function public.save_dog_note(p_booking uuid, p_work text, p_comment text) returns public.dog_notes
+language plpgsql security definer set search_path = public as $$
+declare b public.bookings; lt public.lesson_types; tr public.trainers; pr public.profiles; n public.dog_notes;
+begin
+  select * into b from public.bookings where id = p_booking;
+  if b.id is null or b.status <> 'active' then raise exception 'Lezione non trovata'; end if;
+  if not public.is_owner() and (b.trainer_id is null or b.trainer_id is distinct from public.my_trainer()) then
+    raise exception 'Non è una tua lezione';
+  end if;
+  if length(trim(coalesce(p_work, ''))) = 0 and length(trim(coalesce(p_comment, ''))) = 0 then
+    raise exception 'Scrivi cosa avete fatto o un commento';
+  end if;
+  select * into lt from public.lesson_types where id = b.lesson_type;
+  select * into tr from public.trainers where id = b.trainer_id;
+  select * into pr from public.profiles where id = auth.uid();
+  insert into public.dog_notes (dog_id, booking_id, trainer_id, author_name, day, lesson, work, comment)
+  values (b.dog_id, b.id, b.trainer_id,
+    case when pr.role = 'owner' then coalesce(nullif(trim(pr.first_name || ' ' || pr.last_name), ''), 'Il campo') else coalesce(tr.name, '') end,
+    b.day, concat_ws(' · ', coalesce(lt.label, b.lesson_type), nullif(b.lesson_option, '')), trim(coalesce(p_work, '')), trim(coalesce(p_comment, '')))
+  on conflict (booking_id) do update set work = excluded.work, comment = excluded.comment, author_name = excluded.author_name, updated_at = now()
+  returning * into n;
+  return n;
+end $$;
+
+revoke all on function public.link_trainer, public.trainer_check_in, public.save_dog_note from anon;
+grant execute on function public.link_trainer(uuid, text) to authenticated;
+grant execute on function public.trainer_check_in(uuid, boolean) to authenticated;
+grant execute on function public.save_dog_note(uuid, text, text) to authenticated;
+
+-- ===== 0014_foto_e_penalita.sql =====
+
+-- Campo Cani: foto di trainer e clienti, penalità date dal trainer.
+-- Le foto stanno nello spazio "foto": si aprono con il loro indirizzo, ma l'elenco dei file lo vede
+-- solo il proprietario. Il nome dice di chi è la foto: "trainer-<id del trainer>-..." oppure
+-- "cliente-<id dell'utente>-...". Ognuno carica e toglie solo le sue; il proprietario tutte.
+-- Il trainer dà una penalità al cane di una sua lezione, come il proprietario dal piano del giorno.
+-- Da eseguire nel SQL Editor di Supabase dopo 0013_area_trainer.sql.
+
+alter table public.trainers add column photo_path text;
+alter table public.profiles add column photo_path text;
+
+insert into storage.buckets (id, name, public) values ('foto', 'foto', true) on conflict (id) do nothing;
+
+-- Di chi è il file: il proprietario tutti, il trainer i suoi, il cliente i suoi.
+create function public.my_photo_file(p_name text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select public.is_owner()
+    or (public.my_trainer() is not null and p_name like 'trainer-' || public.my_trainer()::text || '-%')
+    or (auth.uid() is not null and p_name like 'cliente-' || auth.uid()::text || '-%')
+$$;
+
+create policy "foto proprie leggibili" on storage.objects for select to authenticated
+  using (bucket_id = 'foto' and public.my_photo_file(name));
+create policy "foto proprie inserisce" on storage.objects for insert to authenticated
+  with check (bucket_id = 'foto' and public.my_photo_file(name));
+create policy "foto proprie elimina" on storage.objects for delete to authenticated
+  using (bucket_id = 'foto' and public.my_photo_file(name));
+
+-- Il trainer cambia la sua foto senza poter toccare nome e lezioni (quelli li decide il centro).
+create function public.set_my_photo(p_path text) returns void
+language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := public.my_trainer();
+begin
+  if me is null then raise exception 'Solo un trainer collegato può cambiare la sua foto.'; end if;
+  if p_path is not null and p_path not like 'trainer-' || me::text || '-%' then
+    raise exception 'Foto non valida.';
+  end if;
+  update public.trainers set photo_path = p_path where id = me;
+end $$;
+
+-- La foto del cliente la cambia lui stesso dal profilo (modifica profilo proprio), ma solo con un suo file.
+alter table public.profiles add constraint profiles_photo_own
+  check (photo_path is null or photo_path like 'cliente-' || id::text || '-%');
+
+-- Il trainer vede le penalità dei cani che ha avuto a lezione.
+create policy "penalità del trainer" on public.penalties for select using (public.trainer_sees_dog(dog_id));
+
+-- Penalità dal trainer: solo sulle sue lezioni, già iniziate o di oggi. Alla soglia il cane
+-- viene sospeso come sempre (trigger penalties_auto_block).
+create function public.trainer_penalty(p_booking uuid, p_reason text) returns public.penalties
+language plpgsql security definer set search_path = public as $$
+declare
+  b public.bookings;
+  r public.penalties;
+begin
+  select * into b from public.bookings where id = p_booking and status = 'active';
+  if b.id is null then raise exception 'Lezione non trovata.'; end if;
+  if not public.is_owner() then
+    if b.trainer_id is null or b.trainer_id is distinct from public.my_trainer() then raise exception 'Non è una tua lezione.'; end if;
+    if b.day > current_date then raise exception 'La penalità si dà il giorno della lezione o dopo.'; end if;
+  end if;
+  if coalesce(trim(p_reason), '') = '' then raise exception 'Scegli il motivo della penalità.'; end if;
+  insert into public.penalties (dog_id, booking_id, reason) values (b.dog_id, b.id, trim(p_reason)) returning * into r;
+  return r;
+end $$;
+
+-- Il trainer può togliere una penalità data per sbaglio su una sua lezione.
+-- Se il cane era già stato sospeso, lo riattiva il proprietario da Clienti.
+create function public.trainer_remove_penalty(p_id uuid) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_owner() and not exists (
+    select 1 from public.penalties p join public.bookings b on b.id = p.booking_id
+    where p.id = p_id and b.trainer_id = public.my_trainer()) then
+    raise exception 'Non è una penalità di una tua lezione.';
+  end if;
+  delete from public.penalties where id = p_id;
+end $$;
+
+grant execute on function public.set_my_photo(text) to authenticated;
+grant execute on function public.trainer_penalty(uuid, text) to authenticated;
+grant execute on function public.trainer_remove_penalty(uuid) to authenticated;
+
+-- ===== 0015_proprietario_automatico.sql =====
+
+-- Campo Cani: il titolare diventa proprietario da solo, senza SQL a mano.
+-- L'email del titolare sta in owner_setup (la scrive tools/nuovo-centro.mjs, o l'ultima riga di
+-- supabase/setup.sql). Chi si iscrive dall'app con quell'email entra già come proprietario;
+-- se l'account esiste già, set_owner_email lo rende proprietario subito.
+-- La tabella non ha regole di lettura: l'email del titolare non la vede nessun cliente.
+-- Da eseguire nel SQL Editor di Supabase dopo 0014_foto_e_penalita.sql.
+
+create table public.owner_setup (
+  id int primary key default 1 check (id = 1),
+  email text not null check (email = lower(trim(email)) and email <> '')
+);
+alter table public.owner_setup enable row level security;
+
+create function public.profiles_auto_owner() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if exists (select 1 from public.owner_setup where email = lower(trim(new.email))) then
+    new.role := 'owner';
+  end if;
+  return new;
+end $$;
+create trigger profiles_auto_owner before insert on public.profiles
+  for each row execute function public.profiles_auto_owner();
+
+-- Solo dal SQL Editor o dagli strumenti del fornitore: nessun utente dell'app può chiamarla.
+create function public.set_owner_email(p_email text) returns void
+language plpgsql security definer set search_path = public as $$
+declare
+  e text := lower(trim(p_email));
+begin
+  if e = '' or e not like '%@%' then raise exception 'Email del titolare non valida.'; end if;
+  insert into public.owner_setup (id, email) values (1, e) on conflict (id) do update set email = excluded.email;
+  update public.profiles set role = 'owner' where lower(email) = e;
+end $$;
+revoke execute on function public.set_owner_email(text) from public, anon, authenticated;
+
+-- ===== Titolare del centro =====
+
+select public.set_owner_email('titolare@esempio.it');

@@ -1,0 +1,18 @@
+# Controlla che supabase/setup.sql contenga tutte le migrazioni: se ne aggiungi una e dimentichi
+# di lanciare "node tools/setup-sql.mjs", questo controllo diventa rosso.
+name: Database in un file
+
+on:
+  pull_request:
+    paths: ['supabase/**', 'tools/setup-sql.mjs']
+
+jobs:
+  setup-sql:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tools/setup-sql.mjs
+      - run: git diff --exit-code supabase/setup.sql || (echo "Lancia node tools/setup-sql.mjs e fai commit di supabase/setup.sql" && exit 1)
