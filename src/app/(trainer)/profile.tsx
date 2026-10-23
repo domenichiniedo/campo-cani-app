@@ -1,5 +1,5 @@
 import { PhotoEditor } from '@/components/photo';
-import { Body, Button, Card, H1, LangPicker, Muted, Screen, Step } from '@/components/ui';
+import { Body, Button, Card, H1, Muted, Screen } from '@/components/ui';
 import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
@@ -34,8 +34,6 @@ export default function TrainerProfile() {
       <Muted style={{ fontSize: 13 }}>
         {t("La foto la vedono i clienti nelle loro lezioni e nel diario dei cani. Nome, lezioni che segui e collegamento dell'account li cambia il centro.")}
       </Muted>
-      <Step title={t('Lingua')} />
-      <LangPicker />
       <Button title={t('Esci')} kind="ghost" onPress={() => supabase.auth.signOut()} />
     </Screen>
   );
