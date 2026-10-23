@@ -2,6 +2,9 @@
 # licenze, statistiche. Esce per Windows e Mac in GitHub → Releases → "K9 Gestore" (K9Gestore-Windows.exe
 # e K9Gestore-Mac.dmg). Si installa accanto a K9 Manager, senza toccarlo.
 #
+# Demo con centri e addebiti finti, senza server: Run workflow con "demo" spuntato. Esce in Releases →
+# "Demo di K9 Gestore" (K9Gestore-Demo-Windows.exe e K9Gestore-Demo-Mac.dmg).
+#
 # Partenza: a mano (Run workflow), con l'indirizzo delle funzioni del gestore e la sua publishable key
 # (vedi gestore/README.md). Al posto degli input puoi mettere le variabili GESTORE_URL e GESTORE_KEY in
 # Settings → Secrets and variables → Actions → Variables. Mai la secret key: il pannello entra con il tuo utente.
@@ -10,6 +13,10 @@ name: Pannello del gestore
 on:
   workflow_dispatch:
     inputs:
+      demo:
+        description: Demo con dati finti, senza server
+        type: boolean
+        default: false
       gestore_url:
         description: Indirizzo delle funzioni del gestore (https://xxxx.supabase.co/functions/v1)
         required: false
@@ -22,6 +29,10 @@ permissions:
 
 env:
   EXPO_PUBLIC_PANNELLO: '1'
+  EXPO_PUBLIC_PANNELLO_DEMO: ${{ inputs.demo && '1' || '' }}
+  NOME: ${{ inputs.demo && 'K9Gestore-Demo' || 'K9Gestore' }}
+  # La demo si installa accanto al pannello vero, senza sostituirlo.
+  APP_ID: ${{ inputs.demo && 'it.campocani.gestoredemo' || 'it.campocani.gestore' }}
   EXPO_PUBLIC_GESTORE_URL: ${{ inputs.gestore_url || vars.GESTORE_URL }}
   EXPO_PUBLIC_GESTORE_KEY: ${{ inputs.gestore_key || vars.GESTORE_KEY }}
 
@@ -38,6 +49,7 @@ jobs:
             package-lock.json
             desktop/package-lock.json
       - name: Controlla gli input
+        if: ${{ !inputs.demo }}
         shell: bash
         run: |
           case "$EXPO_PUBLIC_GESTORE_URL" in https://*.supabase.co/functions/v1) ;; *) echo "::error::gestore_url deve essere https://xxxx.supabase.co/functions/v1"; exit 1;; esac
@@ -47,13 +59,13 @@ jobs:
         working-directory: desktop
       - run: npm run web
         working-directory: desktop
-      - run: npm run dist -- -c.appId=it.campocani.gestore -c.productName="K9 Gestore" -c.nsis.shortcutName="K9 Gestore" -c.win.artifactName=K9Gestore-Windows.exe
+      - run: npm run dist -- -c.appId=$APP_ID -c.productName="K9 Gestore" -c.nsis.shortcutName="K9 Gestore" -c.win.artifactName=$NOME-Windows.exe
         shell: bash
         working-directory: desktop
       - uses: actions/upload-artifact@v4
         with:
-          name: K9Gestore-Windows
-          path: desktop/release/K9Gestore-Windows.exe
+          name: ${{ env.NOME }}-Windows
+          path: desktop/release/${{ env.NOME }}-Windows.exe
           if-no-files-found: error
 
   mac:
@@ -72,14 +84,14 @@ jobs:
         working-directory: desktop
       - run: npm run web
         working-directory: desktop
-      - run: npm run dist:mac -- -c.appId=it.campocani.gestore -c.productName="K9 Gestore" -c.mac.artifactName=K9Gestore-Mac.dmg
+      - run: npm run dist:mac -- -c.appId=$APP_ID -c.productName="K9 Gestore" -c.mac.artifactName=$NOME-Mac.dmg
         working-directory: desktop
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - uses: actions/upload-artifact@v4
         with:
-          name: K9Gestore-Mac
-          path: desktop/release/K9Gestore-Mac.dmg
+          name: ${{ env.NOME }}-Mac
+          path: desktop/release/${{ env.NOME }}-Mac.dmg
           if-no-files-found: error
 
   pubblica:
@@ -94,9 +106,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          NOTES="Il tuo pannello per tutti i centri registrati dall'app. Entri con l'utente del progetto gestore.
+          if [ -n "$EXPO_PUBLIC_PANNELLO_DEMO" ]; then
+            TAG=pannello-demo; TITLE="Demo di K9 Gestore"
+            NOTES="Demo del pannello K9 Gestore con centri e addebiti finti, senza server: entri con una email e una password qualsiasi. Le modifiche restano finché il programma è aperto."
+          else
+            TAG=pannello-gestore; TITLE="K9 Gestore"
+            NOTES="Il tuo pannello per tutti i centri registrati dall'app. Entri con l'utente del progetto gestore."
+          fi
+          NOTES="$NOTES
 
-          - Windows: scarica K9Gestore-Windows.exe e aprilo per installarlo.
-          - Mac: scarica K9Gestore-Mac.dmg, aprilo e trascina K9 Gestore in Applicazioni. La prima volta aprilo con clic destro → Apri."
-          gh release view pannello-gestore >/dev/null 2>&1 || gh release create pannello-gestore --prerelease --title "K9 Gestore" --notes "$NOTES"
-          gh release upload pannello-gestore K9Gestore-Windows.exe K9Gestore-Mac.dmg --clobber
+          - Windows: scarica $NOME-Windows.exe e aprilo per installarlo.
+          - Mac: scarica $NOME-Mac.dmg, aprilo e trascina K9 Gestore in Applicazioni. La prima volta aprilo con clic destro → Apri."
+          gh release view $TAG >/dev/null 2>&1 || gh release create $TAG --prerelease --title "$TITLE" --notes "$NOTES"
+          gh release upload $TAG $NOME-Windows.exe $NOME-Mac.dmg --clobber
