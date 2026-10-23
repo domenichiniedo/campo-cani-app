@@ -3,7 +3,7 @@ import { t } from '@/lib/i18n';
 // Scontrino sul registratore telematico del campo, con il protocollo Epson ePOS-Print XML
 // (fpmate.cgi) dei registratori Epson FP-81 II RT, FP-90 III RT e compatibili.
 // La chiamata parte dal telefono o dal PC, che devono essere sulla stessa rete del registratore.
-// Nel programma Windows passa dal programma stesso (desktop/main.js), non dalla pagina.
+// Nel programma per computer passa dal programma stesso (desktop/main.js), non dalla pagina.
 
 type DesktopBridge = { printerPost: (url: string, body: string) => Promise<{ status: number; text: string }> };
 const desktop = (globalThis as { campoCaniDesktop?: DesktopBridge }).campoCaniDesktop;

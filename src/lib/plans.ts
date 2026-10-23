@@ -29,7 +29,7 @@ export type Plan = {
   invoices: boolean;
   /** Scontrino con registratore in cloud o registratore Epson al campo. */
   receiptDevices: boolean;
-  /** Programma per Windows. */
+  /** Programma per Windows e Mac. */
   desktop: boolean;
   /** Lezioni di gruppo: classi con più cani. */
   groups: boolean;

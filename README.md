@@ -13,7 +13,7 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
    nel progetto apri **SQL Editor**, incolla tutto il file e premi **Run**. Crea in un colpo tabelle, regole di accesso,
    lezioni di partenza e spazi per logo e foto, e segna la tua email come quella del proprietario.
    `setup.sql` è solo per un progetto **nuovo**. Se il database esiste già, esegui solo le migrazioni nuove di
-   `supabase/migrations`, una volta ciascuna e in ordine (l'ultima è `0016_lezioni_di_gruppo.sql`).
+   `supabase/migrations`, una volta ciascuna e in ordine (l'ultima è `0017_consenso_social.sql`).
 3. In **Project Settings → API Keys** copia l'URL del progetto e la **Publishable key** (inizia con `sb_publishable_`).
    Non usare mai la Secret key nell'app.
 4. Copia il file `.env.example` in `.env.local` e incolla i due valori:
@@ -220,7 +220,7 @@ L'app è una sola: il piano scritto nella licenza decide cosa si vede. Le licenz
 | Statistiche: grafico, presenze, disdette, ripartizioni | no | no | sì |
 | Fatture automatiche e scontrino | no | no | sì |
 | Registratore in cloud o registratore Epson al campo | no | no | sì |
-| Programma per Windows | no | no | sì |
+| Programma per Windows e Mac | no | no | sì |
 | Lezioni di gruppo: classi con più cani, anche ogni settimana | no | no | sì |
 
 Le lezioni e i pacchetti spenti non contano nel limite. Se un centro scende di piano con più campi, lezioni, pacchetti o
@@ -230,9 +230,9 @@ Per cambiare piano genera un codice con lo **stesso `--id`** e il nuovo `--piano
 centro lo incolla in Impostazioni → Licenza. Quando un centro raggiunge il limite di clienti, i nuovi non possono
 iscriversi e il titolare lo vede in Impostazioni → Licenza. I limiti sono in `src/lib/plans.ts`.
 
-## 8. Programma per Windows
+## 8. Programma per Windows e Mac
 
-La stessa app esiste anche come programma da installare sul PC del campo, **solo per il proprietario** (niente iscrizione
+La stessa app esiste anche come programma da installare sul computer del campo, **solo per il proprietario** (niente iscrizione
 né schermate dei clienti), con la stessa licenza e la stampa sul registratore Epson RT della rete del campo.
 
 - **Scaricarlo**: su GitHub apri **Actions → App per Windows → Run workflow**. Finita l'esecuzione, in fondo alla pagina
@@ -245,6 +245,11 @@ né schermate dei clienti), con la stessa licenza e la stampa sul registratore E
   (a pagamento), da aggiungere quando lo vendi.
 - **Versione demo**: in **Run workflow** spunta **demo**. Esce **K9Manager-Windows-Demo**, con i dati di esempio della
   demo web e senza database: utile per farlo vedere a un centro.
+- **Mac**: allo stesso modo da **Actions → App per Mac → Run workflow**, che crea `K9Manager-x.y.z.dmg` (per Mac con chip
+  Apple e Intel; con **demo** spuntato esce `K9Manager-Mac-Demo.dmg`, anche in **Releases → Demo per Mac**). Si apre il
+  file e si trascina K9 Manager in Applicazioni. Il programma non è firmato da Apple: la prima volta aprilo con **clic
+  destro → Apri**, oppure da **Impostazioni di Sistema → Privacy e sicurezza → Apri comunque**. Per toglierlo serve
+  l'Apple Developer Program (99 $ l'anno).
 - **Provarlo sul tuo computer**: nella cartella `desktop` esegui `npm install`, `npm run web` e `npm start`.
 
 ## 9. Demo da far provare
@@ -258,7 +263,7 @@ trainer e per cambiare piano. I dati restano solo su quel telefono o computer.
   modifica dell'app su main (Actions → **Demo web per iPhone**). La prima volta va acceso GitHub Pages: **Settings →
   Pages → Build and deployment → Source: GitHub Actions**. Con il repository privato GitHub Pages richiede GitHub Pro;
   il sito della demo è comunque pubblico.
-- **Windows**: punto 8, versione demo.
+- **Windows e Mac**: punto 8, versione demo (Releases → **Demo per Windows** e **Demo per Mac**).
 
 ## Cosa fa l'app
 

@@ -27,9 +27,9 @@ function Navigator() {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
 
-  // Il programma per Windows si apre solo con una licenza del piano che lo comprende.
+  // Il programma per computer si apre solo con una licenza del piano che lo comprende.
   if (ownerOnly && !plan.desktop)
-    return <Activate reason={t("Il programma per Windows è compreso nel piano {piano}, la tua licenza è del piano {tuo}. Inserisci un codice {piano}, oppure usa l'app sul telefono.", { piano: planWith('desktop'), tuo: plan.label })} />;
+    return <Activate reason={t("Il programma per computer è compreso nel piano {piano}, la tua licenza è del piano {tuo}. Inserisci un codice {piano}, oppure usa l'app sul telefono.", { piano: planWith('desktop'), tuo: plan.label })} />;
   if (!ready) return null;
   const signedIn = !!session && !!profile;
   if (ownerOnly && signedIn && !isOwner) return <OwnerOnly />;
@@ -82,7 +82,7 @@ function NotConfigured() {
       <Body>{t("L'app non sa ancora a quale database collegarsi.")}</Body>
       <Muted>
         {ownerOnly
-          ? t('Su GitHub, in Settings → Secrets and variables → Actions → Variables, inserisci EXPO_PUBLIC_SUPABASE_URL ed EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY del tuo progetto Supabase, poi ricostruisci il programma (Actions → App per Windows → Run workflow).')
+          ? t('Su GitHub, in Settings → Secrets and variables → Actions → Variables, inserisci EXPO_PUBLIC_SUPABASE_URL ed EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY del tuo progetto Supabase, poi ricostruisci il programma (Actions → App per Windows o App per Mac → Run workflow).')
           : t('Copia il file .env.example in .env.local e inserisci EXPO_PUBLIC_SUPABASE_URL ed EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY del tuo progetto Supabase, poi riavvia con npx expo start.')}
       </Muted>
     </View>

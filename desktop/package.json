@@ -2,14 +2,15 @@
   "name": "campo-cani-desktop",
   "productName": "K9 Manager",
   "version": "1.0.0",
-  "description": "K9 Manager per Windows",
+  "description": "K9 Manager per Windows e Mac",
   "author": "domenichiniedo",
   "private": true,
   "main": "main.js",
   "scripts": {
     "web": "cd .. && cross-env CAMPO_CANI_DESKTOP=1 EXPO_PUBLIC_SOLO_PROPRIETARIO=1 npx expo export --platform web --output-dir desktop/web",
     "start": "electron .",
-    "dist": "electron-builder --win nsis --x64 --publish never"
+    "dist": "electron-builder --win nsis --x64 --publish never",
+    "dist:mac": "electron-builder --mac dmg --universal --publish never"
   },
   "devDependencies": {
     "cross-env": "7.0.3",
@@ -24,6 +25,13 @@
     "extraResources": [{ "from": "web", "to": "web" }],
     "protocols": [{ "name": "K9 Manager", "schemes": ["campocaniapp"] }],
     "win": { "icon": "../assets/images/icon.png", "artifactName": "K9Manager-Setup-${version}.exe" },
+    "mac": {
+      "icon": "../assets/images/icon.png",
+      "category": "public.app-category.business",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "artifactName": "K9Manager-${version}.${ext}"
+    },
     "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "shortcutName": "K9 Manager" }
   }
 }
