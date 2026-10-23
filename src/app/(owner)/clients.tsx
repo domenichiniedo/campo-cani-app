@@ -15,7 +15,7 @@ import { useColors } from '@/lib/theme';
 import { fullName, usable, type ClientPackage, type Dog, type Penalty, type Profile } from '@/lib/types';
 
 type Client = Profile & { dogs: (Dog & { penalties: Penalty[] })[]; client_packages: ClientPackage[] };
-type Filter = 'all' | 'package' | 'blocked' | 'penalties' | 'billing';
+type Filter = 'all' | 'package' | 'blocked' | 'penalties' | 'billing' | 'nosocial';
 type Act = (fn: () => PromiseLike<{ error: unknown }>) => Promise<void>;
 
 const dogsOf = (p: Client) => p.dogs.filter((d) => !d.archived);
@@ -77,7 +77,8 @@ export default function OwnerClients() {
     (filter === 'package' && p.client_packages.some((cp) => usable(cp))) ||
     (filter === 'blocked' && dogsOf(p).some((d) => d.blocked)) ||
     (filter === 'penalties' && dogsOf(p).some((d) => d.penalties.length > 0)) ||
-    (filter === 'billing' && !p.tax_code);
+    (filter === 'billing' && !p.tax_code) ||
+    (filter === 'nosocial' && !p.social_consent);
   const shown = rows
     .filter((p) => matches(p) && passes(p))
     .sort((a, b) => sortName(a).localeCompare(sortName(b), 'it', { sensitivity: 'base' }));
@@ -183,6 +184,7 @@ export default function OwnerClients() {
           { value: 'penalties', label: t('Con penalità') },
           { value: 'blocked', label: t('Sospesi') },
           { value: 'billing', label: t('Senza dati fattura') },
+          { value: 'nosocial', label: t('No foto sui social') },
         ]}
         value={filter}
         onChange={setFilter}
@@ -232,6 +234,11 @@ function ClientDetail({ p, act }: { p: Client; act: Act }) {
             reg: p.rules_ver ?? '–',
             priv: p.privacy_ver ?? '–',
           })}
+        </Muted>
+        <Muted style={{ fontSize: 13 }}>
+          {p.social_consent
+            ? t('Foto sui social: sì, dal {data}', { data: shortDate(p.social_consent_at) })
+            : t('Foto sui social: no')}
         </Muted>
       </View>
       {p.client_packages

@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 
 import { BillingFields } from '@/components/billing-fields';
 import { PhotoEditor } from '@/components/photo';
-import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
+import { Badge, Body, Button, Card, Check, Chips, ConfirmButton, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingColumns, billingError, billingFromProfile } from '@/lib/billing';
 import { euro, isDayKey, shortDate } from '@/lib/format';
 import { t } from '@/lib/i18n';
@@ -25,6 +25,7 @@ export default function Profile() {
   const [newDog, setNewDog] = useState({ name: '', breed: '', birth: '' });
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [deleteErr, setDeleteErr] = useState('');
+  const [socialErr, setSocialErr] = useState('');
 
   async function deleteAccount() {
     setDeleteErr('');
@@ -194,6 +195,26 @@ export default function Profile() {
             privacy: shortDate(profile?.privacy_accepted_at),
           })}
         </Muted>
+        {profile && (
+          <>
+            <Check
+              value={profile.social_consent}
+              onChange={async (v) => {
+                setSocialErr('');
+                const { error } = await supabase.from('profiles').update({ social_consent: v }).eq('id', profile.id);
+                if (error) setSocialErr(errorText(error));
+                await refresh();
+              }}>
+              {t('Acconsento alla pubblicazione sui social del centro di foto e video in cui compaiono i miei cani o io.')}
+            </Check>
+            <Muted style={{ fontSize: 13 }}>
+              {profile.social_consent_at
+                ? t('Scelta fatta il {giorno}. Puoi cambiarla quando vuoi.', { giorno: shortDate(profile.social_consent_at) })
+                : t('Facoltativo: puoi cambiare idea quando vuoi.')}
+            </Muted>
+            <ErrorText>{socialErr}</ErrorText>
+          </>
+        )}
       </Card>
 
       <Button title={t('Esci')} kind="ghost" onPress={() => supabase.auth.signOut()} />
