@@ -1,0 +1,52 @@
+# Prova di K9 Manager con i dati condivisi, tutta da GitHub: crea un progetto Supabase gratuito sul tuo
+# account con il database pronto, poi costruisce l'APK della prova collegato a quel progetto (App per Android).
+#
+# Una volta sola: su supabase.com → Account → Access Tokens crea un token e salvalo qui in Settings → Secrets
+# and variables → Actions → New repository secret, con nome SUPABASE_ACCESS_TOKEN. Il token crea progetti sul
+# tuo account: resta nei secrets di GitHub, non finisce nell'app né nei log.
+#
+# Poi Actions → Prova con database → Run workflow, con il nome del centro, l'email del proprietario e i giorni.
+# In una quindicina di minuti l'APK è in Releases → "Prova per Android – <progetto>". Il piano gratuito di
+# Supabase tiene due progetti attivi: le prove finite si mettono in pausa o si cancellano da supabase.com.
+name: Prova con database
+
+on:
+  workflow_dispatch:
+    inputs:
+      campo:
+        description: Nome del centro della prova
+        default: Centro di prova
+      email:
+        description: Email del proprietario (si iscrive dall'app con questa ed entra come proprietario)
+        required: true
+      giorni:
+        description: Giorni di prova
+        default: '3'
+
+permissions:
+  contents: write
+
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.prova.outputs.url }}
+      chiave: ${{ steps.prova.outputs.chiave }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: prova
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          CAMPO: ${{ inputs.campo }}
+          EMAIL: ${{ inputs.email }}
+        run: node tools/nuova-prova.mjs --campo "$CAMPO" --email "$EMAIL"
+  app:
+    needs: database
+    uses: ./.github/workflows/android.yml
+    with:
+      supabase_url: ${{ needs.database.outputs.url }}
+      supabase_key: ${{ needs.database.outputs.chiave }}
+      giorni: ${{ inputs.giorni }}

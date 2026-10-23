@@ -24,6 +24,18 @@ on:
       giorni:
         description: Giorni di prova (0 = senza scadenza)
         default: '3'
+  # Lo usa anche "Prova con database", dopo aver creato il progetto Supabase.
+  workflow_call:
+    inputs:
+      supabase_url:
+        type: string
+        required: true
+      supabase_key:
+        type: string
+        required: true
+      giorni:
+        type: string
+        default: '3'
   # Nelle PR che lo cambiano si costruisce solo per provarlo, con un database finto, e non si pubblica.
   pull_request:
     paths: ['.github/workflows/android.yml', 'mobile-demo/build.mjs']

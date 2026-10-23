@@ -308,6 +308,15 @@ L'app vera, nel piano Pro, collegata a un database Supabase solo per la prova: p
 dai loro telefoni e vedono gli stessi dati. Finiti i giorni, l'app mostra a tutti "La prova è finita"; i dati restano
 nel progetto Supabase. I pagamenti online restano spenti.
 
+**Tutto da GitHub (consigliato)**: una volta sola crea un token in supabase.com → **Account → Access Tokens** e
+salvalo nel repository in **Settings → Secrets and variables → Actions → New repository secret** con nome
+`SUPABASE_ACCESS_TOKEN`. Poi per ogni prova: **Actions → Prova con database → Run workflow** con il nome del centro,
+l'email del proprietario e i giorni. Il workflow crea il progetto Supabase gratuito con il database pronto (senza
+conferma via email) e costruisce l'APK: in una quindicina di minuti è in **Releases → Prova per Android – xxxx**.
+Poi segui i punti 4 e 5 qui sotto.
+
+**A mano**, se preferisci:
+
 1. **Database della prova**: su <https://supabase.com> crea un nuovo progetto gratuito (il piano gratuito ne permette
    due attivi; un progetto fermo da una settimana viene messo in pausa). Poi come al punto 1: in `supabase/setup.sql`
    metti nell'ultima riga l'email di chi farà il proprietario nella prova (tu o il titolare del centro) ed eseguilo
