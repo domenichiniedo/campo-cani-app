@@ -3,7 +3,18 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { Badge, Body, Button, Card, Chips, ErrorText, Field, H1, Muted, Row, Screen, Stat, Step } from '@/components/ui';
-import { admin, adminCall, adminConfigured, type AdminCentre, type AdminData, type Charge } from '@/lib/gestore-admin';
+import {
+  adminCall,
+  adminConfigured,
+  adminDemo,
+  adminSignedIn,
+  adminSignIn,
+  adminSignOut,
+  onAdminAuth,
+  type AdminCentre,
+  type AdminData,
+  type Charge,
+} from '@/lib/gestore-admin';
 import { sameOr, useWhenActive } from '@/lib/refresh';
 import { useColors } from '@/lib/theme';
 
@@ -33,7 +44,7 @@ const ADDEBITO: Record<Charge['stato'], string> = {
   non_pagato: 'NON pagato',
 };
 
-const euro = (cents: number) => `${(cents / 100).toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €`;
+const euro = (cents: number) => `${(cents / 100).toLocaleString('it-IT', { minimumFractionDigits: cents % 100 ? 2 : 0, maximumFractionDigits: 2 })} €`;
 const data = (d: string | null) => (d ? d.slice(0, 10).split('-').reverse().join('/') : '—');
 const meseLabel = (m: string) => `${MESI[Number(m.slice(5, 7)) - 1]} ${m.slice(2, 4)}`;
 const mesePrima = (m: string) => {
@@ -51,12 +62,11 @@ export function GestorePanel() {
 
   useEffect(() => {
     SplashScreen.hideAsync();
-    admin.auth.getSession().then(({ data }) => {
-      setSignedIn(!!data.session);
+    adminSignedIn().then((v) => {
+      setSignedIn(v);
       setReady(true);
     });
-    const { data } = admin.auth.onAuthStateChange((_e, s) => setSignedIn(!!s));
-    return () => data.subscription.unsubscribe();
+    return onAdminAuth(setSignedIn);
   }, []);
 
   if (!adminConfigured) {
@@ -80,16 +90,20 @@ function Login() {
   async function submit() {
     setBusy(true);
     setErr('');
-    const { error } = await admin.auth.signInWithPassword({ email: email.trim(), password });
+    const e = await adminSignIn(email.trim(), password);
     setBusy(false);
-    if (error) setErr(/Invalid login/i.test(error.message) ? 'Email o password non corretti.' : error.message);
+    if (e) setErr(e);
   }
 
   return (
     <Screen header={false}>
       <H1>K9 Gestore</H1>
       <Card>
-        <Muted>{"Entra con l'utente che hai creato nel progetto Supabase del gestore."}</Muted>
+        <Muted>
+          {adminDemo
+            ? 'Demo con centri e addebiti finti: entra con una email e una password qualsiasi.'
+            : "Entra con l'utente che hai creato nel progetto Supabase del gestore."}
+        </Muted>
         <Field label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
         <Field label="Password" value={password} onChangeText={setPassword} secureTextEntry onSubmitEditing={submit} />
         <ErrorText>{err}</ErrorText>
@@ -132,7 +146,7 @@ function Dashboard() {
       <Screen header={false}>
         <H1>K9 Gestore</H1>
         {err ? <ErrorText>{err}</ErrorText> : <Muted>Carico i centri…</Muted>}
-        {!!err && <Button kind="ghost" title="Esci" onPress={() => admin.auth.signOut()} />}
+        {!!err && <Button kind="ghost" title="Esci" onPress={adminSignOut} />}
       </Screen>
     );
   }
@@ -167,8 +181,11 @@ function Dashboard() {
   return (
     <Screen header={false}>
       <Row style={{ justifyContent: 'space-between' }}>
-        <H1>K9 Gestore</H1>
-        <Button small kind="ghost" title="Esci" onPress={() => admin.auth.signOut()} />
+        <Row>
+          <H1>K9 Gestore</H1>
+          {adminDemo && <Badge tone="warn">Demo, dati finti</Badge>}
+        </Row>
+        <Button small kind="ghost" title="Esci" onPress={adminSignOut} />
       </Row>
       <ErrorText>{err}</ErrorText>
 
