@@ -1,9 +1,10 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
-import { DogDiary } from '@/components/dog-diary';
-import { Card, Chips, H1, Muted, Screen } from '@/components/ui';
+import { DogDiary, DogEvalEditor, type EvalTarget } from '@/components/dog-diary';
+import { Button, Card, Chips, H1, Muted, Screen } from '@/components/ui';
 import { t } from '@/lib/i18n';
+import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 
@@ -14,6 +15,9 @@ export default function TrainerDogs() {
   const { myTrainer } = useSession();
   const [dogs, setDogs] = useState<DogRow[]>([]);
   const [pick, setPick] = useState<string | null>(null);
+  const plan = usePlan();
+  const [evalFor, setEvalFor] = useState<EvalTarget | null>(null);
+  const [round, setRound] = useState(0);
 
   const load = useCallback(async () => {
     if (!myTrainer) return;
@@ -42,9 +46,18 @@ export default function TrainerDogs() {
             {dog.breed ? `${dog.breed} · ` : ''}
             {dog.profiles ? `${dog.profiles.first_name} ${dog.profiles.last_name}` : ''}
           </Muted>
-          <DogDiary key={dog.id} dogId={dog.id} />
+          {plan.evals && <Button small kind="ghost" title={t('+ Valuta il cane')} onPress={() => setEvalFor({ dogId: dog.id, dogName: dog.name })} />}
+          <DogDiary key={`${dog.id}-${round}`} dogId={dog.id} />
         </Card>
       )}
+      <DogEvalEditor
+        target={evalFor}
+        onClose={() => setEvalFor(null)}
+        onSaved={() => {
+          setEvalFor(null);
+          setRound(round + 1);
+        }}
+      />
     </Screen>
   );
 }

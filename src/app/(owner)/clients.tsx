@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
-import { DogDiary } from '@/components/dog-diary';
+import { DogDiary, DogEvalEditor, type EvalTarget } from '@/components/dog-diary';
 import { Avatar } from '@/components/photo';
 import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Field, H1, Muted, Row, Screen } from '@/components/ui';
 import { billingLine } from '@/lib/billing';
@@ -214,7 +214,10 @@ export default function OwnerClients() {
 /** Scheda del cliente: contatti, dati di fatturazione, pacchetti e cani con penalità. */
 function ClientDetail({ p, act }: { p: Client; act: Act }) {
   const { trainers } = useSession();
+  const plan = usePlan();
   const [diary, setDiary] = useState<string | null>(null);
+  const [evalFor, setEvalFor] = useState<EvalTarget | null>(null);
+  const [round, setRound] = useState(0);
   return (
     <View style={{ gap: 10 }}>
       <Row>
@@ -276,6 +279,7 @@ function ClientDetail({ p, act }: { p: Client; act: Act }) {
             {trainers.length > 0 && (
               <Button small kind="ghost" title={diary === d.id ? t('Chiudi diario') : t('Diario')} onPress={() => setDiary(diary === d.id ? null : d.id)} />
             )}
+            {plan.evals && <Button small kind="ghost" title={t('+ Valuta il cane')} onPress={() => setEvalFor({ dogId: d.id, dogName: d.name })} />}
             <Button
               small
               kind={d.blocked ? 'primary' : 'danger'}
@@ -283,9 +287,18 @@ function ClientDetail({ p, act }: { p: Client; act: Act }) {
               onPress={() => act(() => supabase.from('dogs').update({ blocked: !d.blocked }).eq('id', d.id))}
             />
           </Row>
-          {diary === d.id && <DogDiary dogId={d.id} limit={10} empty={t('Il diario di {cane} è ancora vuoto.', { cane: d.name })} />}
+          {diary === d.id && <DogDiary key={round} dogId={d.id} limit={10} empty={t('Il diario di {cane} è ancora vuoto.', { cane: d.name })} />}
         </View>
       ))}
+      <DogEvalEditor
+        target={evalFor}
+        onClose={() => setEvalFor(null)}
+        onSaved={() => {
+          setDiary(evalFor?.dogId ?? null);
+          setEvalFor(null);
+          setRound(round + 1);
+        }}
+      />
     </View>
   );
 }

@@ -1,7 +1,7 @@
 // Finto Supabase in memoria per la demo nel browser: risponde alle chiamate dell'app senza server.
 (function () {
   var BASE = 'https://demo.supabase.co';
-  var KEY = 'campo-demo-db-v9';
+  var KEY = 'campo-demo-db-v10';
   // L'app parte dalla sua pagina iniziale: la cartella della demo (/ o, sul sito, /campo-cani-app/).
   try { history.replaceState(null, '', location.pathname.replace(/[^/]*$/, '')); } catch (e) {}
 
@@ -39,6 +39,27 @@
         { id: 'p2', name: '5 lezioni base', lesson_type: 'base', lessons: 5, price_cents: 6500, valid_days: 90, sort: 2, active: true }
       ],
       client_packages: [],
+      // Modelli di scheda preparati dal centro, che i trainer compilano sul cane.
+      eval_forms: [
+        { id: 'v1', name: 'Primo incontro', active: true, sort: 1, items: [
+          { label: 'Come si presenta all\'arrivo', kind: 'choice', options: ['Tranquillo', 'Curioso', 'Agitato', 'Pauroso', 'Reattivo'] },
+          { label: 'Approccio alle persone', kind: 'score' }, { label: 'Approccio agli altri cani', kind: 'score' },
+          { label: 'Vaccinazioni in regola', kind: 'yesno' }, { label: 'Note sul primo incontro', kind: 'text' }] },
+        { id: 'v2', name: 'Ipersensibilità al tatto', active: true, sort: 2, items: [
+          { label: 'Testa e orecchie', kind: 'choice', options: ['Accetta', 'Tollera', 'Evita', 'Reagisce'] },
+          { label: 'Zampe', kind: 'choice', options: ['Accetta', 'Tollera', 'Evita', 'Reagisce'] },
+          { label: 'Coda e posteriore', kind: 'choice', options: ['Accetta', 'Tollera', 'Evita', 'Reagisce'] },
+          { label: 'Pettorina e collare', kind: 'choice', options: ['Accetta', 'Tollera', 'Evita', 'Reagisce'] },
+          { label: 'Si calma dopo il contatto', kind: 'yesno' }, { label: 'Note', kind: 'text' }] },
+        { id: 'v3', name: 'Obiettivi del conduttore', active: true, sort: 3, items: [
+          { label: 'Obiettivo principale', kind: 'choice', options: ['Educazione di base', 'Gestione in città', 'Sport (IGP, agility)', 'Problema di comportamento'] },
+          { label: 'Cosa vorrebbe migliorare con il cane', kind: 'text' },
+          { label: 'Tempo per allenarsi a casa', kind: 'choice', options: ['Meno di 1 ora a settimana', '1-3 ore a settimana', 'Più di 3 ore a settimana'] },
+          { label: 'Motivazione del conduttore', kind: 'score' }] },
+        { id: 'v4', name: 'Valutazione obbedienza', active: true, sort: 4, items: [
+          { label: 'Richiamo', kind: 'score' }, { label: 'Condotta al guinzaglio', kind: 'score' }, { label: 'Concentrazione', kind: 'score' },
+          { label: 'Pronto per la prova', kind: 'yesno' }, { label: 'Da fare a casa', kind: 'text' }] }
+      ],
       profiles: [], dogs: [], availability: [], trainer_availability: [], trainer_accounts: [], dog_notes: [], bookings: [], classes: [], penalties: [], passwords: {},
       // Foto di esempio di trainer e clienti: sagome disegnate, si possono cambiare dall'app.
       files: { 'foto/trainer-t1-demo.svg': avatar('#cfe3d6', '#e8b994', '#3b2a20'), 'foto/trainer-t2-demo.svg': avatar('#f1dcc0', '#f0c7a4', '#8a4b2a') }
@@ -140,13 +161,37 @@
       base: ['Richiamo con distrazioni e guinzaglio lungo', 'Seduto e terra con il cibo, poi senza', 'Passeggiata al guinzaglio senza tirare', 'Resta: 30 secondi a 5 metri', 'Socializzazione con altri due cani']
     };
     var commenti = ['Molto concentrato, bravo!', 'Si distrae dopo 20 minuti: meglio sessioni brevi.', 'Grande progresso rispetto alla volta scorsa.', 'A casa ripetete il richiamo 5 minuti al giorno.', 'Un po\' agitato all\'inizio, poi ottimo.', ''];
+    // Una lezione su due di obbedienza ha anche la scheda, con voti che crescono nel tempo.
+    function valuta(b, i) {
+      if (b.lesson_option !== 'Obbedienza' || i % 2) return null;
+      var f = db.eval_forms[3];
+      var v = Math.max(1, Math.min(5, 4 - Math.round((dk(t) > b.day ? (t - new Date(b.day)) / 864e5 : 0) / 30)));
+      var vals = [v, Math.min(5, v + 1), v, v >= 4, i % 4 ? null : 'Richiamo con il fischietto, 5 minuti al giorno'];
+      return { form_id: f.id, name: f.name, items: f.items.map(function (it, k) { return { label: it.label, kind: it.kind, value: vals[k] }; }) };
+    }
     db.bookings.forEach(function (b, i) {
       if (!b.checked_in_at || !b.trainer_id || b.day >= dk(t) || i % 10 > 6) return;
       var tr = db.trainers.filter(function (x) { return x.id === b.trainer_id; })[0];
       var lt0 = db.lesson_types.filter(function (x) { return x.id === b.lesson_type; })[0];
       db.dog_notes.push({ id: uid(), dog_id: b.dog_id, booking_id: b.id, trainer_id: b.trainer_id, author_name: tr.name, day: b.day,
         lesson: lt0.label + (b.lesson_option ? ' · ' + b.lesson_option : ''), work: (lavori[b.lesson_type] || lavori[b.lesson_option])[i % (b.lesson_type === 'base' ? 5 : 3)], comment: commenti[i % commenti.length],
-        created_at: b.checked_in_at, updated_at: b.checked_in_at });
+        evaluation: valuta(b, i), created_at: b.checked_in_at, updated_at: b.checked_in_at });
+    });
+    // Schede compilate da Luca sui cani che allena in IGP: primo incontro e obiettivi all'inizio, poi il tatto.
+    var allievi = [];
+    db.bookings.forEach(function (b) { if (b.lesson_type === 'igp' && b.trainer_id === 't1' && allievi.indexOf(b.dog_id) < 0) allievi.push(b.dog_id); });
+    var schede = [
+      [0, -75, 'Primo cane del cliente, buona collaborazione.', function (n) { return [['Curioso', 'Tranquillo', 'Agitato'][n % 3], 4 - n % 2, 3 + n % 2, true, 'Si ambienta in pochi minuti, tira al guinzaglio.']; }],
+      [2, -74, '', function (n) { return [['Sport (IGP, agility)', 'Educazione di base', 'Gestione in città'][n % 3], 'Una condotta più attenta e un richiamo affidabile anche al parco.', ['1-3 ore a settimana', 'Più di 3 ore a settimana'][n % 2], 4 + n % 2]; }],
+      [1, -30, 'Da ripetere tra un mese.', function (n) { return [n % 2 ? 'Tollera' : 'Accetta', ['Evita', 'Tollera', 'Reagisce'][n % 3], 'Tollera', 'Accetta', n % 3 !== 2, n % 3 === 2 ? 'Sulle zampe posteriori serve un lavoro lento con il cibo.' : null]; }]
+    ];
+    allievi.forEach(function (dogId, n) {
+      schede.forEach(function (sc) {
+        var f = db.eval_forms[sc[0]], at = addDays(t, sc[1] + n), vals = sc[3](n);
+        db.dog_notes.push({ id: uid(), dog_id: dogId, booking_id: null, trainer_id: 't1', author_name: 'Luca', day: dk(at), lesson: '', work: '', comment: sc[2],
+          evaluation: { form_id: f.id, name: f.name, items: f.items.map(function (it, k) { return { label: it.label, kind: it.kind, value: vals[k] === undefined ? null : vals[k] }; }) },
+          created_at: at.toISOString(), updated_at: at.toISOString() });
+      });
     });
     // Classi di gruppo martedì, giovedì e sabato alle 11 sul Campo B (il sabato con Luca): alcune piene, altre con posti liberi.
     var gruppo = [['c2', 'd3'], ['c3', 'd4'], ['x1', 'dx1'], ['x2', 'dx2'], ['x5', 'dx5'], ['x8', 'dx8'], ['c1', 'd2']];
@@ -317,7 +362,7 @@
   }
   function defaults(table, row, who) {
     var base = { dogs: { blocked: false, archived: false, breed: '', birth: null }, penalties: { created_at: nowIso() }, bookings: { created_at: nowIso() },
-      fields: { address: '', sort: 0, active: true }, packages: { lesson_type: null, valid_days: null, sort: 0, active: true }, trainers: { lessons: [], sort: 0, active: true } }[table] || {};
+      fields: { address: '', sort: 0, active: true }, eval_forms: { sort: 0, active: true }, packages: { lesson_type: null, valid_days: null, sort: 0, active: true }, trainers: { lessons: [], sort: 0, active: true } }[table] || {};
     var r = Object.assign({}, base, row);
     if (pk(table)[0] === 'id' && r.id === undefined) r.id = uid();
     return r;
@@ -422,6 +467,20 @@
     }).sort(function (x, y) { return (x.expires_at || '9999').localeCompare(y.expires_at || '9999'); })[0];
   }
 
+  // Come eval_filled() nel database vero: copia della scheda con i valori controllati, o il messaggio d'errore.
+  function evalFilled(pe) {
+    var ef = db.eval_forms.filter(function (x) { return x.id === pe.form_id; })[0];
+    if (!ef) return 'Scheda di valutazione non trovata';
+    var vs = pe.values || [], items = [];
+    for (var k = 0; k < ef.items.length; k++) {
+      var it = ef.items[k], v = vs[k] === undefined ? null : vs[k];
+      if (it.kind === 'text' && typeof v === 'string') v = v.trim().slice(0, 2000) || null;
+      if (v !== null && !((it.kind === 'score' && [1, 2, 3, 4, 5].indexOf(v) >= 0) || (it.kind === 'yesno' && typeof v === 'boolean') || (it.kind === 'text' && typeof v === 'string') || (it.kind === 'choice' && (it.options || []).indexOf(v) >= 0))) return 'Scheda di valutazione non valida';
+      items.push({ label: it.label, kind: it.kind, value: v });
+    }
+    if (items.every(function (x) { return x.value === null; })) return 'Compila almeno una voce della scheda';
+    return { form_id: ef.id, name: ef.name, items: items };
+  }
   function rpc(name, headers, a) {
     if (name === 'client_count') return json(200, db.profiles.filter(function (p) { return p.role === 'client'; }).length);
     var who = me(headers);
@@ -461,19 +520,38 @@
       if (!nb) return fail('Lezione non trovata');
       if (who.role !== 'owner' && (!nb.trainer_id || nb.trainer_id !== trainerOf(who))) return fail('Non è una tua lezione');
       var work = (a.p_work || '').trim(), comment = (a.p_comment || '').trim();
-      if (!work && !comment) return fail('Scrivi cosa avete fatto o un commento');
+      var note = db.dog_notes.filter(function (x) { return x.booking_id === nb.id; })[0];
+      var ev = null, pe = a.p_eval;
+      if (pe && pe.keep) ev = note ? note.evaluation || null : null;
+      else if (pe) { ev = evalFilled(pe); if (typeof ev === 'string') return fail(ev); }
+      if (!work && !comment && !ev) return fail('Scrivi cosa avete fatto o un commento');
       var ntr = db.trainers.filter(function (x) { return x.id === nb.trainer_id; })[0];
       var nlt = db.lesson_types.filter(function (x) { return x.id === nb.lesson_type; })[0];
       var author = who.role === 'owner' ? ((who.first_name + ' ' + who.last_name).trim() || 'Il campo') : (ntr ? ntr.name : '');
-      var note = db.dog_notes.filter(function (x) { return x.booking_id === nb.id; })[0];
-      if (note) { note.work = work; note.comment = comment; note.author_name = author; note.updated_at = nowIso(); }
+      if (note) { note.work = work; note.comment = comment; note.evaluation = ev; note.author_name = author; note.updated_at = nowIso(); }
       else {
         note = { id: uid(), dog_id: nb.dog_id, booking_id: nb.id, trainer_id: nb.trainer_id, author_name: author, day: nb.day,
-          lesson: (nlt ? nlt.label : nb.lesson_type) + (nb.lesson_option ? ' · ' + nb.lesson_option : ''), work: work, comment: comment, created_at: nowIso(), updated_at: nowIso() };
+          lesson: (nlt ? nlt.label : nb.lesson_type) + (nb.lesson_option ? ' · ' + nb.lesson_option : ''), work: work, comment: comment, evaluation: ev, created_at: nowIso(), updated_at: nowIso() };
         db.dog_notes.push(note);
       }
       save();
       return json(200, note);
+    }
+    if (name === 'add_dog_eval') {
+      var edog = db.dogs.filter(function (d) { return d.id === a.p_dog; })[0];
+      if (!edog) return fail('Cane non trovato');
+      var etid = trainerOf(who);
+      if (who.role !== 'owner' && !db.bookings.some(function (b) { return b.dog_id === edog.id && etid && b.trainer_id === etid; })) return fail('Non è un cane delle tue lezioni');
+      if (!a.p_eval) return fail('Scegli una scheda di valutazione');
+      var eev = evalFilled(a.p_eval);
+      if (typeof eev === 'string') return fail(eev);
+      var etr = db.trainers.filter(function (x) { return x.id === etid; })[0];
+      var enote = { id: uid(), dog_id: edog.id, booking_id: null, trainer_id: etr ? etr.id : null,
+        author_name: who.role === 'owner' ? ((who.first_name + ' ' + who.last_name).trim() || 'Il campo') : (etr ? etr.name : ''),
+        day: dk(new Date()), lesson: '', work: '', comment: (a.p_comment || '').trim(), evaluation: eev, created_at: nowIso(), updated_at: nowIso() };
+      db.dog_notes.push(enote);
+      save();
+      return json(200, enote);
     }
     if (name === 'set_my_photo') {
       var mine = db.trainers.filter(function (x) { return x.id === trainerOf(who); })[0];
