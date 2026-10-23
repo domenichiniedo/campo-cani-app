@@ -33,6 +33,14 @@ jobs:
         working-directory: mobile-demo
       - run: npx cap add android
         working-directory: mobile-demo
+      # Da Android 15 l'app andrebbe sotto la barra di stato e i tasti in basso, che coprirebbero le schede:
+      # si tiene il layout classico, con l'app fra le due barre.
+      - name: Schermo fra le barre di sistema
+        working-directory: mobile-demo/android/app/src/main/res/values
+        run: |
+          sed -i 's#<style name="AppTheme.NoActionBar"[^>]*>#&\n        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>#' styles.xml
+          grep -q windowOptOutEdgeToEdgeEnforcement styles.xml
+          cat styles.xml
       # Icona dell'app: quella di K9 Manager al posto di quella di Capacitor.
       - name: Icona
         working-directory: mobile-demo/android/app/src/main/res
