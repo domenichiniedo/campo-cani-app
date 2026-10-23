@@ -6,6 +6,7 @@
 # tuo account: resta nei secrets di GitHub, non finisce nell'app né nei log.
 #
 # Poi Actions → Prova con database → Run workflow, con il nome del centro, l'email del proprietario e i giorni.
+# Se hai già creato il progetto su supabase.com, scrivi il suo codice (quello nell'indirizzo xxxx.supabase.co).
 # In una quindicina di minuti l'APK è in Releases → "Prova per Android – <progetto>". Il piano gratuito di
 # Supabase tiene due progetti attivi: le prove finite si mettono in pausa o si cancellano da supabase.com.
 name: Prova con database
@@ -22,6 +23,9 @@ on:
       giorni:
         description: Giorni di prova
         default: '3'
+      progetto:
+        description: Codice di un progetto Supabase già creato (vuoto = ne crea uno nuovo)
+        required: false
 
 permissions:
   contents: write
@@ -42,7 +46,8 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           CAMPO: ${{ inputs.campo }}
           EMAIL: ${{ inputs.email }}
-        run: node tools/nuova-prova.mjs --campo "$CAMPO" --email "$EMAIL"
+          PROGETTO: ${{ inputs.progetto }}
+        run: node tools/nuova-prova.mjs --campo "$CAMPO" --email "$EMAIL" ${PROGETTO:+--ref "$PROGETTO"}
   app:
     needs: database
     uses: ./.github/workflows/android.yml
