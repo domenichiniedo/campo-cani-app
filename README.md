@@ -52,6 +52,10 @@ La password la scegli tu e non passa da nessun altro.
    ```
 
 3. Se eri già dentro, esci e rientra: vedrai le schede del proprietario (Giorno, Settimana, Orari, Clienti, Impostazioni).
+4. Altri proprietari (un socio, chi ti aiuta a gestire il centro): in **Impostazioni → Proprietari** scrivi la loro
+   email. Se sono già iscritti diventano subito proprietari, altrimenti quando si iscrivono con quella email. Da lì li
+   puoi anche togliere; te stesso no, così resta sempre almeno un proprietario. Su un database che esiste già serve
+   prima la migrazione `0019_piu_proprietari.sql`.
 
 Per prima cosa vai in **Impostazioni**: nome del centro, logo, numero di campi con nome e indirizzo, trainer, prezzi,
 regolamento e privacy. Poi in **Orari** apri, campo per campo, i giorni e le mezz'ore prenotabili.

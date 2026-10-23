@@ -7,6 +7,7 @@ import { InvoicesPanel } from '@/components/invoices-panel';
 import { ReportPanel } from '@/components/report-panel';
 import { LicensePanel } from '@/components/license-panel';
 import { LimitNote } from '@/components/limit-note';
+import { OwnersPanel } from '@/components/owners-panel';
 import { PackagesEditor } from '@/components/packages-editor';
 import { Body, Button, Card, ErrorText, Field, H1, Muted, Row, Screen, Step, Toggle } from '@/components/ui';
 import { hm, parseHm, STEP } from '@/lib/format';
@@ -470,6 +471,9 @@ export default function OwnerSettings() {
       ) : (
         <PlanNote title={t('Report mensile')} plan={planWith('report')} />
       )}
+
+      <Step title={t('Proprietari')} />
+      <OwnersPanel />
 
       <Step title={t('Regolamento e privacy')} />
       <Card>

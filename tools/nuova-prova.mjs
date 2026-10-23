@@ -13,7 +13,7 @@
 import { randomBytes } from 'node:crypto';
 import { appendFileSync } from 'node:fs';
 
-import { migrationsSql } from './setup-sql.mjs';
+import { migrations, migrationsSql } from './setup-sql.mjs';
 
 const API = 'https://api.supabase.com/v1';
 const fail = (msg) => {
@@ -71,16 +71,27 @@ for (let i = 0; ; i++) {
 }
 
 // 2. Database: tutte le migrazioni, il nome del centro e l'email del proprietario. Un progetto che ha già
-// le tabelle dell'app (per esempio con setup.sql eseguito a mano) resta com'è: si imposta solo il proprietario.
+// le tabelle dell'app (per esempio con setup.sql eseguito a mano) tiene i suoi dati: si aggiungono solo le
+// migrazioni che mancano e si imposta il proprietario.
 const [{ pronto }] = await api('POST', `/projects/${ref}/database/query`, { query: "select to_regclass('public.settings') is not null as pronto;" });
 if (pronto) {
-  step("Il database ha già le tabelle dell'app: lo lascio com'è e imposto solo l'email del proprietario.");
-  const email = sql(o.email.trim().toLowerCase());
-  const [{ fatto }] = await api('POST', `/projects/${ref}/database/query`, {
-    query: `select to_regprocedure('public.set_owner_email(text)') is not null as fatto;`,
-  });
-  if (fatto) await api('POST', `/projects/${ref}/database/query`, { query: `select public.set_owner_email(${email});` });
-  else console.log(`::warning::Il database non ha ancora set_owner_email (migrazione 0015): esegui le migrazioni mancanti, poi nel SQL Editor select public.set_owner_email(${email});`);
+  step("Il database ha già le tabelle dell'app: tengo i dati e aggiungo solo quello che manca.");
+  // Ogni migrazione si riconosce dalla prima tabella o funzione che crea: si eseguono quelle dopo l'ultima che c'è.
+  const list = migrations().map((m) => ({ ...m, mark: m.sql.match(/^create (table|function) public\.(\w+)/m) }));
+  const checks = list.map(({ mark }) =>
+    !mark
+      ? 'null'
+      : mark[1] === 'table'
+        ? `to_regclass('public.${mark[2]}') is not null`
+        : `exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = '${mark[2]}')`,
+  );
+  const [found] = await api('POST', `/projects/${ref}/database/query`, { query: `select ${checks.map((c, i) => `${c} as m${i}`).join(', ')};` });
+  const last = checks.map((_, i) => found[`m${i}`]).lastIndexOf(true);
+  for (const m of list.slice(last + 1)) {
+    step(`Aggiungo ${m.file}…`);
+    await api('POST', `/projects/${ref}/database/query`, { query: m.sql });
+  }
+  await api('POST', `/projects/${ref}/database/query`, { query: `select public.set_owner_email(${sql(o.email.trim().toLowerCase())});` });
 } else {
   step('Preparo il database (tutte le migrazioni)…');
   await api('POST', `/projects/${ref}/database/query`, {
