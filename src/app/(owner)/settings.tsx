@@ -17,6 +17,7 @@ import { planWith, usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
+import { trialEnd, trialEndText } from '@/lib/trial';
 import type { Field as FieldRow, LessonType, Trainer } from '@/lib/types';
 
 type TypeDraft = {
@@ -264,6 +265,12 @@ export default function OwnerSettings() {
   return (
     <Screen>
       <H1>{t('Impostazioni')}</H1>
+
+      {!!trialEnd && (
+        <Card>
+          <Body>{t('Versione di prova del piano Pro, valida fino al {data} compreso.', { data: trialEndText })}</Body>
+        </Card>
+      )}
 
       {licensingEnabled && (
         <>

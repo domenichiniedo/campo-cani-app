@@ -1,6 +1,8 @@
 // Prepara www/ per la demo Android: l'app esportata per il web in un solo file, il finto
 // database della demo e la pagina con il bottone "Demo" per cambiare persona e piano.
 // Si lancia dalla cartella mobile-demo con "npm run web"; serve npm ci nella cartella principale.
+// Con APP_VERA=1 esce invece l'app vera, collegata al database di EXPO_PUBLIC_SUPABASE_URL (Actions → App per
+// Android): niente dati di esempio, niente bottone Demo e la chiave delle licenze resta quella del repository.
 // La stessa cartella è la demo web per iPhone: con DEMO_BASE_URL=/campo-cani-app funziona anche in
 // una sottocartella del sito (GitHub Pages).
 import { execSync } from 'node:child_process';
@@ -16,9 +18,10 @@ const DEMO_KEY = 'JU1ijvUYPu042LzTpfFZ21ntUwzxiy3KN8_Xycw6Uf0';
 
 const keyFile = join(root, 'src/lib/license-key.ts');
 const appJson = join(root, 'app.json');
+const real = process.env.APP_VERA === '1';
 const saved = { key: readFileSync(keyFile, 'utf8'), app: readFileSync(appJson, 'utf8') };
 try {
-  writeFileSync(keyFile, saved.key.replace(/LICENSE_PUBLIC_KEY = '[^']*'/, `LICENSE_PUBLIC_KEY = '${DEMO_KEY}'`));
+  if (!real) writeFileSync(keyFile, saved.key.replace(/LICENSE_PUBLIC_KEY = '[^']*'/, `LICENSE_PUBLIC_KEY = '${DEMO_KEY}'`));
   // Un solo file JavaScript, senza pagine caricate a parte: la WebView lo apre da locale.
   const j = JSON.parse(saved.app);
   j.expo.web = { ...j.expo.web, output: 'single' };
@@ -40,10 +43,16 @@ const js = join(out, '_expo/static/js/web');
 const entry = readdirSync(js).find((f) => f.startsWith('entry-') && f.endsWith('.js'));
 cpSync(join(js, entry), join(www, 'app.js'));
 if (existsSync(join(out, 'assets'))) cpSync(join(out, 'assets'), join(www, 'assets'), { recursive: true });
+cpSync(join(root, 'assets/images/icon.png'), join(www, 'icon.png'));
+if (real) {
+  // L'app vera si apre direttamente, senza il finto database.
+  writeFileSync(join(www, 'index.html'), readFileSync(join(import.meta.dirname, 'app.html'), 'utf8').replace('<script src="demo-backend.js"></script>\n', ''));
+  console.log(`App pronta in ${www}`);
+  process.exit(0);
+}
 cpSync(join(root, 'desktop/demo/demo-backend.js'), join(www, 'demo-backend.js'));
 cpSync(join(import.meta.dirname, 'app.html'), join(www, 'app.html'));
 cpSync(join(import.meta.dirname, 'index.html'), join(www, 'index.html'));
-// Icona e manifest per "Aggiungi alla schermata Home" su iPhone e Android.
-cpSync(join(root, 'assets/images/icon.png'), join(www, 'icon.png'));
+// Manifest per "Aggiungi alla schermata Home" su iPhone e Android.
 cpSync(join(import.meta.dirname, 'manifest.webmanifest'), join(www, 'manifest.webmanifest'));
 console.log(`Demo pronta in ${www}`);
