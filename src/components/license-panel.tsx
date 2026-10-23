@@ -4,6 +4,7 @@ import { Share } from 'react-native';
 
 import { Badge, Body, Button, Card, ErrorText, Field, Muted, Row } from '@/components/ui';
 import { fromKey, today } from '@/lib/format';
+import { gestoreEnabled, isCentreCode } from '@/lib/gestore';
 import { t } from '@/lib/i18n';
 import { licensingEnabled, longer, readLicense } from '@/lib/license';
 import { useLicense } from '@/lib/license-gate';
@@ -27,10 +28,24 @@ export function LicensePanel() {
   const [err, setErr] = useState('');
   const [clients, setClients] = useState<number | null>(null);
 
-  // Il codice attivo sta anche nel database, così lo ricevono tutti i clienti.
+  // Il codice attivo sta anche nel database, così lo ricevono tutti i clienti. Non si sovrascrive mai un codice
+  // più recente: per i centri registrati dall'app lo rinnova il gestore direttamente nel database.
   useEffect(() => {
     const current = read();
-    if (current) supabase.from('settings').update({ license_code: current }).eq('id', 1).neq('license_code', current).then(() => {});
+    const mine = readLicense(current);
+    if (mine.ok) {
+      supabase
+        .from('settings')
+        .select('license_code')
+        .eq('id', 1)
+        .maybeSingle()
+        .then(({ data }) => {
+          const stored = (data?.license_code as string | undefined) ?? '';
+          const s = readLicense(stored);
+          if (stored === current || (s.ok && s.license.id === mine.license.id && longer(mine.license, s.license) !== mine.license)) return;
+          supabase.from('settings').update({ license_code: current }).eq('id', 1).then(() => {});
+        });
+    }
     supabase.rpc('client_count').then(({ data }) => setClients(typeof data === 'number' ? data : null));
   }, []);
 
@@ -38,7 +53,9 @@ export function LicensePanel() {
   const plan = planOf(license);
   const full = plan.maxClients !== null && clients !== null && clients >= plan.maxClients;
   const days = license.scade ? Math.round((fromKey(license.scade).getTime() - today().getTime()) / 86400000) : null;
-  const link = Linking.createURL('attiva', { queryParams: { codice: read() } });
+  // Un centro registrato dall'app ha il codice corto (K9-...), che non cambia ai rinnovi e si rinnova da solo.
+  const auto = gestoreEnabled && isCentreCode(license.id);
+  const link = Linking.createURL('attiva', { queryParams: { codice: auto ? license.id : read() } });
 
   async function renew() {
     setErr('');
@@ -84,14 +101,30 @@ export function LicensePanel() {
       </Row>
       {full && <Muted style={{ fontSize: 13 }}>{t('Hai raggiunto il limite del piano: i nuovi clienti non possono iscriversi. Chiedi un piano superiore.')}</Muted>}
       <Muted style={{ fontSize: 13 }}>
-        {t('Licenza {id}, emessa il {data}.', { id: license.id, data: license.emessa.split('-').reverse().join('/') })}
-        {days !== null && days <= 30 && days >= 0 ? ` ${t('Mancano {n} giorni: chiedi il rinnovo.', { n: days })}` : ''}
+        {auto
+          ? t('Codice del centro {id}: dallo a clienti e trainer. Licenza emessa il {data}.', { id: license.id, data: license.emessa.split('-').reverse().join('/') })
+          : t('Licenza {id}, emessa il {data}.', { id: license.id, data: license.emessa.split('-').reverse().join('/') })}
+        {auto
+          ? ` ${t("Si rinnova da sola ogni mese, quando l'addebito delle prenotazioni va a buon fine.")}`
+          : days !== null && days <= 30 && days >= 0
+            ? ` ${t('Mancano {n} giorni: chiedi il rinnovo.', { n: days })}`
+            : ''}
       </Muted>
       <Button
         small
         kind="ghost"
         title={t('Manda il link di attivazione ai clienti')}
-        onPress={() => Share.share({ message: t("Scarica l'app K9 Manager e attivala per {campo} con questo link: {link}", { campo: license.campo, link }) })}
+        onPress={() =>
+          Share.share({
+            message: auto
+              ? t("Scarica l'app K9 Manager e attivala per {campo} con questo link: {link} (oppure scrivi il codice del centro {codice})", {
+                  campo: license.campo,
+                  link,
+                  codice: license.id,
+                })
+              : t("Scarica l'app K9 Manager e attivala per {campo} con questo link: {link}", { campo: license.campo, link }),
+          })
+        }
       />
       <Field
         label={t('Nuovo codice (rinnovo o cambio piano)')}

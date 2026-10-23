@@ -41,7 +41,7 @@ function createWindow(link) {
     height: 860,
     minWidth: 380,
     minHeight: 560,
-    title: 'K9 Manager',
+    title: app.getName(),
     backgroundColor: '#123a2b',
     autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true },
@@ -63,7 +63,8 @@ function createWindow(link) {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.setAsDefaultProtocolClient(SCHEME);
+  // Il pannello del gestore (K9 Gestore) non apre i link di attivazione: restano a K9 Manager.
+  if (app.getName() !== 'K9 Gestore') app.setAsDefaultProtocolClient(SCHEME);
 
   // Su Mac il link di attivazione arriva qui, anche quando apre il programma.
   let macLink = null;

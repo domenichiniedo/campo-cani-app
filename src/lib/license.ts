@@ -1,7 +1,7 @@
 import nacl from 'tweetnacl';
 
 import { t } from '@/lib/i18n';
-import { LICENSE_PUBLIC_KEY } from '@/lib/license-key';
+import { LICENSE_PUBLIC_KEY, LICENSE_SERVER_KEY } from '@/lib/license-key';
 
 // Codice di licenza: CC1.<dati in base64url>.<firma Ed25519 in base64url>, creato con tools/licenza.mjs.
 
@@ -34,18 +34,22 @@ function fromB64url(s: string): Uint8Array {
 const utf8 = (bytes: Uint8Array) => decodeURIComponent(escape(String.fromCharCode(...bytes)));
 const ascii = (s: string) => Uint8Array.from(s, (ch) => ch.charCodeAt(0));
 
-export const licensingEnabled = LICENSE_PUBLIC_KEY.length > 0;
+/** Le chiavi che firmano le licenze: la tua e quella del server gestore (registrazione dall'app). */
+const KEYS = [LICENSE_PUBLIC_KEY, LICENSE_SERVER_KEY].filter(Boolean);
+
+export const licensingEnabled = KEYS.length > 0;
 
 /** Legge un codice e ne controlla la firma, senza guardare la scadenza. */
-export function readLicense(code: string, publicKey = LICENSE_PUBLIC_KEY): LicenseCheck {
+export function readLicense(code: string, publicKey?: string): LicenseCheck {
   const [prefix, body, sig] = code.trim().split('.');
   if (prefix !== PREFIX || !body || !sig) return { ok: false, reason: t('Questo non è un codice di licenza K9 Manager.') };
-  let valid = false;
-  try {
-    valid = nacl.sign.detached.verify(ascii(`${prefix}.${body}`), fromB64url(sig), fromB64url(publicKey));
-  } catch {
-    valid = false;
-  }
+  const valid = (publicKey ? [publicKey] : KEYS).some((key) => {
+    try {
+      return nacl.sign.detached.verify(ascii(`${prefix}.${body}`), fromB64url(sig), fromB64url(key));
+    } catch {
+      return false;
+    }
+  });
   if (!valid) return { ok: false, reason: t('Codice di licenza non valido. Controlla di averlo copiato tutto.') };
   try {
     return { ok: true, license: JSON.parse(utf8(fromB64url(body))) as License };
@@ -67,7 +71,7 @@ export function longer(a: License, b: License) {
 }
 
 /** Controlla firma e scadenza. `today` è la data locale AAAA-MM-GG. */
-export function checkLicense(code: string, today: string, publicKey = LICENSE_PUBLIC_KEY): LicenseCheck {
+export function checkLicense(code: string, today: string, publicKey?: string): LicenseCheck {
   const r = readLicense(code, publicKey);
   if (r.ok && isExpired(r.license, today)) return { ok: false, reason: expiredText(r.license) };
   return r;

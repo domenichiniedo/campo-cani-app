@@ -13,6 +13,7 @@
 // Facoltativi:
 //   REPORT_TO             altri indirizzi a cui mandarlo, separati da virgola
 //   LICENSE_PUBLIC_KEY    chiave pubblica delle licenze, per controllare la firma del piano
+//   LICENSE_SERVER_KEY    chiave pubblica del server gestore, per i centri registrati dall'app
 
 import ExcelJS from 'npm:exceljs@4.4.0';
 import nacl from 'npm:tweetnacl@1.0.3';
@@ -48,8 +49,9 @@ function planOf(code: string, today: string) {
   const [prefix, body, sig] = (code ?? '').trim().split('.');
   if (!prefix) return 'pro';
   if (prefix !== 'CC1' || !body || !sig) return null;
-  const key = env('LICENSE_PUBLIC_KEY');
-  if (key && !nacl.sign.detached.verify(new TextEncoder().encode(`${prefix}.${body}`), b64(sig), b64(key))) return null;
+  const keys = [env('LICENSE_PUBLIC_KEY'), env('LICENSE_SERVER_KEY')].filter(Boolean);
+  const signed = (key: string) => nacl.sign.detached.verify(new TextEncoder().encode(`${prefix}.${body}`), b64(sig), b64(key));
+  if (keys.length && !keys.some(signed)) return null;
   try {
     const l = JSON.parse(new TextDecoder().decode(b64(body))) as { piano?: string; scade?: string | null };
     if (l.scade && l.scade < today) return null;

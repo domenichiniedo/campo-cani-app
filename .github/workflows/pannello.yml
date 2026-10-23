@@ -1,0 +1,102 @@
+# Costruisce "K9 Gestore", il tuo pannello per tutti i centri registrati dall'app: centri, addebiti,
+# licenze, statistiche. Esce per Windows e Mac in GitHub → Releases → "K9 Gestore" (K9Gestore-Windows.exe
+# e K9Gestore-Mac.dmg). Si installa accanto a K9 Manager, senza toccarlo.
+#
+# Partenza: a mano (Run workflow), con l'indirizzo delle funzioni del gestore e la sua publishable key
+# (vedi gestore/README.md). Al posto degli input puoi mettere le variabili GESTORE_URL e GESTORE_KEY in
+# Settings → Secrets and variables → Actions → Variables. Mai la secret key: il pannello entra con il tuo utente.
+name: Pannello del gestore
+
+on:
+  workflow_dispatch:
+    inputs:
+      gestore_url:
+        description: Indirizzo delle funzioni del gestore (https://xxxx.supabase.co/functions/v1)
+        required: false
+      gestore_key:
+        description: Publishable key del progetto gestore (sb_publishable_...)
+        required: false
+
+permissions:
+  contents: write
+
+env:
+  EXPO_PUBLIC_PANNELLO: '1'
+  EXPO_PUBLIC_GESTORE_URL: ${{ inputs.gestore_url || vars.GESTORE_URL }}
+  EXPO_PUBLIC_GESTORE_KEY: ${{ inputs.gestore_key || vars.GESTORE_KEY }}
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+      - name: Controlla gli input
+        shell: bash
+        run: |
+          case "$EXPO_PUBLIC_GESTORE_URL" in https://*.supabase.co/functions/v1) ;; *) echo "::error::gestore_url deve essere https://xxxx.supabase.co/functions/v1"; exit 1;; esac
+          case "$EXPO_PUBLIC_GESTORE_KEY" in sb_publishable_*) ;; *) echo "::error::gestore_key deve essere la publishable key (sb_publishable_...), mai la secret key"; exit 1;; esac
+      - run: npm ci
+      - run: npm ci
+        working-directory: desktop
+      - run: npm run web
+        working-directory: desktop
+      - run: npm run dist -- -c.appId=it.campocani.gestore -c.productName="K9 Gestore" -c.nsis.shortcutName="K9 Gestore" -c.win.artifactName=K9Gestore-Windows.exe
+        shell: bash
+        working-directory: desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: K9Gestore-Windows
+          path: desktop/release/K9Gestore-Windows.exe
+          if-no-files-found: error
+
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: desktop
+      - run: npm run web
+        working-directory: desktop
+      - run: npm run dist:mac -- -c.appId=it.campocani.gestore -c.productName="K9 Gestore" -c.mac.artifactName=K9Gestore-Mac.dmg
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: K9Gestore-Mac
+          path: desktop/release/K9Gestore-Mac.dmg
+          if-no-files-found: error
+
+  pubblica:
+    needs: [windows, mac]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Pubblica nelle Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          NOTES="Il tuo pannello per tutti i centri registrati dall'app. Entri con l'utente del progetto gestore.
+
+          - Windows: scarica K9Gestore-Windows.exe e aprilo per installarlo.
+          - Mac: scarica K9Gestore-Mac.dmg, aprilo e trascina K9 Gestore in Applicazioni. La prima volta aprilo con clic destro → Apri."
+          gh release view pannello-gestore >/dev/null 2>&1 || gh release create pannello-gestore --prerelease --title "K9 Gestore" --notes "$NOTES"
+          gh release upload pannello-gestore K9Gestore-Windows.exe K9Gestore-Mac.dmg --clobber

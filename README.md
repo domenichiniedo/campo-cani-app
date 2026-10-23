@@ -235,6 +235,13 @@ Per cambiare piano genera un codice con lo **stesso `--id`** e il nuovo `--piano
 centro lo incolla in Impostazioni → Licenza. Quando un centro raggiunge il limite di clienti, i nuovi non possono
 iscriversi e il titolare lo vede in Impostazioni → Licenza. I limiti sono in `src/lib/plans.ts`.
 
+**In automatico, con il server gestore.** Invece di aprire ogni centro a mano, il centro si registra da solo dall'app
+("Registra il tuo centro"), firma il mandato SEPA su Stripe e il tuo server gestore gli crea il database e la licenza
+(firmata con una seconda chiave, quella del server: la tua resta sul computer). Ogni mese il gestore addebita 1 € a
+prenotazione con Stripe Billing e rinnova la licenza se il pagamento va a buon fine; clienti e trainer entrano con il
+codice corto del centro (K9-XXXXXX). Il pannello "K9 Gestore" ti mostra tutti i centri, i pagamenti e le statistiche.
+Come accenderlo: [gestore/README.md](gestore/README.md).
+
 ## 8. Programma per Windows e Mac
 
 La stessa app esiste anche come programma da installare sul computer del campo, **solo per il proprietario** (niente iscrizione
