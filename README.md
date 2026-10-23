@@ -295,6 +295,9 @@ Tutte le demo hanno i dati di esempio, senza database, e il bottone **Demo** per
 trainer e per cambiare piano. I dati restano solo su quel telefono o computer.
 
 - **Android**: GitHub → Releases → **Demo per Android**, file `K9Manager-Demo.apk` da aprire sul telefono.
+- **Prova Pro di 3 giorni (Android)**: **Actions → Demo per Android → Run workflow** con **prova** spuntato. Esce
+  `K9Manager-Prova.apk` in Releases → **Prova Pro per Android**: piano Pro fisso, dati di esempio, niente pagamenti online.
+  Tre giorni dopo la prima apertura su quel telefono l'app si blocca. È un'app a parte, quindi può stare accanto alla demo.
 - **iPhone (e qualunque browser)**: la demo web su https://domenichiniedo.github.io/campo-cani-app/. In Safari
   **Condividi → Aggiungi alla schermata Home** e si apre a tutto schermo come un'app. Si aggiorna da sola a ogni
   modifica dell'app su main (Actions → **Demo web per iPhone**). La prima volta va acceso GitHub Pages: **Settings →

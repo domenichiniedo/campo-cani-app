@@ -1,6 +1,7 @@
 // Prepara www/ per la demo Android: l'app esportata per il web in un solo file, il finto
 // database della demo e la pagina con il bottone "Demo" per cambiare persona e piano.
 // Si lancia dalla cartella mobile-demo con "npm run web"; serve npm ci nella cartella principale.
+// Con DEMO_PROVA_GIORNI esce la prova a tempo del piano Pro.
 // La stessa cartella è la demo web per iPhone: con DEMO_BASE_URL=/campo-cani-app funziona anche in
 // una sottocartella del sito (GitHub Pages).
 import { execSync } from 'node:child_process';
@@ -42,7 +43,11 @@ cpSync(join(js, entry), join(www, 'app.js'));
 if (existsSync(join(out, 'assets'))) cpSync(join(out, 'assets'), join(www, 'assets'), { recursive: true });
 cpSync(join(root, 'desktop/demo/demo-backend.js'), join(www, 'demo-backend.js'));
 cpSync(join(import.meta.dirname, 'app.html'), join(www, 'app.html'));
-cpSync(join(import.meta.dirname, 'index.html'), join(www, 'index.html'));
+// DEMO_PROVA_GIORNI=3: la prova del piano Pro, che si blocca 3 giorni dopo la prima apertura.
+const days = Number(process.env.DEMO_PROVA_GIORNI || 0);
+let page = readFileSync(join(import.meta.dirname, 'index.html'), 'utf8');
+if (days) page = page.replace('var TRIAL_DAYS = 0;', `var TRIAL_DAYS = ${days};`).replace('<title>K9 Manager Demo</title>', '<title>K9 Manager Prova</title>');
+writeFileSync(join(www, 'index.html'), page);
 // Icona e manifest per "Aggiungi alla schermata Home" su iPhone e Android.
 cpSync(join(root, 'assets/images/icon.png'), join(www, 'icon.png'));
 cpSync(join(import.meta.dirname, 'manifest.webmanifest'), join(www, 'manifest.webmanifest'));
