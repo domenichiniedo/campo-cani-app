@@ -1,6 +1,7 @@
 // Prepara www/ per la demo Android: l'app esportata per il web in un solo file, il finto
 // database della demo e la pagina con il bottone "Demo" per cambiare persona e piano.
 // Si lancia dalla cartella mobile-demo con "npm run web"; serve npm ci nella cartella principale.
+// Con DEMO_PROVA_GIORNI esce la prova a tempo del piano Pro, tutta sul telefono.
 // Con APP_VERA=1 esce invece l'app vera, collegata al database di EXPO_PUBLIC_SUPABASE_URL (Actions → App per
 // Android): niente dati di esempio, niente bottone Demo e la chiave delle licenze resta quella del repository.
 // La stessa cartella è la demo web per iPhone: con DEMO_BASE_URL=/campo-cani-app funziona anche in
@@ -52,7 +53,11 @@ if (real) {
 }
 cpSync(join(root, 'desktop/demo/demo-backend.js'), join(www, 'demo-backend.js'));
 cpSync(join(import.meta.dirname, 'app.html'), join(www, 'app.html'));
-cpSync(join(import.meta.dirname, 'index.html'), join(www, 'index.html'));
+// DEMO_PROVA_GIORNI=3: la prova del piano Pro, che si blocca 3 giorni dopo la prima apertura.
+const days = Number(process.env.DEMO_PROVA_GIORNI || 0);
+let page = readFileSync(join(import.meta.dirname, 'index.html'), 'utf8');
+if (days) page = page.replace('var TRIAL_DAYS = 0;', `var TRIAL_DAYS = ${days};`).replace('<title>K9 Manager Demo</title>', '<title>K9 Manager Prova</title>');
+writeFileSync(join(www, 'index.html'), page);
 // Manifest per "Aggiungi alla schermata Home" su iPhone e Android.
 cpSync(join(import.meta.dirname, 'manifest.webmanifest'), join(www, 'manifest.webmanifest'));
 console.log(`Demo pronta in ${www}`);

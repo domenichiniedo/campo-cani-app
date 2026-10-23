@@ -40,10 +40,21 @@ p { margin: 0; line-height: 1.45; color: var(--muted); font-size: 14px; }
 .who small { color: var(--muted); font-weight: 500; font-size: 13px; text-align: right; }
 .row { display: flex; gap: 8px; }
 code { font-family: ui-monospace, monospace; color: var(--text); }
+/* Prova a tempo: finiti i giorni l'app non si apre più. */
+#ended { position: fixed; inset: 0; z-index: 4; display: none; background: var(--pitch); color: #fff; padding: 32px 24px;
+  box-sizing: border-box; flex-direction: column; justify-content: center; gap: 14px; text-align: center; }
+#ended.on { display: flex; }
+#ended h1 { font-size: 22px; margin: 0; }
+#ended p { color: #cfe0d6; font-size: 15px; }
+#trial { color: var(--text); font-weight: 600; }
 </style>
 </head>
 <body>
 <iframe id="app" title="App K9 Manager"></iframe>
+<div id="ended" role="alert">
+  <h1>La prova di K9 Manager è finita</h1>
+  <p>Grazie per averla usata. Per continuare con il tuo centro chiedi il codice di licenza a chi ti ha dato la prova.</p>
+</div>
 <button id="open" type="button">Demo</button>
 <div id="sheet">
   <div class="panel" role="dialog" aria-label="Demo">
@@ -54,7 +65,8 @@ code { font-family: ui-monospace, monospace; color: var(--text); }
       <button id="as-trainer" type="button" data-email="luca@demo.it">Trainer: Luca <small>lezioni, diario, penalità</small></button>
       <button id="as-new" type="button" data-email="">Nuovo cliente <small>iscrizione</small></button>
     </div>
-    <h2>Piano</h2>
+    <p id="trial" hidden></p>
+    <h2 id="plans-title">Piano</h2>
     <div class="who" id="plans">
       <button id="plan-base" type="button" data-plan="base">Base <small>1 campo, 3 lezioni, 3 pacchetti</small></button>
       <button id="plan-professional" type="button" data-plan="professional">Professional <small>2 campi, 2 trainer, incassi</small></button>
@@ -70,12 +82,14 @@ code { font-family: ui-monospace, monospace; color: var(--text); }
 <script>
 (function () {
   var frame = document.getElementById('app'), sheet = document.getElementById('sheet');
+  // Giorni della prova (piano Pro, dalla prima apertura): 0 è la demo normale. Lo cambia build.mjs con DEMO_PROVA_GIORNI.
+  var TRIAL_DAYS = 0;
   var TOKEN = 'sb-demo-auth-token';
   var people = document.querySelectorAll('#people button'), planButtons = document.querySelectorAll('#plans button');
   // Licenze di prova, firmate con una chiave solo per la demo.
   var CODES = {"base": "CC1.eyJ2IjoxLCJpZCI6ImRlbW8iLCJjYW1wbyI6IkNlbnRybyBDaW5vZmlsbyBMZSBRdWVyY2UiLCJwaWFubyI6ImJhc2UiLCJzY2FkZSI6bnVsbCwiZW1lc3NhIjoiMjAyNi0xMC0yMiIsInVybCI6Imh0dHBzOi8vZGVtby5zdXBhYmFzZS5jbyIsImNoaWF2ZSI6InNiX3B1Ymxpc2hhYmxlX2RlbW8ifQ.M03U9XHbE6lsFNpPJGfJbQkk3M5rdx9wJ-1GwPSKH0iTKjEUXsyOWQTFX0hP9EI0avz9Nv_gAtbo5gNKN1P2AQ", "professional": "CC1.eyJ2IjoxLCJpZCI6ImRlbW8iLCJjYW1wbyI6IkNlbnRybyBDaW5vZmlsbyBMZSBRdWVyY2UiLCJwaWFubyI6InByb2Zlc3Npb25hbCIsInNjYWRlIjpudWxsLCJlbWVzc2EiOiIyMDI2LTEwLTIyIiwidXJsIjoiaHR0cHM6Ly9kZW1vLnN1cGFiYXNlLmNvIiwiY2hpYXZlIjoic2JfcHVibGlzaGFibGVfZGVtbyJ9._wTTU6c1k4nN_LEEO6It5zWSBrDnqzqzljRwVcwFgjPH46cpLEfTbF0TGCu3h7mVoA9iMlKn1b7_dRjgYJe6Aw", "pro": "CC1.eyJ2IjoxLCJpZCI6ImRlbW8iLCJjYW1wbyI6IkNlbnRybyBDaW5vZmlsbyBMZSBRdWVyY2UiLCJwaWFubyI6InBybyIsInNjYWRlIjpudWxsLCJlbWVzc2EiOiIyMDI2LTEwLTIyIiwidXJsIjoiaHR0cHM6Ly9kZW1vLnN1cGFiYXNlLmNvIiwiY2hpYXZlIjoic2JfcHVibGlzaGFibGVfZGVtbyJ9.XNRhCot2sINDgFDcbcTkYID8Ccr1w82Nq1NOvXNFcsPsujj5tucI_xYxLGvJmVuJKoTjmtIX_0InOgXhUX_dBQ"};
   var PLAN = 'campo-cani-demo-piano', LICENSE = 'campo-cani-licenza', DB = 'campo-demo-db-v10';
-  function currentPlan() { try { return CODES[localStorage.getItem(PLAN)] ? localStorage.getItem(PLAN) : 'pro'; } catch (e) { return 'pro'; } }
+  function currentPlan() { if (TRIAL_DAYS) return 'pro'; try { return CODES[localStorage.getItem(PLAN)] ? localStorage.getItem(PLAN) : 'pro'; } catch (e) { return 'pro'; } }
   function markPlan(p) { planButtons.forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-plan') === p); }); }
   function usePlan(p) {
     try {
@@ -110,6 +124,31 @@ code { font-family: ui-monospace, monospace; color: var(--text); }
     usePlan(currentPlan());
     reload();
   });
+  // La prova conta dalla prima apertura su questo telefono; se l'orologio torna indietro è finita.
+  function trialLeft() {
+    var START = 'campo-demo-prova-inizio', start;
+    try { start = Number(localStorage.getItem(START)) || 0; if (!start) { start = Date.now(); localStorage.setItem(START, String(start)); } }
+    catch (e) { start = Date.now(); }
+    return Date.now() < start ? 0 : start + TRIAL_DAYS * 86400000 - Date.now();
+  }
+  function trialEnded() {
+    if (trialLeft() > 0) return false;
+    frame.src = 'about:blank';
+    sheet.classList.remove('on');
+    document.getElementById('open').style.display = 'none';
+    document.getElementById('ended').classList.add('on');
+    return true;
+  }
+  if (TRIAL_DAYS) {
+    document.getElementById('plans').style.display = 'none';
+    document.getElementById('plans-title').style.display = 'none';
+    if (trialEnded()) return;
+    var hours = Math.ceil(trialLeft() / 3600000), info = document.getElementById('trial');
+    info.textContent = 'Prova del piano Pro: ' + (hours > 24 ? 'restano ' + Math.ceil(hours / 24) + ' giorni' : hours > 1 ? 'restano ' + hours + ' ore' : 'resta meno di un\'ora') + '.';
+    info.hidden = false;
+    setInterval(trialEnded, 60000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) trialEnded(); });
+  }
   // Al primo avvio entra come proprietario e apre il pannello, così si vede subito cosa si può provare.
   try {
     if (!localStorage.getItem(TOKEN)) {
