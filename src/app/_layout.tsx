@@ -14,6 +14,7 @@ import { LicenseGate } from '@/lib/license-gate';
 import { planWith, usePlan } from '@/lib/plans';
 import { hasEnvConfig, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
+import { trialEndText, useTrialOver } from '@/lib/trial';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -71,6 +72,21 @@ function OwnerOnly() {
   );
 }
 
+/** La versione di prova è scaduta: i dati restano nel database, l'app non si apre più. */
+function TrialOver() {
+  const c = useColors();
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
+  return (
+    <View style={{ flex: 1, padding: 24, justifyContent: 'center', gap: 12, backgroundColor: c.bg }}>
+      <H1>{t('La prova è finita')}</H1>
+      <Body>{t('La prova di K9 Manager era valida fino al {data}.', { data: trialEndText })}</Body>
+      <Muted>{t("I dati inseriti restano salvati. Per continuare a usare l'app contatta chi ti ha dato la prova.")}</Muted>
+    </View>
+  );
+}
+
 function NotConfigured() {
   const c = useColors();
   useEffect(() => {
@@ -91,10 +107,13 @@ function NotConfigured() {
 
 export default function RootLayout() {
   const scheme = useColorScheme();
+  const trialOver = useTrialOver();
   return (
     <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
       <StatusBar style="light" />
-      {licensingEnabled || hasEnvConfig ? (
+      {trialOver ? (
+        <TrialOver />
+      ) : licensingEnabled || hasEnvConfig ? (
         <LicenseGate activation={(reason) => <Activate reason={reason} />}>
           <SessionProvider>
             <Navigator />

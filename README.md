@@ -302,6 +302,31 @@ trainer e per cambiare piano. I dati restano solo su quel telefono o computer.
   il sito della demo è comunque pubblico.
 - **Windows e Mac**: punto 8, versione demo (Releases → **Demo per Windows** e **Demo per Mac**).
 
+## 11. Prova di 3 giorni con dati condivisi (Android)
+
+L'app vera, nel piano Pro, collegata a un database Supabase solo per la prova: proprietario, trainer e clienti la usano
+dai loro telefoni e vedono gli stessi dati. Finiti i giorni, l'app mostra a tutti "La prova è finita"; i dati restano
+nel progetto Supabase. I pagamenti online restano spenti.
+
+1. **Database della prova**: su <https://supabase.com> crea un nuovo progetto gratuito (il piano gratuito ne permette
+   due attivi; un progetto fermo da una settimana viene messo in pausa). Poi come al punto 1: in `supabase/setup.sql`
+   metti nell'ultima riga l'email di chi farà il proprietario nella prova (tu o il titolare del centro) ed eseguilo
+   nel **SQL Editor**. In **Authentication → Sign In / Providers → Email** spegni "Confirm email", così chi si iscrive
+   entra subito.
+2. In **Project Settings → API Keys** copia l'URL del progetto e la **Publishable key** (`sb_publishable_...`). Mai la
+   Secret key.
+3. Su GitHub: **Actions → App per Android → Run workflow**, con l'URL, la publishable key e i giorni (3). In una decina
+   di minuti esce in **Releases → Prova per Android – xxxx** il file `K9Manager-Prova.apk`, che vale fino a oggi più i
+   giorni scelti, compreso l'ultimo.
+4. Il repository è privato: scarica l'APK con il tuo account e mandalo tu a chi prova (WhatsApp, email). Si installa
+   come la demo; è un'app a parte, quindi può stare accanto alla demo.
+5. Il proprietario si iscrive dall'app con l'email scritta in `setup.sql` (punto 2), poi imposta il centro. Clienti e
+   trainer si iscrivono dall'app come sempre.
+
+Per allungare la prova rilancia il workflow con gli stessi dati e altri giorni, e manda il nuovo APK: si installa
+sopra quello vecchio. Con **giorni 0** esce l'app senza scadenza (`K9Manager.apk`, Releases → **App per Android**).
+Quando la prova è finita puoi mettere in pausa o cancellare il progetto in Supabase.
+
 ## Cosa fa l'app
 
 **Cliente**

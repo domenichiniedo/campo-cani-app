@@ -1,0 +1,132 @@
+# Costruisce l'app vera per Android (APK da installare senza Play Store), collegata a un database Supabase.
+# Serve soprattutto per le prove: con "giorni" l'app vale fino a quel numero di giorni da oggi, poi mostra
+# "La prova è finita" a tutti (i dati restano nel database). Senza licenza l'app è nel piano Pro.
+#
+# Actions → App per Android → Run workflow, con:
+#   supabase_url   https://xxxx.supabase.co del progetto (vuoto: la variabile EXPO_PUBLIC_SUPABASE_URL del repository)
+#   supabase_key   la chiave publishable sb_publishable_... (vuoto: EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY)
+#   giorni         durata della prova; 0 = senza scadenza
+# Esce nelle Releases: "Prova per Android – xxxx" (K9Manager-Prova.apk, una per ogni progetto, così più prove
+# non si sovrascrivono) o "App per Android" (K9Manager.apk). Con il repository privato il file si scarica solo
+# con il tuo account GitHub: a chi prova l'app mandalo tu (WhatsApp, email).
+# Mai la chiave segreta di Supabase: quella publishable è fatta per stare nell'app.
+name: App per Android
+
+on:
+  workflow_dispatch:
+    inputs:
+      supabase_url:
+        description: Indirizzo del progetto Supabase (https://xxxx.supabase.co)
+        required: false
+      supabase_key:
+        description: Chiave publishable del progetto (sb_publishable_...)
+        required: false
+      giorni:
+        description: Giorni di prova (0 = senza scadenza)
+        default: '3'
+  # Nelle PR che lo cambiano si costruisce solo per provarlo, con un database finto, e non si pubblica.
+  pull_request:
+    paths: ['.github/workflows/android.yml', 'mobile-demo/build.mjs']
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ github.event_name == 'pull_request' && 'https://prova-pr.supabase.co' || inputs.supabase_url || vars.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ github.event_name == 'pull_request' && 'sb_publishable_pr' || inputs.supabase_key || vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      GIORNI: ${{ github.event_name == 'pull_request' && '3' || inputs.giorni }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Database e scadenza
+        run: |
+          case "$EXPO_PUBLIC_SUPABASE_URL" in https://*.supabase.co) ;; *) echo "::error::Manca l'indirizzo del progetto Supabase (https://xxxx.supabase.co)"; exit 1;; esac
+          case "$EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" in sb_publishable_*|eyJ*) ;; *) echo "::error::Manca la chiave publishable del progetto"; exit 1;; esac
+          case "$EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" in sb_secret_*) echo "::error::Questa è la chiave segreta: serve quella publishable"; exit 1;; esac
+          case "$GIORNI" in ''|*[!0-9]*) echo "::error::giorni deve essere un numero"; exit 1;; esac
+          if [ "$GIORNI" -gt 0 ]; then
+            FINO=$(TZ=Europe/Rome date -d "+$GIORNI days" +%F)
+            echo "EXPO_PUBLIC_PROVA_FINO=$FINO" >> $GITHUB_ENV
+            echo "APK=K9Manager-Prova.apk" >> $GITHUB_ENV
+            echo "Prova valida fino al $FINO compreso"
+          else
+            echo "APK=K9Manager.apk" >> $GITHUB_ENV
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm install
+        working-directory: mobile-demo
+      - run: npm run web
+        working-directory: mobile-demo
+        env:
+          APP_VERA: '1'
+      # Un'app diversa dalla demo: sul telefono possono stare insieme.
+      - name: Nome dell'app
+        working-directory: mobile-demo
+        run: |
+          if [ -n "$EXPO_PUBLIC_PROVA_FINO" ]; then ID=it.campocani.provavera; NAME="K9 Manager Prova"; else ID=it.campocani.app; NAME="K9 Manager"; fi
+          sed -i "s/\"it.campocani.demo\"/\"$ID\"/; s/\"K9 Manager Demo\"/\"$NAME\"/" capacitor.config.json
+          cat capacitor.config.json
+      - run: npx cap add android
+        working-directory: mobile-demo
+      # Come nella demo: l'app fra la barra di stato e i tasti in basso.
+      - name: Schermo fra le barre di sistema
+        working-directory: mobile-demo/android/app/src/main/res/values
+        run: |
+          sed -i 's#<style name="AppTheme.NoActionBar"[^>]*>#&\n        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>#' styles.xml
+          grep -q windowOptOutEdgeToEdgeEnforcement styles.xml
+      - name: Icona
+        working-directory: mobile-demo/android/app/src/main/res
+        run: |
+          rm -rf mipmap-anydpi-v26
+          for d in mipmap-*; do
+            cp ../../../../../../assets/images/icon.png "$d/ic_launcher.png"
+            cp ../../../../../../assets/images/icon.png "$d/ic_launcher_round.png"
+            rm -f "$d/ic_launcher_foreground.png"
+          done
+      - run: npx cap sync android
+        working-directory: mobile-demo
+      # Sempre la stessa firma e un numero di versione che cresce: la versione nuova si installa sopra la vecchia.
+      - name: Firma e versione
+        run: |
+          sed -i 's/versionCode [0-9]*/versionCode ${{ github.run_number }}/' mobile-demo/android/app/build.gradle
+          cat >> mobile-demo/android/app/build.gradle <<'GRADLE'
+
+          android.signingConfigs.debug.storeFile = rootProject.file('../demo-debug.keystore')
+          android.signingConfigs.debug.storePassword = 'android'
+          android.signingConfigs.debug.keyAlias = 'androiddebugkey'
+          android.signingConfigs.debug.keyPassword = 'android'
+          GRADLE
+      - run: ./gradlew assembleDebug
+        working-directory: mobile-demo/android
+      - run: cp mobile-demo/android/app/build/outputs/apk/debug/app-debug.apk $APK
+      - uses: actions/upload-artifact@v4
+        with:
+          name: K9Manager-Android
+          path: ${{ env.APK }}
+          if-no-files-found: error
+      - name: Pubblica nelle Releases
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -n "$EXPO_PUBLIC_PROVA_FINO" ]; then
+            REF=$(echo "$EXPO_PUBLIC_SUPABASE_URL" | sed 's#https://##; s#\.supabase\.co.*##')
+            TAG=prova-$REF; TITLE="Prova per Android – $REF"
+            NOTES="Prova di K9 Manager nel piano Pro, collegata al database della prova. Vale fino al $(echo $EXPO_PUBLIC_PROVA_FINO | awk -F- '{print $3"/"$2"/"$1}') compreso, poi l'app mostra che la prova è finita. Scarica K9Manager-Prova.apk dal telefono e aprilo per installarlo."
+          else
+            TAG=app-android; TITLE="App per Android"
+            NOTES="K9 Manager per Android, da installare senza Play Store. Scarica K9Manager.apk dal telefono e aprilo per installarlo."
+          fi
+          gh release view $TAG >/dev/null 2>&1 || gh release create $TAG --prerelease --title "$TITLE" --notes "$NOTES"
+          gh release edit $TAG --title "$TITLE" --notes "$NOTES"
+          gh release upload $TAG "$APK" --clobber
