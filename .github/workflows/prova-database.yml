@@ -1,5 +1,6 @@
 # Prova di K9 Manager con i dati condivisi, tutta da GitHub: crea un progetto Supabase gratuito sul tuo
-# account con il database pronto, poi costruisce l'APK della prova collegato a quel progetto (App per Android).
+# account con il database pronto, poi costruisce la prova collegata a quel progetto: l'APK per Android (App per
+# Android) e il programma per Windows del proprietario (App per Windows).
 #
 # Una volta sola: su supabase.com → Account → Access Tokens crea un token e salvalo qui in Settings → Secrets
 # and variables → Actions → New repository secret, con nome SUPABASE_ACCESS_TOKEN. Il token crea progetti sul
@@ -7,8 +8,9 @@
 #
 # Poi Actions → Prova con database → Run workflow, con il nome del centro, l'email del proprietario e i giorni.
 # Se hai già creato il progetto su supabase.com, scrivi il suo codice (quello nell'indirizzo xxxx.supabase.co).
-# In una quindicina di minuti l'APK è in Releases → "Prova per Android – <progetto>". Il piano gratuito di
-# Supabase tiene due progetti attivi: le prove finite si mettono in pausa o si cancellano da supabase.com.
+# In una quindicina di minuti APK e programma per Windows sono in Releases → "Prova di K9 Manager – <progetto>".
+# Il piano gratuito di Supabase tiene due progetti attivi: le prove finite si mettono in pausa o si cancellano da
+# supabase.com.
 name: Prova con database
 
 on:
@@ -51,6 +53,13 @@ jobs:
   app:
     needs: database
     uses: ./.github/workflows/android.yml
+    with:
+      supabase_url: ${{ needs.database.outputs.url }}
+      supabase_key: ${{ needs.database.outputs.chiave }}
+      giorni: ${{ inputs.giorni }}
+  windows:
+    needs: database
+    uses: ./.github/workflows/windows.yml
     with:
       supabase_url: ${{ needs.database.outputs.url }}
       supabase_key: ${{ needs.database.outputs.chiave }}

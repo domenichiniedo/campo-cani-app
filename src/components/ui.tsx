@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { useIsFocused } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -19,6 +20,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LANGS, setLang, t, useLang } from '@/lib/i18n';
+import { useWhenActive } from '@/lib/refresh';
 import { useSession } from '@/lib/session';
 import { useColors } from '@/lib/theme';
 
@@ -44,10 +46,18 @@ export function Screen({
         contentContainerStyle={{ padding: 16, paddingBottom: 48, gap: 18 }}
         keyboardShouldPersistTaps="handled"
         refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} /> : undefined}>
+        {onRefresh && <AutoRefresh onRefresh={onRefresh} />}
         {children}
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+/** La schermata che si vede si ricarica quando l'app torna in primo piano e ogni minuto. */
+function AutoRefresh({ onRefresh }: { onRefresh: () => void }) {
+  const focused = useIsFocused();
+  useWhenActive(() => focused && onRefresh(), 60_000);
+  return null;
 }
 
 export function BrandBar() {
