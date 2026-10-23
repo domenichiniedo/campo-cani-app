@@ -247,6 +247,19 @@ né schermate dei clienti), con la stessa licenza e la stampa sul registratore E
   demo web e senza database: utile per farlo vedere a un centro.
 - **Provarlo sul tuo computer**: nella cartella `desktop` esegui `npm install`, `npm run web` e `npm start`.
 
+## 9. Demo da far provare
+
+Tutte le demo hanno i dati di esempio, senza database, e il bottone **Demo** per entrare come proprietario, cliente o
+trainer e per cambiare piano. I dati restano solo su quel telefono o computer.
+
+- **Android**: GitHub → Releases → **Demo per Android**, file `K9Manager-Demo.apk` da aprire sul telefono.
+- **iPhone (e qualunque browser)**: la demo web su https://domenichiniedo.github.io/campo-cani-app/. In Safari
+  **Condividi → Aggiungi alla schermata Home** e si apre a tutto schermo come un'app. Si aggiorna da sola a ogni
+  modifica dell'app su main (Actions → **Demo web per iPhone**). La prima volta va acceso GitHub Pages: **Settings →
+  Pages → Build and deployment → Source: GitHub Actions**. Con il repository privato GitHub Pages richiede GitHub Pro;
+  il sito della demo è comunque pubblico.
+- **Windows**: punto 8, versione demo.
+
 ## Cosa fa l'app
 
 **Cliente**

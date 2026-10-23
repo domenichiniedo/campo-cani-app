@@ -1,0 +1,54 @@
+# Demo web, da aprire su iPhone (o qualunque telefono e computer) in Safari, senza installare nulla:
+# l'app vera con i dati di esempio, salvati solo sul telefono, e il bottone "Demo" per cambiare persona.
+# Indirizzo: https://domenichiniedo.github.io/campo-cani-app/
+# Su iPhone: Condividi → Aggiungi alla schermata Home, e si apre a tutto schermo come un'app.
+#
+# Serve GitHub Pages: Settings → Pages → Build and deployment → Source: "GitHub Actions"
+# (con il repository privato GitHub Pages richiede GitHub Pro). Il sito è pubblico.
+# Partenza: a mano (Run workflow) e a ogni modifica dell'app su main. In una PR si prova solo a costruirla.
+name: Demo web per iPhone
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['src/**', 'assets/**', 'mobile-demo/**', 'desktop/demo/**', 'app.json', 'package-lock.json', '.github/workflows/demo-web.yml']
+  pull_request:
+    paths: ['mobile-demo/**', 'desktop/demo/**', '.github/workflows/demo-web.yml']
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: demo-web
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node mobile-demo/build.mjs
+        env:
+          DEMO_BASE_URL: /campo-cani-app
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: mobile-demo/www
+
+  deploy:
+    if: ${{ github.event_name != 'pull_request' }}
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
