@@ -71,10 +71,17 @@ for (let i = 0; ; i++) {
 }
 
 // 2. Database: tutte le migrazioni, il nome del centro e l'email del proprietario. Un progetto che ha già
-// le tabelle dell'app (per esempio con setup.sql eseguito a mano) resta com'è.
+// le tabelle dell'app (per esempio con setup.sql eseguito a mano) resta com'è: si imposta solo il proprietario.
 const [{ pronto }] = await api('POST', `/projects/${ref}/database/query`, { query: "select to_regclass('public.settings') is not null as pronto;" });
-if (pronto) step("Il database ha già le tabelle dell'app: lo lascio com'è.");
-else {
+if (pronto) {
+  step("Il database ha già le tabelle dell'app: lo lascio com'è e imposto solo l'email del proprietario.");
+  const email = sql(o.email.trim().toLowerCase());
+  const [{ fatto }] = await api('POST', `/projects/${ref}/database/query`, {
+    query: `select to_regprocedure('public.set_owner_email(text)') is not null as fatto;`,
+  });
+  if (fatto) await api('POST', `/projects/${ref}/database/query`, { query: `select public.set_owner_email(${email});` });
+  else console.log(`::warning::Il database non ha ancora set_owner_email (migrazione 0015): esegui le migrazioni mancanti, poi nel SQL Editor select public.set_owner_email(${email});`);
+} else {
   step('Preparo il database (tutte le migrazioni)…');
   await api('POST', `/projects/${ref}/database/query`, {
     query: `${migrationsSql()}\nselect public.set_owner_email(${sql(o.email.trim().toLowerCase())});\nupdate public.settings set field_name = ${sql(o.campo.trim())} where id = 1;`,
