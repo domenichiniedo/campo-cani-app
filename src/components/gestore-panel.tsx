@@ -196,6 +196,7 @@ function Dashboard() {
   const charges = (x: AdminCentre) => byCentre.get(x.id) ?? [];
   const problems = (x: AdminCentre) =>
     x.stato === 'errore' ||
+    x.db_stato === 'MANCANTE' ||
     x.sospeso ||
     charges(x).some((a) => a.stato === 'non_pagato' || !!a.errore) ||
     (x.stato === 'pronto' && !!x.scade && giorniA(d.oggi, x.scade) < 7);
@@ -221,7 +222,7 @@ function Dashboard() {
 
   const sections: { value: Section; label: string; icon: string; count?: number }[] = [
     { value: 'centri', label: 'Centri', icon: '☺', count: daPagare.length },
-    { value: 'database', label: 'Database', icon: '◫' },
+    { value: 'database', label: 'Database', icon: '◫', count: d.centri.filter((x) => x.db_stato === 'MANCANTE').length },
     { value: 'statistiche', label: 'Statistiche', icon: '▦' },
     { value: 'banca', label: 'Banca e bonifici', icon: '€', count: d.movimenti.length },
     { value: 'piani', label: 'Piani e addebiti', icon: '⚙' },
@@ -291,7 +292,7 @@ function Dashboard() {
         </>
       )}
 
-      {section === 'database' && <DatabaseSection />}
+      {section === 'database' && <DatabaseSection centri={d.centri} />}
 
       {section === 'statistiche' && <Stats d={d} />}
 
@@ -393,7 +394,7 @@ const GRATIS_ACCESI = 2;
 const acceso = (p: DbProject) => p.stato !== 'INACTIVE' && p.stato !== 'PAUSING' && p.stato !== 'REMOVED';
 
 /** Tutti i database del tuo account Supabase: quanti sono, quanto costano e il bottone per accenderli e spegnerli. */
-function DatabaseSection() {
+function DatabaseSection({ centri }: { centri: AdminCentre[] }) {
   const c = useColors();
   const [list, setList] = useState<DbProject[] | null>(null);
   const [err, setErr] = useState('');
@@ -429,7 +430,9 @@ function DatabaseSection() {
 
   if (!list) return err ? <ErrorText>{err}</ErrorText> : <Muted>Carico i database…</Muted>;
   const accesi = list.filter(acceso).length;
-  const centri = list.filter((p) => p.centro).length;
+  // I centri il cui progetto non è più fra quelli dell'account: cancellati o spostati.
+  const missing = centri.filter((x) => x.progetto && !list.some((p) => p.ref === x.progetto));
+  const deiCentri = list.filter((p) => p.centro).length;
   const pro = PRO_DOLLARI + Math.max(0, accesi - 1) * MICRO_DOLLARI;
   return (
     <>
@@ -437,7 +440,7 @@ function DatabaseSection() {
         <Stat label="Database" value={String(list.length)} />
         <Stat label="Accesi" value={String(accesi)} />
         <Stat label="Spenti" value={String(list.length - accesi)} />
-        <Stat label="Dei centri" value={String(centri)} />
+        <Stat label="Dei centri" value={String(deiCentri)} />
       </Row>
       <Card>
         <Body bold>Costo di Supabase (stima)</Body>
@@ -456,10 +459,20 @@ function DatabaseSection() {
         </Row>
       </Card>
       <Muted style={{ fontSize: 13 }}>
-        Spegnere un database lo mette in pausa: i dati restano, ma l&apos;app di quel centro non funziona finché non lo riaccendi (ci vuole qualche minuto).
+        Mettere in pausa un database lo spegne: i dati restano, ma l&apos;app di quel centro non funziona finché non lo riaccendi (ci vuole qualche minuto).
         Supabase lascia mettere in pausa solo i database del piano gratuito. Il gestore non si spegne da qui.
       </Muted>
       <ErrorText>{err}</ErrorText>
+      {missing.length > 0 && (
+        <Card>
+          <ErrorText>{missing.length === 1 ? 'Un centro non ha più il suo database' : `${missing.length} centri non hanno più il loro database`}</ErrorText>
+          {missing.map((x) => (
+            <Body key={x.id}>
+              {x.campo} ({x.codice}): il progetto {x.progetto} non c&apos;è più su Supabase. L&apos;app di questo centro non funziona.
+            </Body>
+          ))}
+        </Card>
+      )}
       <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.line, borderRadius: 8, overflow: 'hidden' }}>
         {list.map((p, i) => (
           <Row key={p.ref} style={{ padding: 12, borderTopWidth: i ? 1 : 0, borderTopColor: c.line, justifyContent: 'space-between' }}>
@@ -472,7 +485,7 @@ function DatabaseSection() {
               <Button
                 small
                 kind={acceso(p) ? 'danger' : 'primary'}
-                title={acceso(p) ? (sure === p.ref ? 'Sicuro? Spegni' : 'Spegni') : 'Accendi'}
+                title={acceso(p) ? (sure === p.ref ? 'Sicuro? Metti in pausa' : 'Metti in pausa') : 'Accendi'}
                 onPress={() => toggle(p)}
                 loading={busy === p.ref}
                 disabled={!!busy || p.stato === 'COMING_UP' || p.stato === 'RESTORING' || p.stato === 'PAUSING'}
@@ -1026,6 +1039,7 @@ function CentreRow({
   const [pw, setPw] = useState('');
   const [pwDone, setPwDone] = useState('');
   const [db, setDb] = useState<CentreDatabase | null>(null);
+  const [pauseSure, setPauseSure] = useState(false);
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
   const billing = centreBillingLines(cleanCentreBilling(x));
@@ -1098,6 +1112,8 @@ function CentreRow({
             {[x.codice, `${PIANI.find((p) => p.value === x.piano)?.label}${fisso ? ' fisso' : ''}`, x.comune].filter(Boolean).join(' · ')}
           </Muted>
         </View>
+        {x.db_stato === 'MANCANTE' && <Badge tone="bad">Database cancellato</Badge>}
+        {x.db_stato === 'INACTIVE' && <Badge tone="warn">Database spento</Badge>}
         {x.stato === 'pronto' && !x.sospeso && !!x.disdetta && <Badge tone="bad">Disdetto</Badge>}
         {(x.stato !== 'pronto' || x.sospeso) && (
           <Badge tone={x.stato === 'errore' || x.sospeso ? 'bad' : 'warn'}>{x.sospeso ? 'Sospeso' : STATO[x.stato]}</Badge>
@@ -1166,9 +1182,31 @@ function CentreRow({
               <Row>
                 <Body bold>Database</Body>
                 <Muted style={{ fontSize: 13 }}>{x.progetto}</Muted>
-                <Button small kind="ghost" title={db ? 'Aggiorna' : 'Mostra il database'} onPress={loadDatabase} loading={busy === 'database'} />
+                {x.db_stato !== 'MANCANTE' && (
+                  <Button small kind="ghost" title={db ? 'Aggiorna' : 'Mostra il database'} onPress={loadDatabase} loading={busy === 'database'} />
+                )}
+                {(x.db_stato === 'ACTIVE_HEALTHY' || x.db_stato === 'INACTIVE') && (
+                  <Button
+                    small
+                    kind={x.db_stato === 'INACTIVE' ? 'primary' : 'danger'}
+                    title={x.db_stato === 'INACTIVE' ? 'Accendi il database' : pauseSure ? 'Sicuro? Metti in pausa' : 'Metti in pausa'}
+                    onPress={() => {
+                      if (x.db_stato !== 'INACTIVE' && !pauseSure) return setPauseSure(true);
+                      setPauseSure(false);
+                      run('database_accendi', { acceso: x.db_stato === 'INACTIVE' }).then(() => setDb(null));
+                    }}
+                    loading={busy === 'database_accendi'}
+                  />
+                )}
                 <Button small kind="ghost" title="Apri su Supabase" onPress={() => Linking.openURL(`https://supabase.com/dashboard/project/${x.progetto}`)} />
               </Row>
+              {x.db_stato === 'MANCANTE' && (
+                <ErrorText>
+                  Il database di questo centro non esiste più su Supabase (cancellato o spostato in un altro account): l&apos;app del centro non funziona.
+                  Se è stato cancellato per sbaglio, il centro va preparato di nuovo.
+                </ErrorText>
+              )}
+              {x.db_stato === 'INACTIVE' && <Muted style={{ fontSize: 13 }}>Il database è in pausa: l&apos;app del centro non funziona finché non lo riaccendi.</Muted>}
               {db && (
                 <>
                   <Row>

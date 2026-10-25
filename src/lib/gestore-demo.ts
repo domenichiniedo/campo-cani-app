@@ -226,7 +226,13 @@ export async function demoCall<T>(azione: string, b: Record<string, unknown>): P
   const today = new Date();
   switch (azione) {
     case 'dati':
-      return { ...structuredClone(d), centri: d.centri.map((x, i) => ({ ...x, progetto: x.stato === 'pronto' ? `demo${String(i).padStart(16, '0')}` : null, migrazioni: 24 })) } as T;
+      return { ...structuredClone(d), centri: d.centri.map((x, i) => ({
+          ...x,
+          progetto: x.stato === 'pronto' ? `demo${String(i).padStart(16, '0')}` : null,
+          migrazioni: 24,
+          // L'ultimo centro pronto ha il database cancellato, per vedere l'avviso.
+          db_stato: x.stato !== 'pronto' ? null : x.id === d.centri.filter((y) => y.stato === 'pronto').at(-1)?.id ? 'MANCANTE' : (demoDb?.[x.id] ?? 'ACTIVE_HEALTHY'),
+        })) } as T;
     case 'piano':
       set({ piano: b.piano as AdminCentre['piano'], piano_prossimo: null, ...(b.formula ? { formula: b.formula as AdminCentre['formula'] } : {}) });
       break;
@@ -281,7 +287,7 @@ export async function demoCall<T>(azione: string, b: Record<string, unknown>): P
       break;
     case 'database_tutti': {
       // Nella demo i database sono finti: uno per centro pronto, più il gestore.
-      demoDb ??= Object.fromEntries(d.centri.filter((x) => x.stato === 'pronto').map((x, i) => [x.id, i % 4 === 3 ? 'INACTIVE' : 'ACTIVE_HEALTHY']));
+      demoDb ??= Object.fromEntries(d.centri.filter((x) => x.stato === 'pronto').slice(0, -1).map((x, i) => [x.id, i % 4 === 3 ? 'INACTIVE' : 'ACTIVE_HEALTHY']));
       const progetti = d.centri
         .filter((x) => demoDb![x.id])
         .map((x, i) => ({ ref: `demo${String(i).padStart(16, '0')}`, nome: `K9 ${x.codice}`, stato: demoDb![x.id], regione: 'eu-central-1', creato: x.creato, centro: { id: x.id, campo: x.campo, codice: x.codice }, gestore: false }));
