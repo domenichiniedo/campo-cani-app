@@ -82,16 +82,20 @@ in chat, nell'app o su GitHub.
    STRIPE_SECRET_KEY=sk_test_...       # facoltativo, solo per i pagamenti online dei clienti (modalità test)
    ```
 
-   Facoltativi: `REGIONE_SUPABASE` (predefinita eu-central-1), `MAX_CENTRI_AL_GIORNO` (20),
-   `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` (per le email della password dimenticata
-   dei clienti e per il codice che conferma l'email all'iscrizione: senza un SMTP proprio Supabase non le manda e
-   chi si iscrive entra subito), `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_MESSAGE_SERVICE_SID` (per il
-   codice SMS che conferma il cellulare dei clienti nuovi; ogni SMS lo paghi a Twilio), `GIORNI_PER_PAGARE` (3: entro
-   quel giorno del mese il bonifico deve arrivare, poi l'app del centro si blocca), `BANCA_IBAN` (se la banca ti fa
-   scegliere più conti: quello da leggere).
+   Servono anche, sempre: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` (le email con il codice che
+   conferma l'email di chi si iscrive con email e password, e quelle della password dimenticata) e
+   `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_MESSAGE_SERVICE_SID` (il codice SMS con cui ogni cliente nuovo,
+   anche chi entra con Google, conferma il cellulare; ogni SMS lo paghi a Twilio). Senza, il gestore non prepara i
+   centri: nel pannello compare l'errore che dice cosa manca.
 
-   SMTP e Twilio valgono per i centri preparati dopo averli messi: a un centro già pronto si aggiungono a mano da
-   Supabase, come spiega il README principale (Email).
+   Facoltativi: `REGIONE_SUPABASE` (predefinita eu-central-1), `MAX_CENTRI_AL_GIORNO` (20), `GIORNI_PER_PAGARE` (3: entro
+   quel giorno del mese il bonifico deve arrivare, poi l'app del centro si blocca), `BANCA_IBAN` (se la banca ti fa
+   scegliere più conti: quello da leggere), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+   (client "Applicazione web" di Google) e `GOOGLE_ALTRI_CLIENT_ID` (il client "App desktop"): accendono l'accesso con
+   Google nei centri nuovi (vedi README principale, "Accesso con Google").
+
+   SMTP, Twilio e Google valgono per i centri preparati dopo averli messi: a un centro già pronto si aggiungono a mano
+   da Supabase, come spiega il README principale (Email e Accesso con Google).
 
    Il token di Supabase può creare progetti sul tuo account: tienilo solo qui. Ogni centro è un progetto,
    e oltre i 2 progetti gratuiti Supabase chiede il piano a pagamento.
@@ -142,6 +146,11 @@ in chat, nell'app o su GitHub.
 
 8. **Il pannello.** Actions → "Pannello del gestore" → Run workflow, con l'indirizzo del passo 7 e la
    publishable key del progetto gestore. Lo scarichi da Releases → "K9 Gestore".
+
+   **Entrare con Google** (facoltativo): nel progetto del gestore, in Authentication → Sign In / Providers → Google,
+   attivalo con gli stessi client dell'app (ID web e, dopo una virgola, ID desktop; secret del client web), e nelle
+   Variables di GitHub metti `GOOGLE_DESKTOP_CLIENT_ID` e `GOOGLE_DESKTOP_SECRET` prima di costruire il pannello.
+   Entra chiunque abbia un account Google, ma il pannello risponde solo alle email in `AMMINISTRATORI`.
 
 9. **I prezzi.** Nel pannello, sezione **Piani**: canone al mese e quota per prenotazione di Base, Professional e
    Pro. All'inizio sono 0 € di canone e 1 € a prenotazione per tutti. Per un centro solo puoi farne di apposta.

@@ -21,6 +21,10 @@ const make = (url: string, key: string) =>
 
 let current = make(envUrl, envKey);
 let currentUrl = envUrl;
+let currentKey = envKey;
+
+/** Indirizzo e chiave publishable del database collegato in quel momento. */
+export const connection = () => ({ url: currentUrl, key: currentKey });
 
 /** Collega l'app al database di un centro (dalla licenza). */
 export function connectTo(url: string, key: string) {
@@ -28,6 +32,7 @@ export function connectTo(url: string, key: string) {
   current.auth.stopAutoRefresh();
   current = make(url, key);
   currentUrl = url;
+  currentKey = key;
 }
 
 // Tutta l'app usa `supabase`: punta sempre al database collegato in quel momento.

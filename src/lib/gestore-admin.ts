@@ -13,7 +13,11 @@ export const adminDemo = process.env.EXPO_PUBLIC_PANNELLO_DEMO === '1';
 
 export const adminConfigured = adminDemo || (FUNCTIONS.length > 0 && KEY.length > 0);
 
-const admin = createClient(FUNCTIONS.replace(/\/functions\/v1$/, '') || 'http://localhost', KEY || 'missing', {
+/** Il progetto Supabase del gestore: anche l'accesso con Google passa da qui. */
+export const adminUrl = FUNCTIONS.replace(/\/functions\/v1$/, '');
+export const adminKey = KEY;
+
+export const admin = createClient(adminUrl || 'http://localhost', KEY || 'missing', {
   auth: { storage: localStorage, storageKey: 'k9-gestore-accesso', autoRefreshToken: true, persistSession: true, detectSessionInUrl: false },
 });
 

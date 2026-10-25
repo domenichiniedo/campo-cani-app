@@ -28,6 +28,9 @@ Deno.serve(async (req) => {
     sms: env('TWILIO_ACCOUNT_SID')
       ? { sid: env('TWILIO_ACCOUNT_SID'), token: env('TWILIO_AUTH_TOKEN'), servizio: env('TWILIO_MESSAGE_SERVICE_SID') }
       : null,
+    google: env('GOOGLE_CLIENT_ID')
+      ? { id: env('GOOGLE_CLIENT_ID'), segreto: env('GOOGLE_CLIENT_SECRET'), altri: env('GOOGLE_ALTRI_CLIENT_ID') }
+      : null,
   };
   const { data, error } = await db.rpc('prendi_centri', { p_quanti: 3, p_migrazioni: MIGRAZIONI.length });
   if (error) return json({ errore: error.message }, 500);

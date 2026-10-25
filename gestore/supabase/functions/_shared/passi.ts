@@ -22,6 +22,11 @@ export type Ambiente = {
   smtp: { host: string; port: string; user: string; pass: string; from: string } | null;
   /** Twilio per il codice SMS che conferma il cellulare dei clienti; senza, il cellulare non si conferma. */
   sms: { sid: string; token: string; servizio: string } | null;
+  /**
+   * Accesso con Google: client "Applicazione web" (id e segreto) e gli altri client che l'app usa
+   * (quello "App desktop" del programma per computer). Senza, nei centri si entra solo con email e password.
+   */
+  google?: { id: string; segreto: string; altri: string } | null;
 };
 
 // deno-lint-ignore no-explicit-any
@@ -60,10 +65,12 @@ export async function passo(c: Centro, a: Ambiente): Promise<Partial<Centro>> {
       ].join('\n\n');
       await query(sql);
       const migrazioni = MIGRAZIONI.length;
-      // Con un SMTP proprio chi si iscrive conferma l'email con un codice (un link nell'app non si aprirebbe);
-      // senza, Supabase non manda email ai clienti ed entrano subito. Con Twilio confermano anche il cellulare.
+      // Chi si iscrive con email e password conferma l'email con un codice (un link nell'app non si aprirebbe), e
+      // tutti, anche chi entra con Google, confermano il cellulare con un SMS: senza SMTP e Twilio non si parte.
+      const manca = [!a.smtp && 'SMTP (SMTP_HOST...)', !a.sms && 'Twilio (TWILIO_ACCOUNT_SID...)'].filter(Boolean);
+      if (manca.length) throw new Error(`Per confermare email e cellulare dei clienti servono ${manca.join(' e ')} nei segreti del gestore.`);
       await a.api('PATCH', `/projects/${c.progetto}/config/auth`, {
-        mailer_autoconfirm: !a.smtp,
+        mailer_autoconfirm: false,
         ...(a.smtp
           ? {
               smtp_host: a.smtp.host,
@@ -87,6 +94,15 @@ export async function passo(c: Centro, a: Ambiente): Promise<Partial<Centro>> {
               sms_twilio_auth_token: a.sms.token,
               sms_twilio_message_service_sid: a.sms.servizio,
               sms_template: 'Il tuo codice è {{ .Code }}',
+            }
+          : {}),
+        // L'app entra con l'ID token di Google (signInWithIdToken): nessun redirect da registrare su Google.
+        ...(a.google
+          ? {
+              external_google_enabled: true,
+              external_google_client_id: a.google.id,
+              external_google_secret: a.google.segreto,
+              external_google_additional_client_ids: a.google.altri,
             }
           : {}),
       });

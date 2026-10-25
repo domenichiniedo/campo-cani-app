@@ -792,6 +792,12 @@ const dict: Record<string, string> = {
   'Il campo è chiuso in questo orario.': 'El campo está cerrado a esta hora.',
   'Orario appena preso da un altro cliente. Scegline un altro.': 'Otro cliente acaba de coger este horario. Elige otro.',
   'Funzione sconosciuta': 'Función desconocida',
+  'Benvenuto!': '¡Bienvenido!',
+  'Sei entrato con Google. Per prenotare il campo mancano pochi dati.': 'Has entrado con Google. Faltan pocos datos para reservar el campo.',
+  'Completa l’iscrizione': 'Completar el registro',
+  'Continua con Google': 'Continuar con Google',
+  "Questo centro non ha ancora attivato l'accesso con Google.": 'Este centro aún no ha activado el acceso con Google.',
+  'Accesso con Google non riuscito: {errore}': 'No se pudo acceder con Google: {errore}',
 };
 
 export default dict;

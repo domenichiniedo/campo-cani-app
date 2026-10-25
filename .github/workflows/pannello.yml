@@ -35,6 +35,9 @@ env:
   APP_ID: ${{ inputs.demo && 'it.campocani.gestoredemo' || 'it.campocani.gestore' }}
   EXPO_PUBLIC_GESTORE_URL: ${{ inputs.gestore_url || vars.GESTORE_URL }}
   EXPO_PUBLIC_GESTORE_KEY: ${{ inputs.gestore_key || vars.GESTORE_KEY }}
+  # Accesso con Google al pannello (vedi gestore/README.md): vuote = solo email e password.
+  EXPO_PUBLIC_GOOGLE_DESKTOP_CLIENT_ID: ${{ !inputs.demo && vars.GOOGLE_DESKTOP_CLIENT_ID || '' }}
+  EXPO_PUBLIC_GOOGLE_DESKTOP_SECRET: ${{ !inputs.demo && vars.GOOGLE_DESKTOP_SECRET || '' }}
 
 jobs:
   windows:

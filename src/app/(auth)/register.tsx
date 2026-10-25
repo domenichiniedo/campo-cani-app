@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 import { BillingFields } from '@/components/billing-fields';
 import { EmailCode } from '@/components/email-code';
+import { GoogleButton } from '@/components/google-button';
 import { PhotoPicker, saveSignupPhoto } from '@/components/photo';
 import { Button, Card, Check, Chips, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingColumns, billingError, emptyBilling, type BillingDraft } from '@/lib/billing';
@@ -11,7 +12,7 @@ import { t } from '@/lib/i18n';
 import type { Picked } from '@/lib/images';
 import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
-import { errorText, supabase } from '@/lib/supabase';
+import { connection, errorText, supabase } from '@/lib/supabase';
 import { rulesLines } from '@/lib/types';
 
 type DogDraft = { name: string; breed: string; birth: string };
@@ -124,6 +125,8 @@ export default function Register() {
         value={asTrainer ? 'trainer' : 'client'}
         onChange={(v) => setAsTrainer(v === 'trainer')}
       />
+      {/* Con Google l'account nasce subito: telefono, cani e consensi li chiede poi la schermata di benvenuto. */}
+      <GoogleButton client={supabase} url={connection().url} apiKey={connection().key} />
 
       <Step n="1" title={t('I tuoi dati')} />
       <Card>

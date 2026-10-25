@@ -10,6 +10,9 @@ import { firmaStripe, form } from './stripe.ts';
 const uguale = (a: unknown, b: unknown) => {
   if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(`atteso ${JSON.stringify(b)}, trovato ${JSON.stringify(a)}`);
 };
+// SMTP e Twilio finti: senza, il gestore non prepara i centri (email e cellulare dei clienti vanno confermati).
+const SMTP = { host: 'smtp.x', port: '587', user: 'u', pass: 'p', from: 'n@x.it' };
+const SMS = { sid: 'AC1', token: 't', servizio: 'MG1' };
 const b64 = (s: string) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (s.length % 4)) % 4)), (c) => c.charCodeAt(0));
 
 Deno.test('fine del mese', () => {
@@ -72,7 +75,7 @@ Deno.test('preparazione di un centro, passo dopo passo', async () => {
     if (path.endsWith('/api-keys?reveal=true')) return [{ type: 'publishable', api_key: 'sb_publishable_abc' }, { type: 'secret', api_key: 'sb_secret_NO' }];
     return {};
   };
-  const a: Ambiente = { api, seme: 'rghXTQSBwUC6jUTKfjpjGmcbK1Qz4bPQQKxMekZvGDY', org: '', regione: 'eu-central-1', oggi: '2026-10-23', password: () => 'pw', smtp: null, sms: null };
+  const a: Ambiente = { api, seme: 'rghXTQSBwUC6jUTKfjpjGmcbK1Qz4bPQQKxMekZvGDY', org: '', regione: 'eu-central-1', oggi: '2026-10-23', password: () => 'pw', smtp: SMTP, sms: SMS };
   let c = { id: 'c1', codice: 'K9-ABCDEF', campo: "L'Oasi", email: 'titolare@querce.it', piano: 'professional', stato: 'progetto', tentativi: 0, migrazioni: 0, scade: null } as unknown as Centro;
   const stati: string[] = [];
   for (let i = 0; i < 10 && c.stato !== 'pronto'; i++) {
@@ -94,7 +97,7 @@ Deno.test('preparazione di un centro, passo dopo passo', async () => {
   uguale(await passo(c, a), {});
 });
 
-Deno.test('conferma di email e cellulare: con SMTP e Twilio si accende, senza no', async () => {
+Deno.test('conferma di email e cellulare: sempre accese, senza SMTP o Twilio il centro non si prepara', async () => {
   const fai = async (smtp: Ambiente['smtp'], sms: Ambiente['sms']) => {
     let auth: Record<string, unknown> = {};
     const sql: string[] = [];
@@ -112,16 +115,37 @@ Deno.test('conferma di email e cellulare: con SMTP e Twilio si accende, senza no
     await passo(c, a);
     return { auth, sms: sql.some((q) => q.includes('sms_check = true')) };
   };
-  const spento = await fai(null, null);
-  uguale(spento.auth.mailer_autoconfirm, true);
-  uguale(spento.auth.external_phone_enabled, undefined);
-  uguale(spento.sms, false);
-  const acceso = await fai({ host: 'smtp.x', port: '587', user: 'u', pass: 'p', from: 'n@x.it' }, { sid: 'AC1', token: 't', servizio: 'MG1' });
+  for (const [smtp, sms] of [[null, SMS], [SMTP, null]] as const) {
+    let errore = '';
+    await fai(smtp, sms).catch((e) => (errore = e.message));
+    if (!errore.includes(smtp ? 'Twilio' : 'SMTP')) throw new Error(`atteso errore, trovato "${errore}"`);
+  }
+  const acceso = await fai(SMTP, SMS);
   uguale(acceso.auth.mailer_autoconfirm, false);
   uguale(acceso.auth.sms_provider, 'twilio');
   uguale(acceso.auth.sms_autoconfirm, false);
   if (!String(acceso.auth.mailer_templates_confirmation_content).includes('{{ .Token }}')) throw new Error('manca il codice nella email');
   uguale(acceso.sms, true);
+});
+
+Deno.test('accesso con Google: con il client di Google si accende, senza no', async () => {
+  const fai = async (google: Ambiente['google']) => {
+    let auth: Record<string, unknown> = {};
+    const api: Ambiente['api'] = async (_method, path, body) => {
+      if (path.endsWith('/config/auth')) auth = body as Record<string, unknown>;
+      if (path.endsWith('/database/query') && (body as { query: string }).query.includes('to_regclass')) return [{ pronto: true }];
+      return [];
+    };
+    const a: Ambiente = { api, seme: 'x', org: '', regione: '', oggi: '2026-10-23', password: () => '', smtp: SMTP, sms: SMS, google };
+    const c = { id: 'c1', codice: 'K9-ABCDEF', campo: 'Le Querce', email: 't@q.it', stato: 'database', progetto: 'p', tentativi: 0, migrazioni: 0 } as unknown as Centro;
+    await passo(c, a);
+    return auth;
+  };
+  uguale((await fai(null)).external_google_enabled, undefined);
+  const acceso = await fai({ id: 'web.apps.googleusercontent.com', segreto: 'GOCSPX-x', altri: 'desktop.apps.googleusercontent.com' });
+  uguale(acceso.external_google_enabled, true);
+  uguale(acceso.external_google_client_id, 'web.apps.googleusercontent.com');
+  uguale(acceso.external_google_additional_client_ids, 'desktop.apps.googleusercontent.com');
 });
 
 Deno.test('conto del mese: canone a giorni, quote del piano del giorno, prezzi del centro', async () => {

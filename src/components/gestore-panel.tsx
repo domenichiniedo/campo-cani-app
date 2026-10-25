@@ -3,14 +3,18 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
+import { GoogleButton } from '@/components/google-button';
 import { Badge, Body, Button, Card, Chips, ErrorText, Field, H1, Muted, Row, Screen, Stat, Step } from '@/components/ui';
 import {
+  admin,
   adminCall,
   adminConfigured,
   adminDemo,
+  adminKey,
   adminSignedIn,
   adminSignIn,
   adminSignOut,
+  adminUrl,
   onAdminAuth,
   type AdminCentre,
   type AdminData,
@@ -118,6 +122,8 @@ function Login() {
         <ErrorText>{err}</ErrorText>
         <Button title="Entra" onPress={submit} loading={busy} disabled={!email.includes('@') || !password} />
       </Card>
+      {/* Con Google entra chiunque abbia un account, ma il pannello risponde solo agli AMMINISTRATORI. */}
+      {!adminDemo && <GoogleButton client={admin} url={adminUrl} apiKey={adminKey} />}
     </Screen>
   );
 }
