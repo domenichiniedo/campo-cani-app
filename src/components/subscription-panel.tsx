@@ -16,13 +16,15 @@ const date = (d: string) => d.split('-').reverse().join('/');
 const month = (m: string) => m.split('-').reverse().join('/');
 const limit = (n: number | null) => (n === null ? t('senza limite') : String(n));
 
-/** Canone e quota di un piano, o il suo prezzo fisso, in una riga. */
-export const priceText = (p: PlanPrice, formula: Formula = 'consumo') =>
-  formula === 'fisso' && p.fisso_cents != null
-    ? t('{fisso} al mese, prenotazioni comprese', { fisso: euro(p.fisso_cents) })
-    : p.canone_cents > 0
+/** Canone e quote di un piano, o il suo prezzo fisso, in una riga. */
+export function priceText(p: PlanPrice, formula: Formula = 'consumo') {
+  if (formula === 'fisso' && p.fisso_cents != null) return t('{fisso} al mese, prenotazioni comprese', { fisso: euro(p.fisso_cents) });
+  const base =
+    p.canone_cents > 0
       ? t('{canone} al mese + {quota} a prenotazione', { canone: euro(p.canone_cents), quota: euro(p.tariffa_cents) })
       : t('{quota} a prenotazione, senza canone', { quota: euro(p.tariffa_cents) });
+  return p.pacchetti_bp ? `${base} + ${t('{pct} del prezzo dei pacchetti', { pct: `${String(p.pacchetti_bp / 100).replace('.', ',')}%` })}` : base;
+}
 
 /** Il gestore ha il prezzo fisso (per i gestori non ancora aggiornati si paga solo a consumo). */
 export const hasFixed = (prices: Partial<Record<string, PlanPrice>>) => Object.values(prices).some((p) => p?.fisso_cents != null);

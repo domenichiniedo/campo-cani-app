@@ -32,14 +32,16 @@ export async function allungaLicenza(c: Centro, forza = false) {
 
 export async function prezzi(): Promise<Prezzi> {
   const { data } = await db.from('piani').select('*');
-  // I prezzi di partenza (0004_prezzi.sql e 0006_fisso.sql), se la tabella non li ha.
+  // I prezzi di partenza (0004_prezzi.sql e 0006_fisso_pacchetti.sql), se la tabella non li ha.
   const p: Prezzi = {
-    base: { canone_cents: 590, tariffa_cents: 100, fisso_cents: 3900 },
-    professional: { canone_cents: 2999, tariffa_cents: 60, fisso_cents: 7900 },
-    pro: { canone_cents: 8000, tariffa_cents: 30, fisso_cents: 14900 },
+    base: { canone_cents: 590, tariffa_cents: 100, fisso_cents: 3900, pacchetti_bp: 200 },
+    professional: { canone_cents: 2999, tariffa_cents: 60, fisso_cents: 7900, pacchetti_bp: 200 },
+    pro: { canone_cents: 8000, tariffa_cents: 30, fisso_cents: 14900, pacchetti_bp: 200 },
   };
-  for (const r of data ?? [])
-    p[r.piano as Piano] = { canone_cents: r.canone_cents, tariffa_cents: r.tariffa_cents, fisso_cents: r.fisso_cents ?? p[r.piano as Piano].fisso_cents };
+  for (const r of data ?? []) {
+    const x = p[r.piano as Piano];
+    p[r.piano as Piano] = { canone_cents: r.canone_cents, tariffa_cents: r.tariffa_cents, fisso_cents: r.fisso_cents ?? x.fisso_cents, pacchetti_bp: r.pacchetti_bp ?? x.pacchetti_bp };
+  }
   return p;
 }
 

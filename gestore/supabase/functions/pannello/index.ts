@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
             .order('creato', { ascending: false }),
           db
             .from('addebiti')
-            .select('id, centro, mese, prenotazioni, canone_cents, importo_cents, bonus_cents, stato, fattura, errore, scadenza, causale, pagato_il')
+            .select('id, centro, mese, prenotazioni, canone_cents, pacchetti_cents, importo_cents, bonus_cents, stato, fattura, errore, scadenza, causale, pagato_il')
             .gte('mese', da.toISOString().slice(0, 7))
             .order('mese'),
           db.from('piani').select('*'),
@@ -85,6 +85,11 @@ Deno.serve(async (req) => {
         if (!PIANI.includes(b.piano)) throw new Error('Piano non valido.');
         const m: Record<string, number | null> = { canone_cents: centesimi(b.canone_cents), tariffa_cents: centesimi(b.tariffa_cents) };
         if (b.fisso_cents !== undefined) m.fisso_cents = centesimi(b.fisso_cents);
+        if (b.pacchetti_bp !== undefined) {
+          const bp = Math.round(Number(b.pacchetti_bp));
+          if (!Number.isFinite(bp) || bp < 0 || bp > 10000) throw new Error('Percentuale sui pacchetti non valida.');
+          m.pacchetti_bp = bp;
+        }
         await db.from('piani').update(m).eq('piano', b.piano);
         return json({ fatto: true });
       }

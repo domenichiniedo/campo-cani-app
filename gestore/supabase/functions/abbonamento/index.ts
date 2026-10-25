@@ -23,6 +23,7 @@ async function vedi(c: Centro) {
         canone_cents: c.canone_cents ?? listino[p].canone_cents,
         tariffa_cents: c.tariffa_cents ?? listino[p].tariffa_cents,
         fisso_cents: c.fisso_cents ?? listino[p].fisso_cents,
+        pacchetti_bp: listino[p].pacchetti_bp,
       },
     ]),
   );

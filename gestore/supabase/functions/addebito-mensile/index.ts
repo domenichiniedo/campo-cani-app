@@ -1,7 +1,8 @@
 // Il primo del mese fa il conto del mese prima di ogni centro: canone del piano (diviso a giorni se il piano è
 // cambiato o il centro si è registrato a metà mese) più la quota per ogni prenotazione pagata al campo, con
-// bonifico o con carta al centro, anche se poi è stata annullata (le lezioni scalate da un pacchetto non
-// contano). Il centro a prezzo fisso paga solo il fisso del piano, senza quote.
+// bonifico o con carta al centro, anche se poi è stata annullata. Le lezioni scalate da un pacchetto non
+// contano: si conta invece il 2% (pacchetti_bp del piano) del prezzo di ogni pacchetto attivato nel mese.
+// Il centro a prezzo fisso paga solo il fisso del piano, senza quote.
 // Il centro vede l'addebito nell'app (Impostazioni → Licenza) con IBAN, causale e codice QR, e lo paga con un
 // bonifico istantaneo sul tuo conto: controlla-bonifici lo trova nei movimenti e rinnova la licenza.
 // Se non arriva entro la scadenza (il giorno GIORNI_PER_PAGARE del mese, 3 di solito) la licenza scade e l'app
@@ -32,6 +33,10 @@ async function addebita(c: Centro, mese: string, listino: Prezzi) {
     // Contano anche le prenotazioni annullate; non quelle pagate con un pacchetto.
     query: `select day::text as g, count(*)::int as n from public.bookings where pay in ('onsite', 'transfer', 'online') and day >= '${mese}-01' and day < '${meseDopo(mese)}-01' group by day;`,
   })) as { g: string; n: number }[];
+  // I pacchetti attivati nel mese (anche se poi annullati), giorno per giorno, con il loro prezzo.
+  const attivati = (await managementApi('POST', `/projects/${c.progetto}/database/query`, {
+    query: `select (activated_at at time zone 'Europe/Rome')::date::text as g, sum(price_cents)::int as c from public.client_packages where activated_at is not null and (activated_at at time zone 'Europe/Rome')::date >= '${mese}-01' and (activated_at at time zone 'Europe/Rome')::date < '${meseDopo(mese)}-01' group by 1;`,
+  })) as { g: string; c: number }[];
   const conto = contoDelMese({
     mese,
     dal: oggi(new Date(c.creato)),
@@ -43,6 +48,7 @@ async function addebita(c: Centro, mese: string, listino: Prezzi) {
     tariffa: c.tariffa_cents,
     fisso: c.fisso_cents,
     prenotazioni: Object.fromEntries(righe.map((r) => [r.g.slice(0, 10), r.n])),
+    pacchetti: Object.fromEntries(attivati.map((r) => [r.g.slice(0, 10), r.c])),
   });
   // Il bonus del centro (crediti dal pannello o da un codice bonus) si scala dal conto, finché c'è.
   const { data: crediti } = await db.from('crediti').select('residuo_cents').eq('centro', c.id).gt('residuo_cents', 0);
@@ -56,6 +62,7 @@ async function addebita(c: Centro, mese: string, listino: Prezzi) {
         mese,
         prenotazioni: conto.prenotazioni,
         canone_cents: conto.canone_cents,
+        pacchetti_cents: conto.pacchetti_cents,
         importo_cents: importo,
         bonus_cents: bonus,
         stato: importo ? 'inviato' : 'zero',

@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
     const { data } = await db.from('piani').select('*');
     return json({
       piani: Object.fromEntries(
-        (data ?? []).map((p) => [p.piano, { canone_cents: p.canone_cents, tariffa_cents: p.tariffa_cents, fisso_cents: p.fisso_cents ?? null }]),
+        (data ?? []).map((p) => [p.piano, { canone_cents: p.canone_cents, tariffa_cents: p.tariffa_cents, fisso_cents: p.fisso_cents ?? null, pacchetti_bp: p.pacchetti_bp ?? null }]),
       ),
     });
   }

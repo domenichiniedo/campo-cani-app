@@ -453,7 +453,7 @@
   // Il gestore nella demo: registra un centro nuovo e lo "prepara" in pochi secondi invece che in minuti.
   // La licenza arriva dalla pagina della demo (mobile-demo/index.html), che ha quelle firmate per la demo.
   var CENTRO = 'campo-demo-centro-nuovo';
-  var PREZZI = { base: { canone_cents: 590, tariffa_cents: 100, fisso_cents: 3900 }, professional: { canone_cents: 2999, tariffa_cents: 60, fisso_cents: 7900 }, pro: { canone_cents: 8000, tariffa_cents: 30, fisso_cents: 14900 } };
+  var PREZZI = { base: { canone_cents: 590, tariffa_cents: 100, fisso_cents: 3900, pacchetti_bp: 200 }, professional: { canone_cents: 2999, tariffa_cents: 60, fisso_cents: 7900, pacchetti_bp: 200 }, pro: { canone_cents: 8000, tariffa_cents: 30, fisso_cents: 14900, pacchetti_bp: 200 } };
   var PASSI = ['progetto', 'avvio', 'database', 'chiavi', 'licenza'];
   function gestore(fn, a) {
     if (fn === 'centro' && a.prezzi) return json(200, { piani: PREZZI });

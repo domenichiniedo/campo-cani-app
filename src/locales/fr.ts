@@ -861,6 +861,7 @@ const dict: Record<string, string> = {
   "opzioni per lezione": "options par cours",
   "schede in uso": "fiches utilisées",
   "{lezione}: il piano {piano} comprende fino a {max} opzioni per lezione.": "{lezione} : le forfait {piano} comprend jusqu'à {max} options par cours.",
+  "{pct} del prezzo dei pacchetti": "{pct} du prix des forfaits",
 };
 
 export default dict;

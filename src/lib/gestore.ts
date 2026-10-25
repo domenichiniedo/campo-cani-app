@@ -52,8 +52,8 @@ export const registerCentre = (campo: string, email: string, piano: string, form
 /** Come il centro paga il piano: canone + quota per prenotazione (consumo) o una cifra fissa al mese. */
 export type Formula = 'consumo' | 'fisso';
 
-/** fisso_cents manca se il gestore non ha ancora il prezzo fisso. */
-export type PlanPrice = { canone_cents: number; tariffa_cents: number; fisso_cents?: number | null };
+/** fisso_cents manca se il gestore non ha ancora il prezzo fisso; pacchetti_bp è la quota sui pacchetti (200 = 2%). */
+export type PlanPrice = { canone_cents: number; tariffa_cents: number; fisso_cents?: number | null; pacchetti_bp?: number | null };
 
 /** I prezzi dei piani, per chi sta per registrare un centro. */
 export const planPrices = () => call<{ piani: Partial<Record<string, PlanPrice>> }>('centro', { prezzi: true }).then((r) => r.piani);

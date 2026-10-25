@@ -51,6 +51,8 @@ export type Charge = {
   mese: string;
   prenotazioni: number;
   canone_cents: number;
+  /** Quota sui pacchetti attivati nel mese, già compresa in importo_cents. */
+  pacchetti_cents?: number;
   importo_cents: number;
   /** Bonus scalato dal conto: importo_cents è già al netto. */
   bonus_cents: number;
@@ -63,7 +65,8 @@ export type Charge = {
   pagato_il: string | null;
 };
 
-export type PlanRow = { piano: AdminCentre['piano']; canone_cents: number; tariffa_cents: number; fisso_cents: number };
+/** pacchetti_bp: la quota sul prezzo dei pacchetti attivati, in centesimi di punto (200 = 2%). */
+export type PlanRow = { piano: AdminCentre['piano']; canone_cents: number; tariffa_cents: number; fisso_cents: number; pacchetti_bp: number };
 
 /** Il tuo conto: IBAN per i bonifici dei centri e collegamento in sola lettura con Enable Banking. */
 export type Bank = {

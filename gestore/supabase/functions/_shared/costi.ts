@@ -4,7 +4,8 @@
 export type Piano = 'base' | 'professional' | 'pro';
 /** Come paga il centro: canone + quota per prenotazione, oppure una cifra fissa al mese. */
 export type Formula = 'consumo' | 'fisso';
-export type Prezzi = Record<Piano, { canone_cents: number; tariffa_cents: number; fisso_cents: number }>;
+/** pacchetti_bp: la quota sul prezzo dei pacchetti attivati, in centesimi di punto (200 = 2%). */
+export type Prezzi = Record<Piano, { canone_cents: number; tariffa_cents: number; fisso_cents: number; pacchetti_bp: number }>;
 export type Cambio = { piano: Piano; dal: string; formula?: Formula };
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -24,13 +25,13 @@ export function pianoDel(giorno: string, cambi: Cambio[], attuale: Piano, formul
   return c ? { piano: c.piano, formula: c.formula ?? 'consumo' } : { piano: attuale, formula };
 }
 
-export type Conto = { canone_cents: number; prenotazioni: number; quote_cents: number; importo_cents: number };
+export type Conto = { canone_cents: number; prenotazioni: number; quote_cents: number; pacchetti_cents: number; importo_cents: number };
 
 /**
  * Canone e quote di un mese. Il canone si divide a giorni fra i piani avuti nel mese, contando solo dal giorno
- * di registrazione; ogni prenotazione paga la quota del piano del suo giorno. Nei giorni a prezzo fisso il
- * canone è il fisso del piano e le prenotazioni non pagano quota. I prezzi fatti apposta per il centro
- * (non null) valgono al posto di quelli del piano.
+ * di registrazione; ogni prenotazione paga la quota del piano del suo giorno, e ogni pacchetto attivato una
+ * percentuale del suo prezzo. Nei giorni a prezzo fisso il canone è il fisso del piano e non ci sono quote.
+ * I prezzi fatti apposta per il centro (non null) valgono al posto di quelli del piano.
  */
 export function contoDelMese(a: {
   mese: string;
@@ -43,10 +44,13 @@ export function contoDelMese(a: {
   tariffa: number | null;
   fisso?: number | null;
   prenotazioni: Record<string, number>;
+  /** Prezzo dei pacchetti attivati ogni giorno, in centesimi. */
+  pacchetti?: Record<string, number>;
 }): Conto {
   const giorni = giorniDelMese(a.mese);
   let canone = 0;
   let quote = 0;
+  let pacchetti = 0;
   let n = 0;
   for (const g of giorni) {
     const d = pianoDel(g, a.cambi, a.attuale, a.formula);
@@ -55,10 +59,13 @@ export function contoDelMese(a: {
     if (g >= a.dal) canone += (fisso ? (a.fisso ?? p.fisso_cents) : (a.canone ?? p.canone_cents)) / giorni.length;
     const k = a.prenotazioni[g] ?? 0;
     n += k;
-    if (!fisso) quote += k * (a.tariffa ?? p.tariffa_cents);
+    if (fisso) continue;
+    quote += k * (a.tariffa ?? p.tariffa_cents);
+    pacchetti += ((a.pacchetti?.[g] ?? 0) * p.pacchetti_bp) / 10000;
   }
   const c = Math.round(canone);
-  return { canone_cents: c, prenotazioni: n, quote_cents: quote, importo_cents: c + quote };
+  const pk = Math.round(pacchetti);
+  return { canone_cents: c, prenotazioni: n, quote_cents: quote, pacchetti_cents: pk, importo_cents: c + quote + pk };
 }
 
 /** Giorni per pagare dopo l'addebito del mese: poi la licenza scade e l'app del centro si blocca. */
