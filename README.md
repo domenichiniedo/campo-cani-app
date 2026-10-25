@@ -25,18 +25,18 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
 
 ### Email
 
-- **Conferma email.** In **Authentication → Sign In / Providers → Email** puoi tenere attiva "Confirm email": chi si
-  iscrive riceve un codice e lo scrive nell'app. In **Authentication → Emails → Confirm signup** sostituisci il testo con
-  qualcosa come:
+- **Conferma email** (obbligatoria per chi si iscrive con email e password; chi entra con Google no, l'ha già
+  verificata Google). In **Authentication → Sign In / Providers → Email** lascia attiva "Confirm email": chi si
+  iscrive riceve un codice e lo scrive nell'app. Serve un SMTP proprio (sotto): senza, Supabase non manda le email.
+  In **Authentication → Emails → Confirm signup** sostituisci il testo con qualcosa come:
 
   ```
   <h2>Benvenuto</h2>
   <p>Il codice per confermare la tua email è: <strong>{{ .Token }}</strong></p>
   ```
 
-  Se la spegni, il cliente entra subito dopo l'iscrizione.
-- **Conferma del cellulare con un SMS** (facoltativa). Serve un servizio SMS, per esempio Twilio (ogni SMS costa
-  qualche centesimo). In **Authentication → Sign In / Providers → Phone** attivalo, scegli Twilio, incolla Account SID,
+- **Conferma del cellulare con un SMS** (obbligatoria per tutti i clienti nuovi, anche per chi entra con Google).
+  Serve un servizio SMS, per esempio Twilio (ogni SMS costa qualche centesimo). In **Authentication → Sign In / Providers → Phone** attivalo, scegli Twilio, incolla Account SID,
   Auth Token e Message Service SID, lascia attiva "Confirm phone" e come messaggio scrivi `Il tuo codice è {{ .Code }}`.
   Poi nel **SQL Editor**:
 
@@ -61,8 +61,8 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
 
 Clienti, trainer e proprietari possono entrare con il loro account Google (pulsante **Continua con Google**), nell'app
 Android, nel browser (anche iPhone) e nel programma per Windows e Mac. Chi entra con Google la prima volta non passa dal
-modulo di iscrizione: l'app gli chiede subito telefono, cani, fattura e consensi, poi l'SMS del cellulare se il centro
-lo usa. L'email non va confermata: l'ha già verificata Google. Chi è già iscritto con la stessa email entra nel suo
+modulo di iscrizione: l'app gli chiede subito telefono, cani, fattura e consensi, poi il codice SMS che conferma
+il cellulare. L'email non va confermata: l'ha già verificata Google. Chi è già iscritto con la stessa email entra nel suo
 account di sempre.
 
 L'app si fa dare da Google un "ID token" e lo passa a Supabase: non serve registrare su Google l'indirizzo di ogni

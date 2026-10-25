@@ -65,10 +65,12 @@ export async function passo(c: Centro, a: Ambiente): Promise<Partial<Centro>> {
       ].join('\n\n');
       await query(sql);
       const migrazioni = MIGRAZIONI.length;
-      // Con un SMTP proprio chi si iscrive conferma l'email con un codice (un link nell'app non si aprirebbe);
-      // senza, Supabase non manda email ai clienti ed entrano subito. Con Twilio confermano anche il cellulare.
+      // Chi si iscrive con email e password conferma l'email con un codice (un link nell'app non si aprirebbe), e
+      // tutti, anche chi entra con Google, confermano il cellulare con un SMS: senza SMTP e Twilio non si parte.
+      const manca = [!a.smtp && 'SMTP (SMTP_HOST...)', !a.sms && 'Twilio (TWILIO_ACCOUNT_SID...)'].filter(Boolean);
+      if (manca.length) throw new Error(`Per confermare email e cellulare dei clienti servono ${manca.join(' e ')} nei segreti del gestore.`);
       await a.api('PATCH', `/projects/${c.progetto}/config/auth`, {
-        mailer_autoconfirm: !a.smtp,
+        mailer_autoconfirm: false,
         ...(a.smtp
           ? {
               smtp_host: a.smtp.host,

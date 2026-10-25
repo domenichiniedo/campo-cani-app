@@ -82,11 +82,13 @@ in chat, nell'app o su GitHub.
    STRIPE_SECRET_KEY=sk_test_...       # facoltativo, solo per i pagamenti online dei clienti (modalità test)
    ```
 
-   Facoltativi: `REGIONE_SUPABASE` (predefinita eu-central-1), `MAX_CENTRI_AL_GIORNO` (20),
-   `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` (per le email della password dimenticata
-   dei clienti e per il codice che conferma l'email all'iscrizione: senza un SMTP proprio Supabase non le manda e
-   chi si iscrive entra subito), `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_MESSAGE_SERVICE_SID` (per il
-   codice SMS che conferma il cellulare dei clienti nuovi; ogni SMS lo paghi a Twilio), `GIORNI_PER_PAGARE` (3: entro
+   Servono anche, sempre: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` (le email con il codice che
+   conferma l'email di chi si iscrive con email e password, e quelle della password dimenticata) e
+   `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_MESSAGE_SERVICE_SID` (il codice SMS con cui ogni cliente nuovo,
+   anche chi entra con Google, conferma il cellulare; ogni SMS lo paghi a Twilio). Senza, il gestore non prepara i
+   centri: nel pannello compare l'errore che dice cosa manca.
+
+   Facoltativi: `REGIONE_SUPABASE` (predefinita eu-central-1), `MAX_CENTRI_AL_GIORNO` (20), `GIORNI_PER_PAGARE` (3: entro
    quel giorno del mese il bonifico deve arrivare, poi l'app del centro si blocca), `BANCA_IBAN` (se la banca ti fa
    scegliere più conti: quello da leggere), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
    (client "Applicazione web" di Google) e `GOOGLE_ALTRI_CLIENT_ID` (il client "App desktop"): accendono l'accesso con
