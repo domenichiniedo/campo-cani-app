@@ -1,6 +1,6 @@
 // K9 Manager per Windows e Mac: apre la versione web dell'app in una finestra, senza browser.
 // I file dell'app stanno in web/ (creati da "npm run web") e si servono dall'indirizzo app://campo/.
-const { app, BrowserWindow, ipcMain, net, protocol, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, net, protocol, screen, shell } = require('electron');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const http = require('node:http');
@@ -112,12 +112,43 @@ function googleLogin({ clientId, clientSecret, nonce }) {
   });
 }
 
+// Dimensione, posizione e zoom della finestra restano come li lasci, anche alla riapertura.
+const STATO = () => path.join(app.getPath('userData'), 'finestra.json');
+function leggiStato() {
+  try {
+    return JSON.parse(fs.readFileSync(STATO(), 'utf8'));
+  } catch {
+    return {};
+  }
+}
+function salvaStato(patch) {
+  try {
+    fs.writeFileSync(STATO(), JSON.stringify({ ...leggiStato(), ...patch }));
+  } catch {}
+}
+
+/** La finestra di prima, se sta ancora in uno schermo; se no 1200×860, ridotta allo schermo se è più piccolo. */
+function misure(s) {
+  const b = s.bounds;
+  if (b && screen.getAllDisplays().some(({ workArea: a }) => b.x >= a.x - 50 && b.y >= a.y - 50 && b.x + 100 <= a.x + a.width && b.y + 100 <= a.y + a.height)) {
+    return b;
+  }
+  const a = screen.getPrimaryDisplay().workArea;
+  return { width: Math.min(1200, a.width), height: Math.min(860, a.height) };
+}
+
+const ZOOM_MIN = -3;
+const ZOOM_MAX = 4;
+
 function createWindow(link) {
+  const s = leggiStato();
   win = new BrowserWindow({
-    width: 1200,
-    height: 860,
-    minWidth: 380,
-    minHeight: 560,
+    ...misure(s),
+    minWidth: 360,
+    minHeight: 480,
+    resizable: true,
+    maximizable: true,
+    fullscreenable: true,
     title: app.getName(),
     backgroundColor: '#123a2b',
     autoHideMenuBar: true,
@@ -134,6 +165,32 @@ function createWindow(link) {
       shell.openExternal(url);
     }
   });
+  if (s.maximized) win.maximize();
+  const salva = () => {
+    if (!win.isMinimized() && !win.isFullScreen()) salvaStato({ maximized: win.isMaximized(), ...(win.isMaximized() ? {} : { bounds: win.getBounds() }) });
+  };
+  win.on('resize', salva);
+  win.on('move', salva);
+  win.on('close', salva);
+
+  // Zoom del contenuto: Ctrl (Cmd su Mac) con + e −, 0 per tornare normale, o con la rotellina del mouse.
+  const zoom = (z) => {
+    const v = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
+    win.webContents.setZoomLevel(v);
+    salvaStato({ zoom: v });
+  };
+  win.webContents.on('did-finish-load', () => win.webContents.setZoomLevel(Number(s.zoom) || 0));
+  win.webContents.on('zoom-changed', (_e, verso) => zoom(win.webContents.getZoomLevel() + (verso === 'in' ? 0.5 : -0.5)));
+  win.webContents.on('before-input-event', (e, i) => {
+    if (i.type !== 'keyDown' || !(process.platform === 'darwin' ? i.meta : i.control) || i.alt) return;
+    const z = win.webContents.getZoomLevel();
+    if (i.key === '+' || i.key === '=' || i.code === 'NumpadAdd') zoom(z + 0.5);
+    else if (i.key === '-' || i.code === 'NumpadSubtract') zoom(z - 0.5);
+    else if (i.key === '0' || i.code === 'Numpad0') zoom(0);
+    else return;
+    e.preventDefault();
+  });
+
   win.loadURL(pageFor(link));
 }
 
