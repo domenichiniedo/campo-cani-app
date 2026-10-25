@@ -10,6 +10,8 @@ export type Settings = {
   cancel_hours: number;
   penalty_limit: number;
   online_payments: boolean;
+  /** Chi si iscrive conferma il cellulare con un codice SMS (serve un servizio SMS su Supabase). */
+  sms_check: boolean;
   rules: string;
   privacy: string;
   rules_ver: number;
@@ -61,7 +63,7 @@ export type Profile = {
   privacy_accepted_at: string | null;
   created_at: string;
   tax_code: string;
-  /** Per i pagamenti online: fattura o scontrino. */
+  /** Fattura (con codice fiscale e indirizzo) o scontrino: chi non vuole la fattura non dà il codice fiscale. */
   doc_pref: 'invoice' | 'receipt';
   billing_street: string;
   billing_zip: string;
@@ -72,6 +74,8 @@ export type Profile = {
   /** Consenso facoltativo a pubblicare foto e video sui social del centro, con la data dell'ultima scelta. */
   social_consent: boolean;
   social_consent_at: string | null;
+  /** Falso per chi si è iscritto con la conferma SMS accesa e non ha ancora messo il codice. */
+  phone_ok: boolean;
 };
 
 export type Dog = {
@@ -96,10 +100,11 @@ export type Booking = {
   start_min: number;
   dur_min: number;
   price_cents: number;
-  pay: 'online' | 'onsite' | 'package';
+  pay: 'online' | 'onsite' | 'package' | 'transfer';
   package_id: string | null;
   paid: boolean;
   checked_in_at: string | null;
+  /** Nota scritta dal cliente quando prenota (piani Professional e Pro). */
   note: string;
   status: 'active' | 'cancelled';
   /** Classe di gruppo a cui è iscritto il cane; null = lezione singola. */
@@ -245,3 +250,6 @@ export function rulesLines(s: Settings, types: LessonType[]): string[] {
   ];
   return [...auto, ...s.rules.split('\n').map((l) => l.trim()).filter(Boolean)];
 }
+
+/** Conto del proprietario per il bonifico istantaneo; lo leggono solo i clienti con un account. */
+export type TransferSettings = { id: 1; enabled: boolean; holder: string; iban: string };

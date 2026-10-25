@@ -72,7 +72,7 @@ Deno.test('preparazione di un centro, passo dopo passo', async () => {
     if (path.endsWith('/api-keys?reveal=true')) return [{ type: 'publishable', api_key: 'sb_publishable_abc' }, { type: 'secret', api_key: 'sb_secret_NO' }];
     return {};
   };
-  const a: Ambiente = { api, seme: 'rghXTQSBwUC6jUTKfjpjGmcbK1Qz4bPQQKxMekZvGDY', org: '', regione: 'eu-central-1', oggi: '2026-10-23', password: () => 'pw', smtp: null };
+  const a: Ambiente = { api, seme: 'rghXTQSBwUC6jUTKfjpjGmcbK1Qz4bPQQKxMekZvGDY', org: '', regione: 'eu-central-1', oggi: '2026-10-23', password: () => 'pw', smtp: null, sms: null };
   let c = { id: 'c1', codice: 'K9-ABCDEF', campo: "L'Oasi", email: 'titolare@querce.it', piano: 'professional', stato: 'progetto', tentativi: 0, migrazioni: 0, scade: null } as unknown as Centro;
   const stati: string[] = [];
   for (let i = 0; i < 10 && c.stato !== 'pronto'; i++) {
@@ -91,4 +91,34 @@ Deno.test('preparazione di un centro, passo dopo passo', async () => {
   const nuove = await passo({ ...c, migrazioni: MIGRAZIONI.length - 1 }, a);
   uguale(nuove, { migrazioni: MIGRAZIONI.length });
   uguale(await passo(c, a), {});
+});
+
+Deno.test('conferma di email e cellulare: con SMTP e Twilio si accende, senza no', async () => {
+  const fai = async (smtp: Ambiente['smtp'], sms: Ambiente['sms']) => {
+    let auth: Record<string, unknown> = {};
+    const sql: string[] = [];
+    const api: Ambiente['api'] = async (method, path, body) => {
+      if (path.endsWith('/config/auth')) auth = body as Record<string, unknown>;
+      if (path.endsWith('/database/query')) {
+        const q = (body as { query: string }).query;
+        if (q.includes('to_regclass')) return [{ pronto: true }];
+        sql.push(q);
+      }
+      return [];
+    };
+    const a: Ambiente = { api, seme: 'x', org: '', regione: '', oggi: '2026-10-23', password: () => '', smtp, sms };
+    const c = { id: 'c1', codice: 'K9-ABCDEF', campo: 'Le Querce', email: 't@q.it', stato: 'database', progetto: 'p', tentativi: 0, migrazioni: 0 } as unknown as Centro;
+    await passo(c, a);
+    return { auth, sms: sql.some((q) => q.includes('sms_check = true')) };
+  };
+  const spento = await fai(null, null);
+  uguale(spento.auth.mailer_autoconfirm, true);
+  uguale(spento.auth.external_phone_enabled, undefined);
+  uguale(spento.sms, false);
+  const acceso = await fai({ host: 'smtp.x', port: '587', user: 'u', pass: 'p', from: 'n@x.it' }, { sid: 'AC1', token: 't', servizio: 'MG1' });
+  uguale(acceso.auth.mailer_autoconfirm, false);
+  uguale(acceso.auth.sms_provider, 'twilio');
+  uguale(acceso.auth.sms_autoconfirm, false);
+  if (!String(acceso.auth.mailer_templates_confirmation_content).includes('{{ .Token }}')) throw new Error('manca il codice nella email');
+  uguale(acceso.sms, true);
 });

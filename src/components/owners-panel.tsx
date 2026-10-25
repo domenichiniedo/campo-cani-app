@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
+import { LimitNote } from '@/components/limit-note';
 import { Badge, Body, Button, Card, ErrorText, Field, Muted, Row } from '@/components/ui';
 import { t } from '@/lib/i18n';
+import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 
@@ -11,6 +13,7 @@ type Owner = { email: string; name: string; signedUp: boolean };
 /** Altri proprietari del centro: si nominano con l'email, come i trainer. */
 export function OwnersPanel() {
   const { profile } = useSession();
+  const plan = usePlan();
   const me = (profile?.email ?? '').toLowerCase();
   const [owners, setOwners] = useState<Owner[]>([]);
   const [email, setEmail] = useState('');
@@ -47,6 +50,9 @@ export function OwnersPanel() {
     load();
   }
 
+  // Il piano fissa quanti proprietari può avere il centro, titolare compreso.
+  const full = plan.maxOwners !== null && owners.length >= plan.maxOwners;
+
   return (
     <Card>
       <Muted>
@@ -80,16 +86,21 @@ export function OwnersPanel() {
             ))}
         </View>
       ))}
-      <Field
-        label={t('Email del nuovo proprietario')}
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        placeholder="nome@email.it"
-      />
+      {!full && (
+        <Field
+          label={t('Email del nuovo proprietario')}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          placeholder="nome@email.it"
+        />
+      )}
       <ErrorText>{err}</ErrorText>
-      <Button small title={t('Aggiungi proprietario')} onPress={() => call('add_owner', email)} loading={busy} disabled={!email.includes('@')} />
+      {!full && (
+        <Button small title={t('Aggiungi proprietario')} onPress={() => call('add_owner', email)} loading={busy} disabled={!email.includes('@')} />
+      )}
+      <LimitNote kind="maxOwners" count={owners.length} what={t('proprietari')} />
     </Card>
   );
 }

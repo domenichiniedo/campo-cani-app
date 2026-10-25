@@ -16,7 +16,7 @@
     var db = {
       settings: [{
         id: 1, field_name: 'Centro Cinofilo Le Querce', field_address: 'Via dei Campi 12, Bologna', logo_path: null, license_code: '',
-        open_min: 480, close_min: 1200, cancel_hours: 2, penalty_limit: 3, online_payments: false,
+        open_min: 480, close_min: 1200, cancel_hours: 2, penalty_limit: 3, online_payments: false, sms_check: false,
         rules: 'È richiesto il libretto vaccinale in regola.\nRaccogli sempre le deiezioni del cane.',
         privacy: "Informativa sul trattamento dei dati personali (testo di esempio da completare)\n\nTitolare del trattamento: [nome e cognome o ragione sociale], [indirizzo], [email di contatto].\n\nDati raccolti: nome, cognome, telefono, email, dati dei cani e prenotazioni.\n\nFinalità: gestire l'iscrizione, le prenotazioni del campo, i pagamenti e le comunicazioni di servizio.\n\nConservazione: i dati sono conservati per il tempo necessario a fornire il servizio e agli obblighi di legge.\n\nDiritti: puoi chiedere in ogni momento accesso, rettifica o cancellazione dei tuoi dati scrivendo a [email di contatto].",
         rules_ver: 1, privacy_ver: 1
@@ -60,6 +60,8 @@
           { label: 'Richiamo', kind: 'score' }, { label: 'Condotta al guinzaglio', kind: 'score' }, { label: 'Concentrazione', kind: 'score' },
           { label: 'Pronto per la prova', kind: 'yesno' }, { label: 'Da fare a casa', kind: 'text' }] }
       ],
+      // Il conto del centro per il bonifico istantaneo (IBAN di esempio).
+      transfer_settings: [{ id: 1, enabled: true, holder: 'Centro Cinofilo Le Querce', iban: 'IT60X0542811101000000123456' }],
       profiles: [], dogs: [], availability: [], trainer_availability: [], trainer_accounts: [], dog_notes: [], bookings: [], classes: [], penalties: [], passwords: {},
       // Foto di esempio di trainer e clienti: sagome disegnate, si possono cambiare dall'app.
       files: { 'foto/trainer-t1-demo.svg': avatar('#cfe3d6', '#e8b994', '#3b2a20'), 'foto/trainer-t2-demo.svg': avatar('#f1dcc0', '#f0c7a4', '#8a4b2a') }
@@ -75,7 +77,7 @@
       var look = looks[db.profiles.length % looks.length], photo = role === 'client' ? 'cliente-' + id + '-demo.svg' : null;
       if (photo) db.files['foto/' + photo] = avatar(look[0], look[1], look[2]);
       db.profiles.push({ id: id, first_name: first, last_name: last, phone: phone, email: email, role: role, photo_path: photo,
-        tax_code: cf || '', billing_street: cf ? 'Via Saragozza 15' : '', billing_zip: cf ? '40123' : '', billing_city: cf ? 'Bologna' : '', billing_province: cf ? 'BO' : '', doc_pref: id === 'c3' ? 'receipt' : 'invoice', social_consent: role === 'client' && id !== 'c2' && db.profiles.length % 3 !== 0, social_consent_at: null, rules_ver: 1, privacy_ver: 1, rules_accepted_at: nowIso(), privacy_accepted_at: nowIso(), created_at: addDays(t, -40).toISOString() });
+        tax_code: cf || '', billing_street: cf ? 'Via Saragozza 15' : '', billing_zip: cf ? '40123' : '', billing_city: cf ? 'Bologna' : '', billing_province: cf ? 'BO' : '', doc_pref: id === 'c3' || (role === 'client' && !cf) ? 'receipt' : 'invoice', phone_ok: true, social_consent: role === 'client' && id !== 'c2' && db.profiles.length % 3 !== 0, social_consent_at: null, rules_ver: 1, privacy_ver: 1, rules_accepted_at: nowIso(), privacy_accepted_at: nowIso(), created_at: addDays(t, -40).toISOString() });
       db.passwords[email] = 'demo1234';
       var me0 = db.profiles[db.profiles.length - 1];
       if (me0.social_consent) me0.social_consent_at = me0.created_at;
@@ -127,6 +129,8 @@
     book(0, 960, 'c1', 'd2', 'base', 'Cucciolo (meno di 1,5 anni)');
     book(0, 1020, 'c2', 'd3', 'igp', 'Attacco');
     book(1, 570, 'c3', 'd4', 'igp', 'Pista', null, 'f1', 't1');
+    // Una lezione da pagare con bonifico, con la nota del cliente.
+    book(2, 1110, 'c1', 'd2', 'base', 'Cucciolo (meno di 1,5 anni)', { pay: 'transfer', note: 'Luna ha paura dei rumori forti: meglio iniziare con calma.' }, 'f1');
     book(1, 600, 'c2', 'd3', 'base', 'Adulto (più di 1,5 anni)', null, 'f2');
     book(1, 900, 'c1', 'd1', 'igp', 'Attacco');
     book(2, 600, 'c2', 'd3', 'igp', 'Obbedienza');
@@ -238,6 +242,7 @@
   if (!db) db = seed();
   if (!db.trainer_availability) db.trainer_availability = [];
   if (!db.classes) db.classes = [];
+  if (!db.transfer_settings) db.transfer_settings = [{ id: 1, enabled: true, holder: 'Centro Cinofilo Le Querce', iban: 'IT60X0542811101000000123456' }];
   if (!db.owner_emails) db.owner_emails = db.profiles.filter(function (p) { return p.role === 'owner'; }).map(function (p) { return { email: p.email }; });
   if (db.invoices && !db.invoices.some(function (x) { return x.kind; })) delete db.invoices;
   if (!db.invoices) { var t0 = new Date(); t0.setHours(0, 0, 0, 0); addInvoices(db, t0); }
@@ -417,7 +422,7 @@
           if (b.class_id !== r.id || b.status !== 'active') return;
           if (r.status === 'cancelled') { b.status = 'cancelled'; b.cancelled_at = nowIso(); refund(b); } else b.trainer_id = r.trainer_id;
         });
-        if (table === 'profiles' && who.role !== 'owner') r.role = old.role;
+        if (table === 'profiles' && who.role !== 'owner') { r.role = old.role; r.phone_ok = old.phone_ok; }
         if (table === 'profiles') r.social_consent_at = r.social_consent !== old.social_consent ? nowIso() : old.social_consent_at;
       });
     } else if (method === 'POST') {
@@ -487,6 +492,17 @@
     if (items.every(function (x) { return x.value === null; })) return 'Compila almeno una voce della scheda';
     return { form_id: ef.id, name: ef.name, items: items };
   }
+  // I controlli del cliente comuni a book_slot e join_class (come check_client_booking nel database).
+  function clientCheck(who, s, pay) {
+    if (who.doc_pref !== 'receipt' && (!who.tax_code || !who.billing_street || !who.billing_zip || !who.billing_city)) return 'Completa codice fiscale e indirizzo di fatturazione nel Profilo';
+    if (who.phone_ok === false) return 'Conferma il tuo cellulare con il codice SMS';
+    if (pay === 'online' && !s.online_payments) return 'Il pagamento online non è ancora attivo';
+    if (pay === 'transfer' && !(db.transfer_settings && db.transfer_settings[0].enabled)) return 'Il pagamento con bonifico non è attivo';
+    if (pay && ['online', 'onsite', 'transfer'].indexOf(pay) < 0) return 'Pagamento non valido';
+    return null;
+  }
+  function noteOf(a) { return String(a.p_note || '').trim().slice(0, 500); }
+
   function rpc(name, headers, a) {
     if (name === 'client_count') return json(200, db.profiles.filter(function (p) { return p.role === 'client'; }).length);
     var who = me(headers);
@@ -652,8 +668,8 @@
       var usr = a.p_user || who.id;
       if (!forOther) {
         if (who.rules_ver !== s.rules_ver || who.privacy_ver !== s.privacy_ver) return fail('Devi prima accettare regolamento e privacy aggiornati');
-        if (!who.tax_code || !who.billing_street || !who.billing_zip || !who.billing_city) return fail('Completa codice fiscale e indirizzo di fatturazione nel Profilo');
-        if (a.p_pay === 'online' && !s.online_payments) return fail('Il pagamento online non è ancora attivo');
+        var jw = clientCheck(who, s, a.p_pay);
+        if (jw) return fail(jw);
       }
       var jd = db.dogs.filter(function (d) { return d.id === a.p_dog && d.owner_id === usr && !d.archived; })[0];
       if (!jd) return fail('Cane non trovato');
@@ -665,7 +681,7 @@
       if (inside.some(function (b) { return b.dog_id === jd.id; })) return fail('Questo cane è già iscritto alla classe');
       if (inside.length >= jc.seats) return fail('La classe è al completo');
       var jlt = db.lesson_types.filter(function (x) { return x.id === jc.lesson_type; })[0];
-      var jb = { id: uid(), user_id: usr, dog_id: jd.id, field_id: jc.field_id, trainer_id: jc.trainer_id, lesson_type: jc.lesson_type, lesson_option: jc.lesson_option, day: jc.day, start_min: jc.start_min, dur_min: jc.dur_min, price_cents: jlt ? jlt.price_cents : 0, pay: forOther ? 'onsite' : (a.p_pay || 'onsite'), paid: false, checked_in_at: null, note: '', status: 'active', cancelled_at: null, created_at: nowIso(), class_id: jc.id };
+      var jb = { id: uid(), user_id: usr, dog_id: jd.id, field_id: jc.field_id, trainer_id: jc.trainer_id, lesson_type: jc.lesson_type, lesson_option: jc.lesson_option, day: jc.day, start_min: jc.start_min, dur_min: jc.dur_min, price_cents: jlt ? jlt.price_cents : 0, pay: forOther ? 'onsite' : (a.p_pay || 'onsite'), paid: false, checked_in_at: null, note: noteOf(a), status: 'active', cancelled_at: null, created_at: nowIso(), class_id: jc.id };
       var jp = packageFor(usr, jc.lesson_type);
       if (jp) { jp.lessons_used++; jb.package_id = jp.id; jb.pay = 'package'; jb.paid = true; jb.price_cents = 0; }
       db.bookings.push(jb);
@@ -721,7 +737,8 @@
     }
     if (name === 'book_slot') {
       if (who.rules_ver !== s.rules_ver || who.privacy_ver !== s.privacy_ver) return fail('Devi accettare il regolamento aggiornato.');
-      if (!who.tax_code || !who.billing_street || !who.billing_zip || !who.billing_city) return fail('Completa codice fiscale e indirizzo di fatturazione nel Profilo');
+      var bw = clientCheck(who, s, a.p_pay);
+      if (bw) return fail(bw);
       var fld = db.fields.filter(function (f) { return f.id === a.p_field && f.active; })[0];
       if (!fld) return fail('Campo non disponibile');
       var dog = db.dogs.filter(function (d) { return d.id === a.p_dog && d.owner_id === who.id; })[0];
@@ -737,7 +754,7 @@
       for (var m = a.p_start; m < a.p_start + lt.duration_min; m += 30) if (!av || av.slots.indexOf(m) < 0) return fail('Il campo è chiuso in questo orario.');
       var clash = fieldBusy(a.p_field, a.p_day, a.p_start, a.p_start + lt.duration_min);
       if (clash) return fail('Orario appena preso da un altro cliente. Scegline un altro.');
-      var nb = { id: uid(), user_id: who.id, dog_id: dog.id, field_id: fld.id, trainer_id: null, lesson_type: lt.id, lesson_option: a.p_option, day: a.p_day, start_min: a.p_start, dur_min: lt.duration_min, price_cents: lt.price_cents, pay: a.p_pay, paid: false, checked_in_at: null, note: '', status: 'active', cancelled_at: null, created_at: nowIso() };
+      var nb = { id: uid(), user_id: who.id, dog_id: dog.id, field_id: fld.id, trainer_id: null, lesson_type: lt.id, lesson_option: a.p_option, day: a.p_day, start_min: a.p_start, dur_min: lt.duration_min, price_cents: lt.price_cents, pay: a.p_pay || 'onsite', paid: false, checked_in_at: null, note: noteOf(a), status: 'active', cancelled_at: null, created_at: nowIso() };
       var cps = db.client_packages.filter(function (cp) {
         return cp.user_id === who.id && cp.status === 'active' && cp.lessons_used < cp.lessons_total && (!cp.lesson_type || cp.lesson_type === lt.id) && (!cp.expires_at || new Date(cp.expires_at) > new Date());
       }).sort(function (x, y) { return (x.expires_at || '9999').localeCompare(y.expires_at || '9999'); });
@@ -784,7 +801,7 @@
       if ((body.password || '').length < 8) return json(422, { code: 'weak_password', msg: 'Password should be at least 8 characters', message: 'Password should be at least 8 characters' });
       var d = body.data || {};
       var np = { id: uid(), first_name: d.first_name || '', last_name: d.last_name || '', phone: d.phone || '', email: email, role: 'client',
-        tax_code: d.tax_code || '', billing_street: d.billing_street || '', billing_zip: d.billing_zip || '', billing_city: d.billing_city || '', billing_province: d.billing_province || '', social_consent: !!d.social_consent, social_consent_at: d.social_consent ? nowIso() : null, rules_ver: d.rules_ver, privacy_ver: d.privacy_ver, rules_accepted_at: nowIso(), privacy_accepted_at: nowIso(), created_at: nowIso() };
+        tax_code: d.tax_code || '', billing_street: d.billing_street || '', billing_zip: d.billing_zip || '', billing_city: d.billing_city || '', billing_province: d.billing_province || '', doc_pref: d.doc_pref === 'receipt' ? 'receipt' : 'invoice', phone_ok: !db.settings[0].sms_check, social_consent: !!d.social_consent, social_consent_at: d.social_consent ? nowIso() : null, rules_ver: d.rules_ver, privacy_ver: d.privacy_ver, rules_accepted_at: nowIso(), privacy_accepted_at: nowIso(), created_at: nowIso() };
       db.profiles.push(np);
       db.passwords[email] = body.password;
       // Come nel database vero: chi si iscrive con l'email di un trainer diventa trainer.

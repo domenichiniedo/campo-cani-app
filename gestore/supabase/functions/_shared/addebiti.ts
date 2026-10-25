@@ -7,7 +7,7 @@ import { rinnova, type Ambiente } from './passi.ts';
 import { managementApi } from './supabase-api.ts';
 
 /** Quanto serve per firmare e scrivere le licenze (non per creare progetti). */
-export const ambiente = (): Ambiente => ({ api: managementApi, seme: env('LICENZA_SERVER_PRIVATA'), org: '', regione: '', oggi: oggi(), password: () => '', smtp: null });
+export const ambiente = (): Ambiente => ({ api: managementApi, seme: env('LICENZA_SERVER_PRIVATA'), org: '', regione: '', oggi: oggi(), password: () => '', smtp: null, sms: null });
 
 export async function allungaLicenza(c: Centro, forza = false) {
   if (c.sospeso && !forza) return;

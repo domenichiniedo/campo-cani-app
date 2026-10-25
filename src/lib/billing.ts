@@ -69,6 +69,9 @@ export const billingColumns = (b: BillingDraft) => ({
 export const hasBilling = (p: Profile | null) =>
   !!p && !!p.tax_code && !!p.billing_street && !!p.billing_zip && !!p.billing_city;
 
+/** Chi non vuole la fattura non deve dare codice fiscale e indirizzo (come billing_ok nel database). */
+export const billingOk = (p: Profile | null) => !!p && (p.doc_pref === 'receipt' || hasBilling(p));
+
 export const billingLine = (p: Pick<Profile, 'billing_street' | 'billing_zip' | 'billing_city' | 'billing_province'>) =>
   [p.billing_street, [p.billing_zip, p.billing_city, p.billing_province && `(${p.billing_province})`].filter(Boolean).join(' ')]
     .filter(Boolean)

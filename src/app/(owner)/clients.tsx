@@ -77,7 +77,7 @@ export default function OwnerClients() {
     (filter === 'package' && p.client_packages.some((cp) => usable(cp))) ||
     (filter === 'blocked' && dogsOf(p).some((d) => d.blocked)) ||
     (filter === 'penalties' && dogsOf(p).some((d) => d.penalties.length > 0)) ||
-    (filter === 'billing' && !p.tax_code) ||
+    (filter === 'billing' && p.doc_pref !== 'receipt' && !p.tax_code) ||
     (filter === 'nosocial' && !p.social_consent);
   const shown = rows
     .filter((p) => matches(p) && passes(p))
@@ -230,7 +230,14 @@ function ClientDetail({ p, act }: { p: Client; act: Act }) {
         </View>
       </Row>
       <View style={{ gap: 2 }}>
-        <Muted style={{ fontSize: 13 }}>{p.tax_code ? `${t('CF')} ${p.tax_code} · ${billingLine(p)}` : t('Dati di fatturazione mancanti')}</Muted>
+        <Muted style={{ fontSize: 13 }}>
+          {p.tax_code
+            ? `${t('CF')} ${p.tax_code} · ${billingLine(p)}${p.doc_pref === 'receipt' ? ` · ${t('non vuole la fattura')}` : ''}`
+            : p.doc_pref === 'receipt'
+              ? t('Non vuole la fattura')
+              : t('Dati di fatturazione mancanti')}
+        </Muted>
+        {!p.phone_ok && <Muted style={{ fontSize: 13 }}>{t('Cellulare non ancora confermato con il codice SMS')}</Muted>}
         <Muted style={{ fontSize: 12 }}>
           {t('Iscritto il {data} · consensi regolamento v{reg}, privacy v{priv}', {
             data: shortDate(p.created_at),

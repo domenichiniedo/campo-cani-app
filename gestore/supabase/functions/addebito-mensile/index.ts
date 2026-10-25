@@ -1,6 +1,6 @@
 // Il primo del mese conta le prenotazioni del mese prima di ogni centro e le addebita con Stripe Billing:
 // una fattura Stripe (prenotazioni × tariffa) pagata in automatico con il mandato SEPA del centro, che la riceve
-// anche per email. Si contano solo le prenotazioni non disdette e pagate al campo: quelle pagate online
+// anche per email. Si contano solo le prenotazioni non disdette pagate al campo o con bonifico al centro: quelle pagate online
 // (quando si accenderanno) avranno la tua parte trattenuta direttamente da Stripe.
 // La chiama pg_cron il primo del mese con x-webhook-secret. Per rifare un mese: body {"mese": "AAAA-MM"}.
 // Si può rilanciare senza paura: un centro già addebitato per quel mese viene saltato.
@@ -27,7 +27,7 @@ async function addebita(c: Centro, mese: string) {
   if (fatto && fatto.stato !== 'da_fare') return `già fatto (${fatto.stato})`;
 
   const [{ n }] = (await managementApi('POST', `/projects/${c.progetto}/database/query`, {
-    query: `select count(*)::int as n from public.bookings where status = 'active' and pay = 'onsite' and day >= '${mese}-01' and day < '${meseDopo(mese)}-01';`,
+    query: `select count(*)::int as n from public.bookings where status = 'active' and pay in ('onsite', 'transfer') and day >= '${mese}-01' and day < '${meseDopo(mese)}-01';`,
   })) as { n: number }[];
   const importo = n * c.tariffa_cents;
   const { data: a, error } = await db

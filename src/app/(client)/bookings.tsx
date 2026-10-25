@@ -2,11 +2,13 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
 import { Avatar } from '@/components/photo';
-import { Badge, Body, Card, ConfirmButton, ErrorText, H1, Muted, Row, Screen, Step } from '@/components/ui';
+import { TransferDetails } from '@/components/transfer';
+import { Badge, Body, Button, Card, ConfirmButton, ErrorText, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { dayKey, euro, hm, longDay, slotDate, today } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
+import { useTransfer } from '@/lib/transfer';
 import type { Booking } from '@/lib/types';
 
 type BookingRow = Booking & {
@@ -21,6 +23,9 @@ export default function MyBookings() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [now, setNow] = useState(0);
+  const transfer = useTransfer();
+  // La lezione di cui si stanno guardando i dati del bonifico.
+  const [payOpen, setPayOpen] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -77,9 +82,31 @@ export default function MyBookings() {
             <Row>
               <Badge>{`${b.dur_min} min`}</Badge>
               {b.class_id && <Badge>{t('Di gruppo')}</Badge>}
-              <Badge tone={b.paid ? 'ok' : 'warn'}>{b.pay === 'package' ? t('Dal pacchetto') : b.paid ? t('Pagato') : b.pay === 'online' ? t('Online') : t('Al campo {prezzo}', { prezzo: euro(b.price_cents) })}</Badge>
+              <Badge tone={b.paid ? 'ok' : 'warn'}>
+                {b.pay === 'package'
+                  ? t('Dal pacchetto')
+                  : b.paid
+                    ? t('Pagato')
+                    : b.pay === 'online'
+                      ? t('Online')
+                      : b.pay === 'transfer'
+                        ? t('Bonifico da fare {prezzo}', { prezzo: euro(b.price_cents) })
+                        : t('Al campo {prezzo}', { prezzo: euro(b.price_cents) })}
+              </Badge>
               {b.checked_in_at && <Badge tone="ok">{t('Entrato')}</Badge>}
             </Row>
+            {!!b.note && <Muted style={{ fontSize: 13 }}>{t('La tua nota: {nota}', { nota: b.note })}</Muted>}
+            {b.pay === 'transfer' && !b.paid && transfer?.iban && (
+              <>
+                <Button
+                  small
+                  kind="ghost"
+                  title={payOpen === b.id ? t('Nascondi i dati del bonifico') : t('Dati per il bonifico')}
+                  onPress={() => setPayOpen(payOpen === b.id ? null : b.id)}
+                />
+                {payOpen === b.id && <TransferDetails booking={b} dog={b.dogs?.name ?? ''} cfg={transfer} />}
+              </>
+            )}
             {canCancel ? (
               <ConfirmButton
                 title={t('Disdici')}

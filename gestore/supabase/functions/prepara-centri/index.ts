@@ -25,6 +25,9 @@ Deno.serve(async (req) => {
     smtp: env('SMTP_HOST')
       ? { host: env('SMTP_HOST'), port: env('SMTP_PORT') || '587', user: env('SMTP_USER'), pass: env('SMTP_PASS'), from: env('SMTP_FROM') }
       : null,
+    sms: env('TWILIO_ACCOUNT_SID')
+      ? { sid: env('TWILIO_ACCOUNT_SID'), token: env('TWILIO_AUTH_TOKEN'), servizio: env('TWILIO_MESSAGE_SERVICE_SID') }
+      : null,
   };
   const { data, error } = await db.rpc('prendi_centri', { p_quanti: 3, p_migrazioni: MIGRAZIONI.length });
   if (error) return json({ errore: error.message }, 500);

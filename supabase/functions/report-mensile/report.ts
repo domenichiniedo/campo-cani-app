@@ -7,7 +7,7 @@ export type Lesson = {
   start_min: number;
   dur_min: number;
   price_cents: number;
-  pay: 'onsite' | 'online' | 'package';
+  pay: 'onsite' | 'online' | 'package' | 'transfer';
   paid: boolean;
   status: 'active' | 'cancelled';
   checked_in_at: string | null;
@@ -42,7 +42,7 @@ type Excel = { Workbook: new () => any };
 
 const MONTHS = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
 const DAYS = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
-const PAY = { onsite: 'Al campo', online: 'Online', package: 'Pacchetto' };
+const PAY = { onsite: 'Al campo', online: 'Online', package: 'Pacchetto', transfer: 'Bonifico' };
 
 const GREEN = 'FF123A2B';
 const SOFT = 'FFE7F0EA';

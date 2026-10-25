@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 
 import { BillingFields } from '@/components/billing-fields';
 import { PhotoEditor } from '@/components/photo';
-import { Badge, Body, Button, Card, Check, Chips, ConfirmButton, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
+import { Badge, Body, Button, Card, Check, ConfirmButton, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingColumns, billingError, billingFromProfile } from '@/lib/billing';
 import { euro, isDayKey, shortDate } from '@/lib/format';
 import { t } from '@/lib/i18n';
@@ -62,12 +62,14 @@ export default function Profile() {
 
   async function saveMe() {
     if (!profile) return;
-    const bErr = billingError(billing);
+    // Chi non vuole la fattura può lasciare vuoti codice fiscale e indirizzo; se li scrive devono essere giusti.
+    const blank = !Object.values(billing).some((v) => v.trim());
+    const bErr = docPref === 'receipt' && blank ? null : billingError(billing);
     if (bErr) return setErr(bErr);
     setErr('');
     const { error } = await supabase
       .from('profiles')
-      .update({ first_name: first.trim(), last_name: last.trim(), phone: phone.trim(), doc_pref: docPref, ...billingColumns(billing) })
+      .update({ first_name: first.trim(), last_name: last.trim(), phone: phone.trim(), doc_pref: docPref, ...(blank ? {} : billingColumns(billing)) })
       .eq('id', profile.id);
     if (error) return setErr(errorText(error));
     setMsg(t('Dati salvati.'));
@@ -117,19 +119,17 @@ export default function Profile() {
         </Row>
         <Field label={t('Telefono')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
         <Muted>{t('Email: {email}', { email: profile?.email ?? '' })}</Muted>
-        <BillingFields value={billing} onChange={setBilling} />
-        {plan.invoices && (
-          <>
-            <Muted style={{ fontSize: 13 }}>{t('Per pacchetti e pagamenti online vuoi')}</Muted>
-            <Chips
-              items={[
-                { value: 'invoice', label: t('Fattura') },
-                { value: 'receipt', label: t('Scontrino') },
-              ]}
-              value={docPref}
-              onChange={setDocPref}
-            />
-          </>
+        <Check value={docPref === 'invoice'} onChange={(v) => setDocPref(v ? 'invoice' : 'receipt')}>
+          {t('Voglio la fattura per le lezioni e i pacchetti')}
+        </Check>
+        {docPref === 'invoice' ? (
+          <BillingFields value={billing} onChange={setBilling} />
+        ) : (
+          <Muted style={{ fontSize: 13 }}>
+            {plan.invoices
+              ? t('Senza fattura ricevi lo scontrino: codice fiscale e indirizzo non servono.')
+              : t('Senza fattura non servono codice fiscale e indirizzo.')}
+          </Muted>
         )}
         {!!msg && <Muted>{msg}</Muted>}
         <Button title={t('Salva')} onPress={saveMe} small />

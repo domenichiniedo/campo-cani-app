@@ -1,7 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
-import { hasBilling } from '@/lib/billing';
+import { billingOk } from '@/lib/billing';
 import { imageUrl } from '@/lib/images';
 import { upTo, usePlan } from '@/lib/plans';
 import { sameOr, useWhenActive } from '@/lib/refresh';
@@ -23,8 +23,10 @@ type Ctx = {
   /** Il trainer collegato all'account, se chi è entrato è un trainer. */
   myTrainer: Trainer | null;
   needsTerms: boolean;
-  /** Cliente senza codice fiscale o indirizzo di fatturazione (iscritto prima che servissero). */
+  /** Cliente che vuole la fattura ma non ha codice fiscale o indirizzo di fatturazione. */
   needsBilling: boolean;
+  /** Cliente iscritto con la conferma SMS accesa che non ha ancora confermato il cellulare. */
+  needsPhone: boolean;
   logoUrl: string | null;
   refresh: () => Promise<void>;
 };
@@ -103,12 +105,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const needsTerms =
     !!session && !!profile && !!settings && !isOwner && !isTrainer &&
     (profile.rules_ver !== settings.rules_ver || profile.privacy_ver !== settings.privacy_ver);
-  const needsBilling = !!session && !!profile && !isOwner && !isTrainer && !hasBilling(profile);
+  const needsBilling = !!session && !!profile && !isOwner && !isTrainer && !billingOk(profile);
+  const needsPhone = !!session && !!profile && !isOwner && !isTrainer && profile.phone_ok === false;
   const logoUrl = imageUrl('branding', settings?.logo_path);
 
   return (
     <SessionContext.Provider
-      value={{ ready: authReady && dataReady, session, profile, settings, lessonTypes, fields, trainers, isOwner, isTrainer, myTrainer, needsTerms, needsBilling, logoUrl, refresh }}>
+      value={{ ready: authReady && dataReady, session, profile, settings, lessonTypes, fields, trainers, isOwner, isTrainer, myTrainer, needsTerms, needsBilling, needsPhone, logoUrl, refresh }}>
       {children}
     </SessionContext.Provider>
   );
