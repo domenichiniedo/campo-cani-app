@@ -214,7 +214,20 @@
     var late = book(-1, 600, 'c3', 'd4', 'igp', 'Obbedienza');
     if (late) db.penalties.push({ id: uid(), dog_id: 'd4', booking_id: late.id, reason: 'Ritardo', created_at: addDays(t, -1).toISOString() });
     addInvoices(db, t);
+    addRatings(db, t);
     return db;
+  }
+
+  // Voti dei clienti a molte delle lezioni passate, quasi tutti buoni, alcuni con un commento.
+  function addRatings(db, t) {
+    var voti = [5, 4, 5, 5, 3, 4, 5, 2, 4, 5];
+    var frasi = ['Lezione chiarissima, il cane è tornato a casa stanco e felice.', '', 'Ottimo lavoro sul richiamo, finalmente torna!', '', 'Un po\' di attesa all\'inizio, poi tutto bene.', '',
+      'Il trainer ha avuto tanta pazienza con il mio cucciolo.', 'Campo molto fangoso, difficile lavorare.', '', 'Bellissima esperienza, ci rivediamo la prossima settimana.'];
+    db.lesson_ratings = [];
+    db.bookings.forEach(function (b, i) {
+      if (!b.checked_in_at || b.status !== 'active' || b.day >= dk(t) || i % 5 > 2) return;
+      db.lesson_ratings.push({ booking_id: b.id, user_id: b.user_id, day: b.day, score: voti[i % voti.length], comment: frasi[i % frasi.length], created_at: b.checked_in_at, updated_at: b.checked_in_at });
+    });
   }
 
   // Esempi di fatture: nella demo il pagamento online è spento, quindi non ne nascono di nuove.
@@ -246,6 +259,7 @@
   if (!db.owner_emails) db.owner_emails = db.profiles.filter(function (p) { return p.role === 'owner'; }).map(function (p) { return { email: p.email }; });
   if (db.invoices && !db.invoices.some(function (x) { return x.kind; })) delete db.invoices;
   if (!db.invoices) { var t0 = new Date(); t0.setHours(0, 0, 0, 0); addInvoices(db, t0); }
+  if (!db.lesson_ratings) { var t1 = new Date(); t1.setHours(0, 0, 0, 0); addRatings(db, t1); }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} }
   window.__demoReset = function () { try { localStorage.removeItem(KEY); } catch (e) {} };
 
@@ -262,7 +276,8 @@
 
   // ---- relazioni per i select annidati ----
   var REL = {
-    bookings: { fields: ['one', 'fields', 'field_id', 'id'], trainers: ['one', 'trainers', 'trainer_id', 'id'], profiles: ['one', 'profiles', 'user_id', 'id'], dogs: ['one', 'dogs', 'dog_id', 'id'], lesson_types: ['one', 'lesson_types', 'lesson_type', 'id'], penalties: ['many', 'penalties', 'id', 'booking_id'], dog_notes: ['one', 'dog_notes', 'id', 'booking_id'] },
+    bookings: { fields: ['one', 'fields', 'field_id', 'id'], trainers: ['one', 'trainers', 'trainer_id', 'id'], profiles: ['one', 'profiles', 'user_id', 'id'], dogs: ['one', 'dogs', 'dog_id', 'id'], lesson_types: ['one', 'lesson_types', 'lesson_type', 'id'], penalties: ['many', 'penalties', 'id', 'booking_id'], dog_notes: ['one', 'dog_notes', 'id', 'booking_id'], lesson_ratings: ['one', 'lesson_ratings', 'id', 'booking_id'] },
+    lesson_ratings: { profiles: ['one', 'profiles', 'user_id', 'id'], bookings: ['one', 'bookings', 'booking_id', 'id'] },
     profiles: { dogs: ['many', 'dogs', 'id', 'owner_id'], client_packages: ['many', 'client_packages', 'id', 'user_id'] },
     dogs: { penalties: ['many', 'penalties', 'id', 'dog_id'], profiles: ['one', 'profiles', 'owner_id', 'id'] },
     classes: { fields: ['one', 'fields', 'field_id', 'id'], trainers: ['one', 'trainers', 'trainer_id', 'id'], lesson_types: ['one', 'lesson_types', 'lesson_type', 'id'] }
@@ -341,7 +356,7 @@
       if (table === 'dog_notes') return rows.filter(function (r) { return seen.indexOf(r.dog_id) >= 0; });
       if (table === 'trainer_accounts') return rows.filter(function (r) { return r.user_id === who.id; });
       if (table === 'penalties') return rows.filter(function (r) { return seen.indexOf(r.dog_id) >= 0; });
-      if (['client_packages', 'invoices', 'invoice_settings'].indexOf(table) >= 0) return [];
+      if (['client_packages', 'invoices', 'invoice_settings', 'lesson_ratings'].indexOf(table) >= 0) return [];
       return rows;
     }
     var id = who && who.id;
@@ -350,12 +365,12 @@
     if (table === 'dogs') return rows.filter(function (r) { return r.owner_id === id; });
     if (table === 'bookings') return rows.filter(function (r) { return r.user_id === id; });
     if (table === 'penalties') return rows.filter(function (r) { return myDogs.indexOf(r.dog_id) >= 0; });
-    if (table === 'client_packages' || table === 'invoices') return rows.filter(function (r) { return r.user_id === id; });
+    if (table === 'client_packages' || table === 'invoices' || table === 'lesson_ratings') return rows.filter(function (r) { return r.user_id === id; });
     if (table === 'dog_notes') return rows.filter(function (r) { return myDogs.indexOf(r.dog_id) >= 0; });
     if (table === 'invoice_settings' || table === 'trainer_accounts') return [];
     return rows;
   }
-  var PK = { availability: ['field_id', 'day'], trainer_availability: ['trainer_id', 'day'] };
+  var PK = { availability: ['field_id', 'day'], trainer_availability: ['trainer_id', 'day'], lesson_ratings: ['booking_id'] };
   function pk(table) { return PK[table] || ['id']; }
   function sameKey(table, a, b) { return pk(table).every(function (k) { return a[k] === b[k]; }); }
 
@@ -627,6 +642,19 @@
       cb.checked_in_at = a.p_in === false ? null : (cb.checked_in_at || nowIso());
       save();
       return json(200, cb);
+    }
+    if (name === 'rate_lesson') {
+      var rb = db.bookings.filter(function (b) { return b.id === a.p_booking && b.user_id === who.id && b.status === 'active'; })[0];
+      if (!rb) return fail('Lezione non trovata');
+      if (new Date(rb.day + 'T00:00:00').getTime() + rb.start_min * 60000 > Date.now()) return fail('Si vota la lezione dopo averla fatta');
+      var sc = Number(a.p_score);
+      if (!(sc >= 1 && sc <= 5 && sc === Math.round(sc))) return fail('Scegli un voto da 1 a 5');
+      var rv = db.lesson_ratings.filter(function (x) { return x.booking_id === rb.id; })[0];
+      var rc = String(a.p_comment || '').trim().slice(0, 500);
+      if (rv) { rv.score = sc; rv.comment = rc; rv.updated_at = nowIso(); }
+      else { rv = { booking_id: rb.id, user_id: rb.user_id, day: rb.day, score: sc, comment: rc, created_at: nowIso(), updated_at: nowIso() }; db.lesson_ratings.push(rv); }
+      save();
+      return json(200, rv);
     }
     if (name === 'save_dog_note') {
       var nb = db.bookings.filter(function (b) { return b.id === a.p_booking && b.status === 'active'; })[0];

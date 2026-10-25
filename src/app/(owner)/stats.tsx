@@ -2,22 +2,32 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
+import { Stars } from '@/components/lesson-rating';
 import { Button, Card, Chips, ErrorText, H1, Muted, Row, Screen, Stat, Step } from '@/components/ui';
 import { addDays, cap, dayKey, euro, longDay, monthName, today } from '@/lib/format';
-import { t, tKey } from '@/lib/i18n';
+import { locale, t, tKey } from '@/lib/i18n';
 import { mondayOf } from '@/lib/owner';
 import { planWith, usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
-import type { Booking, ClientPackage } from '@/lib/types';
+import { fullName, type Booking, type ClientPackage, type LessonRating } from '@/lib/types';
 
 type Period = 'week' | 'month' | 'year';
 type Line = Pick<Booking, 'id' | 'user_id' | 'day' | 'price_cents' | 'pay' | 'paid' | 'lesson_type' | 'field_id' | 'trainer_id' | 'checked_in_at' | 'status'>;
 type Sold = Pick<ClientPackage, 'id' | 'name' | 'price_cents' | 'activated_at'>;
+type Vote = Pick<LessonRating, 'booking_id' | 'day' | 'score' | 'comment'> & {
+  profiles: { first_name: string; last_name: string } | null;
+  bookings: { dogs: { name: string } | null } | null;
+};
 
 const PAY: Record<Booking['pay'], string> = { onsite: tKey('Al campo'), online: tKey('Online'), package: tKey('Pacchetto'), transfer: tKey('Bonifico') };
 const PAGE = 1000;
+/** Commenti dei clienti mostrati prima di "Mostra tutti". */
+const FEW = 5;
+
+/** Media dei voti con una cifra decimale ("4,6"). */
+const avg = (xs: number[]) => (xs.reduce((s, x) => s + x, 0) / xs.length).toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 /** Primo e ultimo giorno del periodo che contiene il giorno dato. */
 function range(p: Period, d: Date) {
@@ -67,6 +77,8 @@ export default function OwnerStats() {
   const [anchor, setAnchor] = useState(today());
   const [rows, setRows] = useState<Line[]>([]);
   const [sold, setSold] = useState<Sold[]>([]);
+  const [votes, setVotes] = useState<Vote[]>([]);
+  const [allComments, setAllComments] = useState(false);
   const [pick, setPick] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
@@ -77,7 +89,7 @@ export default function OwnerStats() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [b, p] = await Promise.all([
+      const [b, p, v] = await Promise.all([
         bookingsBetween(fromK, toK),
         supabase
           .from('client_packages')
@@ -85,10 +97,18 @@ export default function OwnerStats() {
           .eq('status', 'active')
           .gte('activated_at', `${fromK}T00:00:00`)
           .lte('activated_at', `${toK}T23:59:59`),
+        supabase
+          .from('lesson_ratings')
+          .select('booking_id, day, score, comment, profiles(first_name, last_name), bookings(dogs(name))')
+          .gte('day', fromK)
+          .lte('day', toK)
+          .order('day', { ascending: false }),
       ]);
       if (p.error) throw p.error;
+      if (v.error) throw v.error;
       setRows(b);
       setSold((p.data ?? []) as Sold[]);
+      setVotes((v.data ?? []) as unknown as Vote[]);
       setErr('');
     } catch (e) {
       setErr(errorText(e));
@@ -113,6 +133,8 @@ export default function OwnerStats() {
   const expected = active.filter((b) => b.day > todayK && !b.paid).reduce((s, b) => s + b.price_cents, 0);
   const arrived = past.filter((b) => b.checked_in_at).length;
   const clients = new Set(active.map((b) => b.user_id)).size;
+  const lessonOf = new Map(rows.map((b) => [b.id, b]));
+  const comments = votes.filter((v) => v.comment);
 
   // Barre: un giorno per settimana e mese, un mese per l'anno. Pacchetti nel giorno in cui sono stati attivati.
   const byMonth = period === 'year';
@@ -159,6 +181,27 @@ export default function OwnerStats() {
     .filter((s): s is { title: string; rows: ReturnType<typeof group> } => !!s && s.rows.length > 0)
     // Senza statistiche resta solo come sono state pagate le lezioni.
     .filter((s) => plan.stats || s.title === byPay);
+
+  /** Voto medio raggruppato per una colonna della lezione votata. */
+  function votesBy(key: (b: Line) => string, name: (k: string) => string) {
+    const m = new Map<string, number[]>();
+    votes.forEach((v) => {
+      const b = lessonOf.get(v.booking_id);
+      if (!b) return;
+      const k = key(b);
+      m.set(k, [...(m.get(k) ?? []), v.score]);
+    });
+    return [...m.entries()].map(([k, xs]) => ({ label: name(k), n: xs.length, mean: xs.reduce((s, x) => s + x, 0) / xs.length })).sort((a, b) => b.mean - a.mean || b.n - a.n);
+  }
+  const voteSections = plan.stats
+    ? [
+        trainers.length > 0 && {
+          title: t('Voto per trainer'),
+          rows: votesBy((b) => b.trainer_id ?? '', (k) => (k ? trainers.find((tr) => tr.id === k)?.name ?? t('Trainer tolto') : t('Da assegnare'))),
+        },
+        { title: t('Voto per tipo di lezione'), rows: votesBy((b) => b.lesson_type, (k) => lessonTypes.find((lt) => lt.id === k)?.label ?? k) },
+      ].filter((s): s is { title: string; rows: ReturnType<typeof votesBy> } => !!s && s.rows.length > 0)
+    : [];
 
   const setP = (p: Period) => {
     setPeriod(p);
@@ -281,6 +324,84 @@ export default function OwnerStats() {
         );
       })}
       {!loading && active.length === 0 && <Muted>{t('Nessuna lezione in questo periodo.')}</Muted>}
+
+      <Step title={t('Gradimento dei clienti')} />
+      {votes.length === 0 ? (
+        <Muted>{t('Nessun voto dei clienti in questo periodo. I clienti votano le lezioni fatte da «Le mie lezioni».')}</Muted>
+      ) : (
+        <>
+          <Row>
+            <Stat label={t('Voto medio')} value={`${avg(votes.map((v) => v.score))} / 5`} />
+            <Stat label={t('Voti ricevuti')} value={votes.length} />
+            {plan.stats && active.length > 0 && <Stat label={t('Lezioni votate')} value={`${Math.round((votes.length / active.length) * 100)}%`} />}
+          </Row>
+          {plan.stats && (
+            <Card>
+              {[5, 4, 3, 2, 1].map((n) => {
+                const k = votes.filter((v) => v.score === n).length;
+                return (
+                  <Row key={n} style={{ flexWrap: 'nowrap' }}>
+                    <Stars score={n} size={13} />
+                    <View style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: c.line, overflow: 'hidden' }}>
+                      <View style={{ width: `${(k / votes.length) * 100}%`, height: '100%', borderRadius: 3, backgroundColor: c.brass }} />
+                    </View>
+                    <Text style={{ color: c.muted, width: 28, textAlign: 'right' }}>{k}</Text>
+                  </Row>
+                );
+              })}
+            </Card>
+          )}
+          {voteSections.map((s) => (
+            <View key={s.title} style={{ gap: 10 }}>
+              <Step title={s.title} />
+              <Card>
+                {s.rows.map((r) => (
+                  <Row key={r.label} style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
+                    <Text style={{ color: c.text, fontWeight: '700', flex: 1 }} numberOfLines={1}>
+                      {r.label}
+                    </Text>
+                    <Stars score={r.mean} size={13} />
+                    <Text style={{ color: c.muted }}>
+                      {`${avg([r.mean])} · ${r.n === 1 ? t('1 voto') : t('{n} voti', { n: r.n })}`}
+                    </Text>
+                  </Row>
+                ))}
+              </Card>
+            </View>
+          ))}
+          {comments.length > 0 && (
+            <View style={{ gap: 10 }}>
+              <Step title={t('Commenti dei clienti')} />
+              {(allComments ? comments : comments.slice(0, FEW)).map((v) => {
+                const b = lessonOf.get(v.booking_id);
+                const trainer = trainers.find((tr) => tr.id === b?.trainer_id);
+                const lesson = lessonTypes.find((lt) => lt.id === b?.lesson_type)?.label ?? b?.lesson_type;
+                return (
+                  <Card key={v.booking_id}>
+                    <Row style={{ justifyContent: 'space-between' }}>
+                      <Text style={{ color: c.text, fontWeight: '700' }}>
+                        {fullName(v.profiles)}
+                        {v.bookings?.dogs?.name ? ` · ${v.bookings.dogs.name}` : ''}
+                      </Text>
+                      <Stars score={v.score} />
+                    </Row>
+                    <Muted style={{ fontSize: 13 }}>{[longDay(v.day), lesson, trainer?.name].filter(Boolean).join(' · ')}</Muted>
+                    <Text style={{ color: c.text }}>{v.comment}</Text>
+                  </Card>
+                );
+              })}
+              {comments.length > FEW && (
+                <Button
+                  small
+                  kind="ghost"
+                  title={allComments ? t('Mostra meno') : t('Mostra tutti i {n} commenti', { n: comments.length })}
+                  onPress={() => setAllComments(!allComments)}
+                />
+              )}
+            </View>
+          )}
+        </>
+      )}
     </Screen>
   );
 }
