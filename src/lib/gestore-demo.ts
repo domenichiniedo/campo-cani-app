@@ -356,6 +356,7 @@ export async function demoCall<T>(azione: string, b: Record<string, unknown>): P
     case 'lancia': {
       // Nella demo la build compare fra quelle in corso, ma non parte davvero.
       if (b.quale === 'prova' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(b.email ?? ''))) throw new Error("Scrivi l'email del proprietario della prova.");
+      if (b.quale === 'prova' && b.android === false && b.windows === false) throw new Error('Scegli almeno Android o Windows.');
       ver ??= versions();
       const nome = b.quale === 'prova' ? 'Prova con database' : (LANCI.find((l) => l.id === b.quale)?.titolo ?? String(b.quale));
       ver.build.unshift({ id: Date.now(), nome, stato: 'queued', esito: null, quando: new Date().toISOString(), url: `${REPO}/actions`, titolo: nome });

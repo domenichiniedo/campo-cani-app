@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
         };
         return json({
           oggi: oggi(),
-          centri: (centri.data ?? []).map((c) => ({ ...c, db_stato: statoDb(c.progetto) })),
+          centri: ((centri.data ?? []) as unknown as { progetto: string | null }[]).map((c) => ({ ...c, db_stato: statoDb(c.progetto) })),
           addebiti: addebiti.data,
           piani: piani.data,
           banca: { ...resto, collegata: !!conto, abilitata: !bancaSpenta() },

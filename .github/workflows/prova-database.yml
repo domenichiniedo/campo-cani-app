@@ -6,7 +6,8 @@
 # and variables → Actions → New repository secret, con nome SUPABASE_ACCESS_TOKEN. Il token crea progetti sul
 # tuo account: resta nei secrets di GitHub, non finisce nell'app né nei log.
 #
-# Poi Actions → Prova con database → Run workflow, con il nome del centro, l'email del proprietario e i giorni.
+# Poi Actions → Prova con database → Run workflow, con il nome del centro, l'email del proprietario, i giorni e
+# cosa costruire (APK per Android, programma per Windows o tutti e due).
 # Se hai già creato il progetto su supabase.com, scrivi il suo codice (quello nell'indirizzo xxxx.supabase.co).
 # In una quindicina di minuti APK e programma per Windows sono in Releases → "Prova di K9 Manager – <progetto>".
 # Il piano gratuito di Supabase tiene due progetti attivi: le prove finite si mettono in pausa o si cancellano da
@@ -28,6 +29,14 @@ on:
       progetto:
         description: Codice di un progetto Supabase già creato (vuoto = ne crea uno nuovo)
         required: false
+      android:
+        description: Costruisci l'APK per Android
+        type: boolean
+        default: true
+      windows:
+        description: Costruisci il programma per Windows
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -39,6 +48,11 @@ jobs:
       url: ${{ steps.prova.outputs.url }}
       chiave: ${{ steps.prova.outputs.chiave }}
     steps:
+      - name: Controlla cosa costruire
+        if: ${{ !inputs.android && !inputs.windows }}
+        run: |
+          echo "::error::Scegli almeno Android o Windows."
+          exit 1
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -52,6 +66,7 @@ jobs:
         run: node tools/nuova-prova.mjs --campo "$CAMPO" --email "$EMAIL" ${PROGETTO:+--ref "$PROGETTO"}
   app:
     needs: database
+    if: ${{ inputs.android }}
     uses: ./.github/workflows/android.yml
     # La chiave di caricamento di Google Play, per l'AAB.
     secrets: inherit
@@ -61,6 +76,7 @@ jobs:
       giorni: ${{ inputs.giorni }}
   windows:
     needs: database
+    if: ${{ inputs.windows }}
     uses: ./.github/workflows/windows.yml
     with:
       supabase_url: ${{ needs.database.outputs.url }}

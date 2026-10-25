@@ -313,7 +313,7 @@ Deno.test('invito: su Android apre l\'app sul centro, se no Google Play con il c
 Deno.test('le build del pannello esistono nel repository e la prova controlla i dati', async () => {
   const { LANCI, lancia } = await import('./github.ts');
   for (const l of Object.values(LANCI)) await Deno.stat(new URL(`../../../../.github/workflows/${l.file}`, import.meta.url));
-  for (const b of [{ email: 'no', giorni: 10 }, { email: 'a@b.it', giorni: 0 }, { email: 'a@b.it', giorni: 200 }]) {
+  for (const b of [{ email: 'no', giorni: 10 }, { email: 'a@b.it', giorni: 0 }, { email: 'a@b.it', giorni: 200 }, { email: 'a@b.it', giorni: 10, android: false, windows: false }]) {
     let errore = '';
     await lancia('prova', b).catch((e) => (errore = e.message));
     if (!errore) throw new Error(`accettata: ${JSON.stringify(b)}`);

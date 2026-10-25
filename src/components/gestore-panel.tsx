@@ -660,6 +660,7 @@ function VersionsSection() {
   const [campo, setCampo] = useState('');
   const [email, setEmail] = useState('');
   const [giorni, setGiorni] = useState('30');
+  const [files, setFiles] = useState({ android: true, windows: true });
   const [sure, setSure] = useState('');
 
   const load = useCallback(
@@ -743,7 +744,7 @@ function VersionsSection() {
         </Row>
         <Body bold>Nuova prova con database</Body>
         <Muted style={{ fontSize: 13 }}>
-          Crea un database nuovo per la prova e costruisce APK e programma per Windows collegati a quello. Il proprietario si iscrive dall&apos;app con questa
+          Crea un database nuovo per la prova e costruisce i file che scegli (APK per Android, programma per Windows) collegati a quello. Il proprietario si iscrive dall&apos;app con questa
           email ed entra come proprietario.
         </Muted>
         <Row>
@@ -751,12 +752,17 @@ function VersionsSection() {
           <Field label="Email del proprietario" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" style={{ flex: 2, minWidth: 200 }} />
           <Field label="Giorni" value={giorni} onChangeText={setGiorni} keyboardType="number-pad" style={{ width: 90 }} />
         </Row>
+        <Body bold>Cosa mettere nella prova</Body>
+        <Row>
+          <Button small kind={files.android ? 'primary' : 'ghost'} title={`${files.android ? '✓ ' : ''}APK per Android`} onPress={() => setFiles({ ...files, android: !files.android })} />
+          <Button small kind={files.windows ? 'primary' : 'ghost'} title={`${files.windows ? '✓ ' : ''}Programma per Windows`} onPress={() => setFiles({ ...files, windows: !files.windows })} />
+        </Row>
         <Button
           small
           title="Crea la prova"
-          onPress={() => start('prova', { campo, email, giorni: Number(giorni) })}
+          onPress={() => start('prova', { campo, email, giorni: Number(giorni), ...files })}
           loading={busy === 'prova'}
-          disabled={!!busy || !email.includes('@')}
+          disabled={!!busy || !email.includes('@') || (!files.android && !files.windows)}
         />
         <ErrorText>{err}</ErrorText>
         {!!msg && <Muted>{msg}</Muted>}

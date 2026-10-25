@@ -88,16 +88,20 @@ export async function versioni(): Promise<{ rilasci: Rilascio[]; build: Build[] 
 }
 
 /** Lancia una build: una di LANCI, oppure "prova" (una prova nuova con il suo database). */
-export async function lancia(quale: Lancio, b: { campo?: unknown; email?: unknown; giorni?: unknown } = {}) {
+export async function lancia(quale: Lancio, b: { campo?: unknown; email?: unknown; giorni?: unknown; android?: unknown; windows?: unknown } = {}) {
   if (quale === 'prova') {
     const email = String(b.email ?? '').trim().toLowerCase();
     const campo = String(b.campo ?? '').trim().slice(0, 80) || 'Centro di prova';
     const giorni = Math.round(Number(b.giorni));
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Scrivi l'email del proprietario della prova.");
     if (!Number.isInteger(giorni) || giorni < 1 || giorni > 90) throw new Error('I giorni di prova vanno da 1 a 90.');
+    // Cosa mettere nella prova: senza scelta, tutti e due come prima.
+    const android = b.android !== false;
+    const windows = b.windows !== false;
+    if (!android && !windows) throw new Error('Scegli almeno Android o Windows.');
     await github('/actions/workflows/prova-database.yml/dispatches', {
       method: 'POST',
-      body: JSON.stringify({ ref: 'main', inputs: { campo, email, giorni: String(giorni) } }),
+      body: JSON.stringify({ ref: 'main', inputs: { campo, email, giorni: String(giorni), android: String(android), windows: String(windows) } }),
     });
     return;
   }
