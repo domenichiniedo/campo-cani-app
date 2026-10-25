@@ -48,6 +48,7 @@ al centro con la carta (Nexi) contano nel conto del mese come quelle pagate al c
 | `supabase/migrations/0004_prezzi.sql` | i prezzi di partenza dei piani: Base 5,90 € + 1 €, Professional 29,99 € + 0,60 €, Pro 80 € + 0,30 € a prenotazione |
 | `supabase/migrations/0005_bonus.sql` | i bonus: codici da usare alla registrazione e crediti dei centri, scalati dai conti |
 | `supabase/migrations/0006_fisso_pacchetti.sql` | il prezzo fisso (Base 39 €, Professional 79 €, Pro 149 €), l'1% sui pacchetti, il piano più piccolo dal mese dopo e la disdetta |
+| `supabase/migrations/0007_lezioni.sql` | i bonifici delle lezioni che i clienti pagano dall'app |
 | `registra-centro` | registrazione dall'app |
 | `centro` | stato di un centro dal codice e prezzi dei piani |
 | `prepara-centri` | crea e aggiorna i database dei centri, un passo alla volta (pg_cron ogni minuto) |
@@ -56,7 +57,8 @@ al centro con la carta (Nexi) contano nel conto del mese come quelle pagate al c
 | `banca` | pagina di ritorno dalla tua banca quando colleghi il conto |
 | `abbonamento` | piano, prezzi e cosa pagare, dall'app del proprietario; cambio di piano |
 | `pannello` | i dati e le azioni del pannello K9 Gestore |
-| `pagamento` | pagina di ritorno dalla banca del centro dopo "Paga ora" |
+| `pagamento` | pagina di ritorno dalla banca dopo "Paga ora" (centro) o "Paga dalla tua banca" (cliente) |
+| `lezione` | il cliente paga una lezione con il bonifico istantaneo dall'app |
 | `invito` | il link e il QR code che i centri danno ai clienti: su Android apre l'app già sul centro, o porta a scaricarla |
 
 ## Come si accende (una volta sola)
@@ -69,7 +71,7 @@ Tutti i comandi si lanciano **sul tuo computer**, nella cartella del progetto. N
 in chat, nell'app o su GitHub.
 
 1. **Progetto del gestore.** Su supabase.com crea un progetto nuovo, per esempio "K9 Gestore". Nel SQL
-   Editor esegui `gestore/supabase/migrations/0001_centri.sql`, poi `0002_bonifici_piani.sql`, `0003_fatturazione.sql`, `0004_prezzi.sql`, `0005_bonus.sql` e `0006_fisso_pacchetti.sql`. In Authentication → Users → Add user crea
+   Editor esegui `gestore/supabase/migrations/0001_centri.sql`, poi `0002_bonifici_piani.sql`, `0003_fatturazione.sql`, `0004_prezzi.sql`, `0005_bonus.sql`, `0006_fisso_pacchetti.sql` e `0007_lezioni.sql`. In Authentication → Users → Add user crea
    il tuo utente (email e password): con quello entri nel pannello.
 
 2. **Chiave del server per le licenze.**
@@ -140,6 +142,13 @@ in chat, nell'app o su GitHub.
    pagamenti in produzione Enable Banking chiede un contratto apposito (scrivi a support.api@enablebanking.com);
    in modalità Sandbox lo provi subito. Aggiungi `https://<ref>.supabase.co/functions/v1/pagamento` ai redirect
    URL dell'applicazione. Senza `PAGA_ORA` il centro vede solo i dati del bonifico e il codice QR, come prima.
+
+   Con `PAGA_ORA=1` anche i **clienti** pagano le lezioni dall'app: nella lezione da pagare con bonifico toccano
+   **Paga dalla tua banca**, scelgono la banca, scrivono il loro IBAN e confermano nella banca il bonifico istantaneo
+   già compilato verso il conto del centro (quello di Impostazioni → Pagamenti). Appena la banca lo fa partire, il
+   gestore segna la lezione pagata nel database del centro (con `TOKEN_SUPABASE`): il proprietario non deve toccare
+   **Incassa**. I bonifici rimasti in sospeso li ricontrolla `controlla-bonifici`. I soldi vanno dal cliente al centro:
+   il gestore non li tocca e tiene solo id della prenotazione, importo e stato.
 
 6. **Orari automatici.** Nel SQL Editor del gestore (Database → Extensions: attiva `pg_cron` e `pg_net`):
 

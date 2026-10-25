@@ -130,7 +130,7 @@ export default function MyBookings() {
                   title={payOpen === b.id ? t('Nascondi i dati del bonifico') : t('Dati per il bonifico')}
                   onPress={() => setPayOpen(payOpen === b.id ? null : b.id)}
                 />
-                {payOpen === b.id && <TransferDetails booking={b} dog={b.dogs?.name ?? ''} cfg={transfer} />}
+                {payOpen === b.id && <TransferDetails booking={b} dog={b.dogs?.name ?? ''} cfg={transfer} onPaid={load} />}
               </>
             )}
             {b.pay === 'online' && !b.paid && b.price_cents > 0 && <CardPay booking={b.id} cents={b.price_cents} onDone={load} card={false} />}

@@ -544,6 +544,10 @@ prova generale si aggiorna da sola. Il gestore vero, per i centri veri, si accen
 **Metodi di pagamento.** I clienti possono sempre pagare al campo. In **Impostazioni → Metodi di pagamento** il
 proprietario apre anche il bonifico istantaneo (con il suo IBAN) e la carta con Nexi.
 
+Con il bonifico il cliente vede IBAN, causale e codice QR. Se il centro è del gestore e il gestore ha acceso il pagamento
+dalla banca (`PAGA_ORA=1`, vedi gestore/README.md), sopra c'è anche **Paga dalla tua banca**: il cliente sceglie la
+sua banca, scrive il suo IBAN e conferma il bonifico già compilato; appena parte, la lezione risulta pagata da sola.
+
 La carta con Nexi per ora è **solo di prova**: la funzione parla con l'ambiente di prova di Nexi (XPay) e non addebita
 niente; si paga con le carte di prova di Nexi, per esempio
 VISA `4999 3402 6197 7289`, scadenza `12/30`, CVV `663`. Il cliente sceglie "Carta (Nexi)" quando prenota, paga sulla

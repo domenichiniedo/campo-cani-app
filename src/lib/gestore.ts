@@ -104,3 +104,10 @@ export const setCentreIban = (codice: string, iban: string, token: string) => ca
 
 export const centreStatus = (codice: string) => call<{ stato: CentreState; campo: string; licenza: string | null }>('centro', { codice: centreCode(codice) });
 
+
+/** Le banche da cui un cliente può pagare una lezione con il bonifico istantaneo dall'app; vuoto se il gestore non lo ha. */
+export const lessonBanks = (codice: string, token: string) => call<{ banche: { nome: string; paese: string }[] }>('lezione', { codice, azione: 'banche' }, token);
+
+/** Prepara il bonifico istantaneo di una lezione dal conto del cliente a quello del centro: torna la pagina della banca. */
+export const payLesson = (codice: string, prenotazione: string, banca: { nome: string; paese: string }, iban: string, token: string) =>
+  call<{ url: string }>('lezione', { codice, azione: 'paga', prenotazione, banca, iban }, token);

@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.pagamento]
 verify_jwt = false
+
+[functions.lezione]
+verify_jwt = false
