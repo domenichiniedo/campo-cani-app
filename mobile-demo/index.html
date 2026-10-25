@@ -64,6 +64,7 @@ code { font-family: ui-monospace, monospace; color: var(--text); }
       <button id="as-client" type="button" data-email="cliente@demo.it">Cliente: Giulia <small>prenota, lezioni, diario</small></button>
       <button id="as-trainer" type="button" data-email="luca@demo.it">Trainer: Luca <small>lezioni, diario, penalità</small></button>
       <button id="as-new" type="button" data-email="">Nuovo cliente <small>iscrizione</small></button>
+      <button id="as-centre" type="button" data-email="">Nuovo centro <small>registrazione e codice K9</small></button>
     </div>
     <p id="trial" hidden></p>
     <h2 id="plans-title">Piano</h2>
@@ -89,6 +90,7 @@ code { font-family: ui-monospace, monospace; color: var(--text); }
   // Licenze di prova, firmate con una chiave solo per la demo.
   var CODES = {"base": "CC1.eyJ2IjoxLCJpZCI6ImRlbW8iLCJjYW1wbyI6IkNlbnRybyBDaW5vZmlsbyBMZSBRdWVyY2UiLCJwaWFubyI6ImJhc2UiLCJzY2FkZSI6bnVsbCwiZW1lc3NhIjoiMjAyNi0xMC0yMiIsInVybCI6Imh0dHBzOi8vZGVtby5zdXBhYmFzZS5jbyIsImNoaWF2ZSI6InNiX3B1Ymxpc2hhYmxlX2RlbW8ifQ.M03U9XHbE6lsFNpPJGfJbQkk3M5rdx9wJ-1GwPSKH0iTKjEUXsyOWQTFX0hP9EI0avz9Nv_gAtbo5gNKN1P2AQ", "professional": "CC1.eyJ2IjoxLCJpZCI6ImRlbW8iLCJjYW1wbyI6IkNlbnRybyBDaW5vZmlsbyBMZSBRdWVyY2UiLCJwaWFubyI6InByb2Zlc3Npb25hbCIsInNjYWRlIjpudWxsLCJlbWVzc2EiOiIyMDI2LTEwLTIyIiwidXJsIjoiaHR0cHM6Ly9kZW1vLnN1cGFiYXNlLmNvIiwiY2hpYXZlIjoic2JfcHVibGlzaGFibGVfZGVtbyJ9._wTTU6c1k4nN_LEEO6It5zWSBrDnqzqzljRwVcwFgjPH46cpLEfTbF0TGCu3h7mVoA9iMlKn1b7_dRjgYJe6Aw", "pro": "CC1.eyJ2IjoxLCJpZCI6ImRlbW8iLCJjYW1wbyI6IkNlbnRybyBDaW5vZmlsbyBMZSBRdWVyY2UiLCJwaWFubyI6InBybyIsInNjYWRlIjpudWxsLCJlbWVzc2EiOiIyMDI2LTEwLTIyIiwidXJsIjoiaHR0cHM6Ly9kZW1vLnN1cGFiYXNlLmNvIiwiY2hpYXZlIjoic2JfcHVibGlzaGFibGVfZGVtbyJ9.XNRhCot2sINDgFDcbcTkYID8Ccr1w82Nq1NOvXNFcsPsujj5tucI_xYxLGvJmVuJKoTjmtIX_0InOgXhUX_dBQ"};
   var PLAN = 'campo-cani-demo-piano', LICENSE = 'campo-cani-licenza', DB = 'campo-demo-db-v10';
+  try { localStorage.setItem('campo-demo-licenze', JSON.stringify(CODES)); } catch (e) {}
   function currentPlan() { if (TRIAL_DAYS) return 'pro'; try { return CODES[localStorage.getItem(PLAN)] ? localStorage.getItem(PLAN) : 'pro'; } catch (e) { return 'pro'; } }
   function markPlan(p) { planButtons.forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-plan') === p); }); }
   function usePlan(p) {
@@ -102,8 +104,19 @@ code { font-family: ui-monospace, monospace; color: var(--text); }
   }
   function mark(id) { people.forEach(function (b) { b.classList.toggle('on', b.id === id); }); try { localStorage.setItem('campo-demo-chi', id); } catch (e) {} }
   function reload() { frame.src = 'app.html?' + Date.now(); sheet.classList.remove('on'); }
+  // Nuovo centro: l'app riparte senza licenza, come appena installata, e si registra il centro. Il finto
+  // gestore (demo-backend.js) lo prepara in pochi secondi e attiva la licenza del piano scelto.
+  function newCentre() {
+    try {
+      localStorage.removeItem(LICENSE);
+      localStorage.removeItem('campo-cani-registrazione');
+      localStorage.removeItem('campo-demo-centro-nuovo');
+    } catch (e) {}
+  }
   function enter(btn) {
     var w = frame.contentWindow, email = btn.getAttribute('data-email');
+    if (btn.id === 'as-centre') newCentre();
+    else if (!localStorage.getItem(LICENSE)) usePlan(currentPlan());
     // Il piano Base non ha i trainer: per vedere la loro app si passa a Professional.
     if (btn.id === 'as-trainer' && currentPlan() === 'base') usePlan('professional');
     try {
@@ -140,6 +153,7 @@ code { font-family: ui-monospace, monospace; color: var(--text); }
     return true;
   }
   if (TRIAL_DAYS) {
+    document.getElementById('as-centre').style.display = 'none';
     document.getElementById('plans').style.display = 'none';
     document.getElementById('plans-title').style.display = 'none';
     if (trialEnded()) return;
@@ -161,7 +175,10 @@ code { font-family: ui-monospace, monospace; color: var(--text); }
       mark(localStorage.getItem('campo-demo-chi') || '');
     }
   } catch (e) {}
-  usePlan(currentPlan());
+  // Mentre si prova la registrazione di un centro nuovo l'app resta senza licenza finché il centro non è pronto.
+  var registering = false;
+  try { registering = localStorage.getItem('campo-demo-chi') === 'as-centre' && !localStorage.getItem(LICENSE); } catch (e) {}
+  if (registering) markPlan(currentPlan()); else usePlan(currentPlan());
   frame.src = 'app.html';
 })();
 </script>

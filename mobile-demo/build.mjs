@@ -20,6 +20,8 @@ const DEMO_KEY = 'JU1ijvUYPu042LzTpfFZ21ntUwzxiy3KN8_Xycw6Uf0';
 const keyFile = join(root, 'src/lib/license-key.ts');
 const appJson = join(root, 'app.json');
 const real = process.env.APP_VERA === '1';
+// Nella demo anche il gestore è finto (demo-backend.js): così si prova la registrazione di un centro nuovo.
+if (!real) process.env.EXPO_PUBLIC_GESTORE_URL = 'https://demo.supabase.co/functions/v1/gestore';
 const saved = { key: readFileSync(keyFile, 'utf8'), app: readFileSync(appJson, 'utf8') };
 try {
   if (!real) writeFileSync(keyFile, saved.key.replace(/LICENSE_PUBLIC_KEY = '[^']*'/, `LICENSE_PUBLIC_KEY = '${DEMO_KEY}'`));
