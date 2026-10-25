@@ -24,7 +24,7 @@ function print(campo: string, qr: string, code: string | null) {
 <body style="font-family:system-ui,sans-serif;text-align:center;padding:48px 24px;color:#16211b">
 <h1 style="font-size:34px;margin:0 0 8px">${esc(campo)}</h1>
 <p style="font-size:20px;margin:0 0 28px">${esc(t("Prenota le lezioni con l'app K9 Manager"))}</p>
-<img src="${qr}" style="width:340px;height:340px;image-rendering:pixelated">
+<img src="${qr}" style="width:340px;height:340px">
 <p style="font-size:18px;margin:28px auto 0;max-width:520px">${esc(t("Inquadra il codice con la fotocamera del telefono: si apre l'app già collegata al centro. Se non hai ancora l'app ti porta a scaricarla: poi inquadralo di nuovo."))}</p>
 ${code ? `<p style="font-size:18px">${esc(t('Codice del centro'))}: <b>${esc(code)}</b></p>` : ''}
 </body></html>`);
@@ -33,6 +33,50 @@ ${code ? `<p style="font-size:18px">${esc(t('Codice del centro'))}: <b>${esc(cod
     f.contentWindow?.print();
     setTimeout(() => f.remove(), 1000);
   }, 300);
+}
+
+/**
+ * Disegna il QR quadratino per quadratino (nitido a qualunque dimensione) e, se c'è, il codice del centro nel mezzo
+ * su un riquadro bianco: il QR ha la correzione degli errori più alta (H), così si legge anche con il riquadro sopra.
+ */
+function drawQr(g: CanvasRenderingContext2D, q: ReturnType<typeof qrcode>, x0: number, y0: number, cell: number, code: string | null) {
+  const n = q.getModuleCount();
+  g.fillStyle = INK;
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) g.fillRect(x0 + c * cell, y0 + r * cell, cell, cell);
+  if (!code) return;
+  const side = n * cell;
+  // Il riquadro copre al massimo un decimo del QR: ben sotto il 30% che la correzione H recupera.
+  const w = Math.round(side * 0.42);
+  const h = Math.round(side * 0.16);
+  const x = x0 + (side - w) / 2;
+  const y = y0 + (side - h) / 2;
+  g.fillStyle = '#ffffff';
+  g.fillRect(x, y, w, h);
+  g.strokeStyle = PITCH;
+  g.lineWidth = Math.max(2, cell / 2);
+  g.strokeRect(x, y, w, h);
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  let size = h * 0.62;
+  do {
+    g.font = `800 ${size}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
+    size -= 1;
+  } while (g.measureText(code).width > w * 0.88 && size > 8);
+  g.fillStyle = PITCH;
+  g.fillText(code, x0 + side / 2, y0 + side / 2 + 1);
+}
+
+/** Il QR con il codice nel mezzo come immagine (per l'anteprima e il foglio da stampare). */
+function qrImage(q: ReturnType<typeof qrcode>, code: string | null) {
+  const cell = 12;
+  const n = q.getModuleCount();
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = (n + 8) * cell;
+  const g = cv.getContext('2d')!;
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 0, cv.width, cv.height);
+  drawQr(g, q, cell * 4, cell * 4, cell, code);
+  return cv.toDataURL('image/png');
 }
 
 /** Scrive il testo centrato, rimpicciolendolo finché sta nella larghezza. */
@@ -63,14 +107,12 @@ function poster(campo: string, q: ReturnType<typeof qrcode>, code: string | null
   g.textBaseline = 'middle';
   fitText(g, campo.toUpperCase(), 105, 66, '800', '#ffffff', 980);
   fitText(g, t("Prenota le lezioni con l'app K9 Manager"), 285, 42, '600', INK, 980);
-  // Il QR disegnato quadratino per quadratino, nitido a qualunque dimensione.
   const n = q.getModuleCount();
   const cell = Math.floor(720 / (n + 8));
   const side = cell * (n + 8);
-  const x0 = (1080 - side) / 2 + cell * 4;
-  const y0 = 350 + cell * 4;
-  g.fillStyle = INK;
-  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) g.fillRect(x0 + c * cell, y0 + r * cell, cell, cell);
+  drawQr(g, q, (1080 - side) / 2 + cell * 4, 350 + cell * 4, cell, code);
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
   const below = 350 + side + 50;
   if (code) fitText(g, t('Codice del centro: {codice}', { codice: code }), below, 46, '800', INK, 980);
   fitText(g, t('Inquadralo con la fotocamera del telefono'), code ? below + 70 : below, 34, '400', MUTED, 980);
@@ -86,12 +128,13 @@ export function CentreQr({ campo, link, code, message }: { campo: string; link: 
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
   const q = useMemo(() => {
-    const x = qrcode(0, 'M');
+    // H: il QR resta leggibile anche con il codice del centro scritto nel mezzo.
+    const x = qrcode(0, 'H');
     x.addData(link);
     x.make();
     return x;
   }, [link]);
-  const qr = useMemo(() => q.createDataURL(8, 4), [q]);
+  const qr = useMemo(() => (typeof document === 'undefined' ? q.createDataURL(8, 4) : qrImage(q, code)), [q, code]);
   const share = useMemo(() => canShareImage(), []);
   const name = `qr-${campo.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'centro'}.png`;
 
@@ -160,7 +203,7 @@ export function CentreQr({ campo, link, code, message }: { campo: string; link: 
           <Button
             small
             kind="ghost"
-            title={t("Salva l'immagine")}
+            title={t('Scarica il QR code')}
             loading={busy === 'save'}
             onPress={() => run('save', async () => saveImage(await poster(campo, q, code), name))}
           />

@@ -842,7 +842,6 @@ const dict: Record<string, string> = {
   "Immagine copiata: incollala con Ctrl+V in WhatsApp, in una mail o in un post.": "Imagen copiada: pégala con Ctrl+V en WhatsApp, en un correo o en una publicación.",
   "Copia il link": "Copiar el enlace",
   "Messaggio con il link copiato: incollalo dove vuoi.": "Mensaje con el enlace copiado: pégalo donde quieras.",
-  "Salva l'immagine": "Guardar la imagen",
   "Su WhatsApp parte il messaggio con il link; per mandare anche l'immagine copiala e incollala nella chat.": "Por WhatsApp sale el mensaje con el enlace; para enviar también la imagen, cópiala y pégala en el chat.",
   "Bonus di {importo} attivato: si scala dai primi conti del mese.": "Bono de {importo} activado: se descuenta de las primeras facturas mensuales.",
   "Codice bonus (facoltativo)": "Código de bono (opcional)",
@@ -933,6 +932,8 @@ const dict: Record<string, string> = {
   "Associazione o società: non vuole la fattura": "Asociación o empresa: no quiere factura",
   "P.IVA": "NIF-IVA",
   "Persona: scontrino": "Particular: recibo",
+  "Immagine salvata nella cartella Documenti del telefono: {nome}": "Imagen guardada en la carpeta Documentos del teléfono: {nome}",
+  "Scarica il QR code": "Descargar el código QR",
 };
 
 export default dict;
