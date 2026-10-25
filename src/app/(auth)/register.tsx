@@ -101,6 +101,8 @@ export default function Register() {
             await refresh();
           }}
         />
+        {/* Email sbagliata: si torna al modulo con i dati già scritti, la si corregge e si rimanda. */}
+        <Button title={t("Ho sbagliato l'email: correggila")} kind="ghost" onPress={() => setSent(false)} />
         <Button title={t("Vai all'accesso")} kind="ghost" onPress={() => router.replace('/')} />
       </Screen>
     );

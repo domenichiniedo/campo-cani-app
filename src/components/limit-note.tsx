@@ -7,10 +7,11 @@ export function LimitNote({ kind, count, what }: { kind: Parameters<typeof planA
   const plan = usePlan();
   const max = plan[kind];
   if (max === null) return null;
+  const other = planAbove(kind, max);
   return (
     <Muted style={{ fontSize: 13 }}>
-      {count >= max
-        ? t('Il piano {piano} comprende fino a {max} {cosa}. Per averne di più serve il piano {altro}.', { piano: plan.label, max, cosa: what, altro: planAbove(kind, max) })
+      {count >= max && other
+        ? t('Il piano {piano} comprende fino a {max} {cosa}. Per averne di più serve il piano {altro}.', { piano: plan.label, max, cosa: what, altro: other })
         : t('Il piano {piano} comprende fino a {max} {cosa}.', { piano: plan.label, max, cosa: what })}
     </Muted>
   );

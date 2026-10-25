@@ -19,6 +19,8 @@ export type Plan = {
   maxPackages: number | null;
   /** Trainer attivi; 0 = niente trainer, null = senza limite. */
   maxTrainers: number | null;
+  /** Proprietari del centro, compreso il titolare. */
+  maxOwners: number | null;
   trainers: boolean;
   packages: boolean;
   /** Lezioni segnate come incassate, da incassare e pagina Incassi. */
@@ -50,6 +52,7 @@ export const PLANS: Record<PlanId, Plan> = {
     maxLessonTypes: 3,
     maxPackages: 3,
     maxTrainers: 0,
+    maxOwners: 1,
     trainers: false,
     packages: true,
     payments: false,
@@ -70,6 +73,7 @@ export const PLANS: Record<PlanId, Plan> = {
     maxLessonTypes: 5,
     maxPackages: 5,
     maxTrainers: 2,
+    maxOwners: 3,
     trainers: true,
     packages: true,
     payments: true,
@@ -90,6 +94,7 @@ export const PLANS: Record<PlanId, Plan> = {
     maxLessonTypes: null,
     maxPackages: null,
     maxTrainers: null,
+    maxOwners: 10,
     trainers: true,
     packages: true,
     payments: true,
@@ -115,9 +120,9 @@ export const usePlan = () => planOf(useLicense().license);
 export const planWith = (feature: { [K in keyof Plan]: Plan[K] extends boolean ? K : never }[keyof Plan]) =>
   PLAN_IDS.map((id) => PLANS[id]).find((p) => p[feature])!.label;
 
-/** Il primo piano che permette più di `n` elementi di quel tipo. */
-export const planAbove = (limit: 'maxFields' | 'maxClients' | 'maxLessonTypes' | 'maxPackages' | 'maxTrainers', n: number) =>
-  PLAN_IDS.map((id) => PLANS[id]).find((p) => p[limit] === null || p[limit] > n)!.label;
+/** Il primo piano che permette più di `n` elementi di quel tipo (null se nessuno). */
+export const planAbove = (limit: 'maxFields' | 'maxClients' | 'maxLessonTypes' | 'maxPackages' | 'maxTrainers' | 'maxOwners', n: number) =>
+  PLAN_IDS.map((id) => PLANS[id]).find((p) => p[limit] === null || p[limit] > n)?.label ?? null;
 
 /** I primi `max` elementi (tutti se il piano non ha limite). */
 export const upTo = <T,>(list: T[], max: number | null) => (max === null ? list : list.slice(0, max));
