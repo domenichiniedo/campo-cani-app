@@ -39,36 +39,73 @@ function isValidTaxCode(raw: string): boolean {
   return isValidVat(s);
 }
 
-export type BillingDraft = { taxCode: string; street: string; zip: string; city: string; province: string };
+export type ClientKind = 'persona' | 'societa';
 
-export const emptyBilling: BillingDraft = { taxCode: '', street: '', zip: '', city: '', province: '' };
+/** I dati per la fattura di un cliente: solo le associazioni e le società la possono chiedere. */
+export type BillingDraft = {
+  company: string;
+  vat: string;
+  taxCode: string;
+  street: string;
+  zip: string;
+  city: string;
+  province: string;
+  sdi: string;
+  pec: string;
+};
+
+export const emptyBilling: BillingDraft = { company: '', vat: '', taxCode: '', street: '', zip: '', city: '', province: '', sdi: '', pec: '' };
 
 export const billingFromProfile = (p: Profile | null): BillingDraft => ({
+  company: p?.company_name ?? '',
+  vat: p?.vat_number ?? '',
   taxCode: p?.tax_code ?? '',
   street: p?.billing_street ?? '',
   zip: p?.billing_zip ?? '',
   city: p?.billing_city ?? '',
   province: p?.billing_province ?? '',
+  sdi: p?.sdi_code ?? '',
+  pec: p?.pec ?? '',
 });
 
 /** Messaggio d'errore per il primo dato mancante o sbagliato, oppure null se è tutto a posto. */
 export function billingError(b: BillingDraft): string | null {
+  if (b.company.trim().length < 2) return t("Scrivi la ragione sociale dell'associazione o della società.");
+  if (b.vat.trim() && !isValidVat(b.vat)) return t('La partita IVA non è valida: sono 11 cifre.');
   if (!isValidTaxCode(b.taxCode)) return t('Il codice fiscale non è valido. Controlla le lettere e i numeri.');
   if (!b.street.trim()) return t('Inserisci via e numero civico per la fatturazione.');
   if (!/^\d{5}$/.test(b.zip.trim())) return t('Il CAP deve avere 5 cifre.');
   if (!b.city.trim()) return t('Inserisci il comune per la fatturazione.');
   if (b.province.trim() && !/^[A-Za-z]{2}$/.test(b.province.trim())) return t('La provincia va scritta con la sigla, per esempio BO.');
+  if (b.sdi.trim() && !/^[A-Z0-9]{7}$/.test(normalizeTaxCode(b.sdi))) return t('Il codice destinatario ha 7 lettere o cifre.');
+  if (b.pec.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.pec.trim())) return t('La PEC non è un indirizzo email valido.');
   return null;
 }
 
 /** Colonne del profilo pronte da salvare. */
 export const billingColumns = (b: BillingDraft) => ({
+  company_name: b.company.trim(),
+  vat_number: normalizeTaxCode(b.vat).replace(/^IT/, ''),
   tax_code: normalizeTaxCode(b.taxCode),
   billing_street: b.street.trim(),
   billing_zip: b.zip.trim(),
   billing_city: b.city.trim(),
   billing_province: b.province.trim().toUpperCase(),
+  sdi_code: normalizeTaxCode(b.sdi),
+  pec: b.pec.trim().toLowerCase(),
 });
+
+/**
+ * Quello che si salva della scelta persona/società: una persona ha solo lo scontrino; una società la fattura
+ * se la chiede, con i suoi dati.
+ */
+export const docColumns = (kind: ClientKind, wantsInvoice: boolean, b: BillingDraft) =>
+  kind === 'societa' && wantsInvoice
+    ? { client_kind: kind, doc_pref: 'invoice' as const, ...billingColumns(b) }
+    : { client_kind: kind, doc_pref: 'receipt' as const };
+
+/** L'errore dei dati per la fattura, solo se servono. */
+export const docError = (kind: ClientKind, wantsInvoice: boolean, b: BillingDraft) => (kind === 'societa' && wantsInvoice ? billingError(b) : null);
 
 const hasBilling = (p: Profile | null) =>
   !!p && !!p.tax_code && !!p.billing_street && !!p.billing_zip && !!p.billing_city;

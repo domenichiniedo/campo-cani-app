@@ -44,7 +44,7 @@ export default function Billing() {
   return (
     <Screen>
       <H1>{t('Dati per la fattura')}</H1>
-      <Body>{t("Hai chiesto la fattura: per riceverla servono il tuo codice fiscale e l'indirizzo di fatturazione.")}</Body>
+      <Body>{t("Hai chiesto la fattura: per riceverla servono i dati dell'associazione o della società.")}</Body>
       <Card accent>
         <BillingFields value={billing} onChange={setBilling} />
         <ErrorText>{err}</ErrorText>

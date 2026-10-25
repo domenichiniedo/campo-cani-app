@@ -71,6 +71,7 @@ export default function OwnerClients() {
     p.phone.replace(/\s/g, '').includes(needle.replace(/\s/g, '')) ||
     p.email.toLowerCase().includes(needle) ||
     p.tax_code.toLowerCase().includes(needle) ||
+    p.company_name.toLowerCase().includes(needle) ||
     p.dogs.some((d) => d.name.toLowerCase().includes(needle));
   const passes = (p: Client) =>
     filter === 'all' ||
@@ -231,11 +232,15 @@ function ClientDetail({ p, act }: { p: Client; act: Act }) {
       </Row>
       <View style={{ gap: 2 }}>
         <Muted style={{ fontSize: 13 }}>
-          {p.tax_code
-            ? `${t('CF')} ${p.tax_code} · ${billingLine(p)}${p.doc_pref === 'receipt' ? ` · ${t('non vuole la fattura')}` : ''}`
-            : p.doc_pref === 'receipt'
-              ? t('Non vuole la fattura')
-              : t('Dati di fatturazione mancanti')}
+          {p.client_kind !== 'societa'
+            ? t('Persona: scontrino')
+            : p.tax_code
+              ? [p.company_name, p.vat_number && `${t('P.IVA')} ${p.vat_number}`, `${t('CF')} ${p.tax_code}`, billingLine(p), p.doc_pref === 'receipt' && t('non vuole la fattura')]
+                  .filter(Boolean)
+                  .join(' · ')
+              : p.doc_pref === 'receipt'
+                ? t('Associazione o società: non vuole la fattura')
+                : t('Dati di fatturazione mancanti')}
         </Muted>
         {!p.phone_ok && <Muted style={{ fontSize: 13 }}>{t('Cellulare non ancora confermato con il codice SMS')}</Muted>}
         <Muted style={{ fontSize: 12 }}>

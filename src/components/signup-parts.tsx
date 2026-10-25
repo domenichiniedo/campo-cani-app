@@ -1,8 +1,8 @@
 import { BillingFields } from '@/components/billing-fields';
 import { useState, type ReactNode } from 'react';
 
-import { Button, Card, Check, Expandable, Field, Muted } from '@/components/ui';
-import type { BillingDraft } from '@/lib/billing';
+import { Button, Card, Check, Chips, Expandable, Field, Muted } from '@/components/ui';
+import type { BillingDraft, ClientKind } from '@/lib/billing';
 import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { rulesLines } from '@/lib/types';
@@ -26,17 +26,41 @@ export function ChipField({ value, onChange }: { value: string; onChange: (v: st
   );
 }
 
-/** Fattura sì o no; codice fiscale e indirizzo servono solo a chi la vuole. */
-export function InvoiceCard(p: { wants: boolean; onWants: (v: boolean) => void; billing: BillingDraft; onBilling: (v: BillingDraft) => void }) {
+/**
+ * Persona o associazione/società. Una persona riceve solo lo scontrino; una società sceglie scontrino o fattura,
+ * e per la fattura dà i suoi dati.
+ */
+export function ClientKindCard(p: {
+  kind: ClientKind;
+  onKind: (v: ClientKind) => void;
+  wants: boolean;
+  onWants: (v: boolean) => void;
+  billing: BillingDraft;
+  onBilling: (v: BillingDraft) => void;
+}) {
   return (
     <Card>
-      <Check value={p.wants} onChange={p.onWants}>
-        {t('Voglio la fattura per le lezioni e i pacchetti')}
-      </Check>
-      {p.wants ? (
-        <BillingFields value={p.billing} onChange={p.onBilling} />
+      <Chips
+        items={[
+          { value: 'persona' as const, label: t('Sono una persona') },
+          { value: 'societa' as const, label: t('Associazione o società') },
+        ]}
+        value={p.kind}
+        onChange={p.onKind}
+      />
+      {p.kind === 'persona' ? (
+        <Muted style={{ fontSize: 13 }}>{t('Come persona ricevi lo scontrino: non servono altri dati.')}</Muted>
       ) : (
-        <Muted style={{ fontSize: 13 }}>{t('Senza fattura non servono codice fiscale e indirizzo. Puoi chiederla anche dopo, dal Profilo.')}</Muted>
+        <>
+          <Check value={p.wants} onChange={p.onWants}>
+            {t('Voglio la fattura per le lezioni e i pacchetti')}
+          </Check>
+          {p.wants ? (
+            <BillingFields value={p.billing} onChange={p.onBilling} />
+          ) : (
+            <Muted style={{ fontSize: 13 }}>{t('Senza fattura ricevi lo scontrino. Puoi chiederla anche dopo, dal Profilo.')}</Muted>
+          )}
+        </>
       )}
     </Card>
   );

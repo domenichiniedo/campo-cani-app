@@ -1,17 +1,15 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
-import { BillingFields } from '@/components/billing-fields';
 import { PhotoEditor } from '@/components/photo';
-import { ChipField, chipOk, cleanChip } from '@/components/signup-parts';
+import { ChipField, chipOk, ClientKindCard, cleanChip } from '@/components/signup-parts';
 import { Badge, Body, Button, Card, Check, ConfirmButton, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
-import { billingColumns, billingError, billingFromProfile } from '@/lib/billing';
+import { billingFromProfile, docColumns, docError, type ClientKind } from '@/lib/billing';
 import { euro, isDayKey, shortDate } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { invoiceTitle, rulesLines, type Dog, type Invoice, type Penalty } from '@/lib/types';
-import { usePlan } from '@/lib/plans';
 
 export default function Profile() {
   const { profile, settings, lessonTypes, refresh } = useSession();
@@ -19,8 +17,8 @@ export default function Profile() {
   const [last, setLast] = useState(profile?.last_name ?? '');
   const [phone, setPhone] = useState(profile?.phone ?? '');
   const [billing, setBilling] = useState(billingFromProfile(profile));
-  const plan = usePlan();
-  const [docPref, setDocPref] = useState(profile?.doc_pref ?? 'invoice');
+  const [kind, setKind] = useState<ClientKind>(profile?.client_kind ?? 'persona');
+  const [wantsInvoice, setWantsInvoice] = useState(profile?.client_kind === 'societa' && profile.doc_pref === 'invoice');
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [penalties, setPenalties] = useState<Penalty[]>([]);
   const [newDog, setNewDog] = useState({ name: '', breed: '', birth: '', chip: '' });
@@ -65,14 +63,13 @@ export default function Profile() {
 
   async function saveMe() {
     if (!profile) return;
-    // Chi non vuole la fattura può lasciare vuoti codice fiscale e indirizzo; se li scrive devono essere giusti.
-    const blank = !Object.values(billing).some((v) => v.trim());
-    const bErr = docPref === 'receipt' && blank ? null : billingError(billing);
+    // Solo un'associazione o società che vuole la fattura deve dare i suoi dati.
+    const bErr = docError(kind, wantsInvoice, billing);
     if (bErr) return setErr(bErr);
     setErr('');
     const { error } = await supabase
       .from('profiles')
-      .update({ first_name: first.trim(), last_name: last.trim(), phone: phone.trim(), doc_pref: docPref, ...(blank ? {} : billingColumns(billing)) })
+      .update({ first_name: first.trim(), last_name: last.trim(), phone: phone.trim(), ...docColumns(kind, wantsInvoice, billing) })
       .eq('id', profile.id);
     if (error) return setErr(errorText(error));
     setMsg(t('Dati salvati.'));
@@ -132,21 +129,11 @@ export default function Profile() {
         </Row>
         <Field label={t('Telefono')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
         <Muted>{t('Email: {email}', { email: profile?.email ?? '' })}</Muted>
-        <Check value={docPref === 'invoice'} onChange={(v) => setDocPref(v ? 'invoice' : 'receipt')}>
-          {t('Voglio la fattura per le lezioni e i pacchetti')}
-        </Check>
-        {docPref === 'invoice' ? (
-          <BillingFields value={billing} onChange={setBilling} />
-        ) : (
-          <Muted style={{ fontSize: 13 }}>
-            {plan.invoices
-              ? t('Senza fattura ricevi lo scontrino: codice fiscale e indirizzo non servono.')
-              : t('Senza fattura non servono codice fiscale e indirizzo.')}
-          </Muted>
-        )}
         {!!msg && <Muted>{msg}</Muted>}
         <Button title={t('Salva')} onPress={saveMe} small />
       </Card>
+      <ClientKindCard kind={kind} onKind={setKind} wants={wantsInvoice} onWants={setWantsInvoice} billing={billing} onBilling={setBilling} />
+      <Button title={t('Salva')} onPress={saveMe} small kind="ghost" />
 
       <Step title={t('I tuoi cani')} />
       {dogs.map((d) => {
