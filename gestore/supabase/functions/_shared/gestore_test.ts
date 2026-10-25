@@ -83,7 +83,8 @@ Deno.test('preparazione di un centro, passo dopo passo', async () => {
   uguale(c.url, 'https://abcdefghijklmnopqrst.supabase.co');
   uguale(c.chiave, 'sb_publishable_abc');
   uguale(c.migrazioni, MIGRAZIONI.length);
-  uguale(c.scade, '2026-11-30');
+  // Fino al giorno 3 del mese dopo: il primo addebito arriva il 1° e va pagato entro il 3.
+  uguale(c.scade, '2026-11-03');
   if (!c.licenza.startsWith('CC1.')) throw new Error('manca la licenza');
   if (!chiamate.includes('SQL lungo true')) throw new Error('migrazioni e titolare non eseguiti insieme');
   if (!chiamate.some((x) => x.startsWith("update public.settings set license_code = 'CC1."))) throw new Error('licenza non scritta nel database del centro');
@@ -121,4 +122,99 @@ Deno.test('conferma di email e cellulare: con SMTP e Twilio si accende, senza no
   uguale(acceso.auth.sms_autoconfirm, false);
   if (!String(acceso.auth.mailer_templates_confirmation_content).includes('{{ .Token }}')) throw new Error('manca il codice nella email');
   uguale(acceso.sms, true);
+});
+
+Deno.test('conto del mese: canone a giorni, quote del piano del giorno, prezzi del centro', async () => {
+  const { contoDelMese, scadenzaLicenza, piuGiorni, giorniPerPagare } = await import('./costi.ts');
+  const prezzi = {
+    base: { canone_cents: 0, tariffa_cents: 100 },
+    professional: { canone_cents: 3000, tariffa_cents: 80 },
+    pro: { canone_cents: 6000, tariffa_cents: 50 },
+  };
+  // Tutto il mese in Professional: canone pieno e 80 cent a prenotazione.
+  uguale(
+    contoDelMese({ mese: '2026-11', dal: '2026-01-01', cambi: [{ piano: 'professional', dal: '2026-01-01' }], attuale: 'professional', prezzi, canone: null, tariffa: null, prenotazioni: { '2026-11-03': 2, '2026-11-20': 3 } }),
+    { canone_cents: 3000, prenotazioni: 5, quote_cents: 400, importo_cents: 3400 },
+  );
+  // Passa a Pro il 16 novembre (30 giorni): 15 giorni a 30 € e 15 a 60 €; le quote seguono il piano del giorno.
+  uguale(
+    contoDelMese({
+      mese: '2026-11',
+      dal: '2026-01-01',
+      cambi: [{ piano: 'professional', dal: '2026-01-01' }, { piano: 'pro', dal: '2026-11-16' }],
+      attuale: 'pro',
+      prezzi,
+      canone: null,
+      tariffa: null,
+      prenotazioni: { '2026-11-03': 2, '2026-11-20': 3 },
+    }),
+    { canone_cents: 4500, prenotazioni: 5, quote_cents: 310, importo_cents: 4810 },
+  );
+  // Registrato il 21: canone solo per 10 giorni. Prezzi fatti apposta per il centro.
+  uguale(
+    contoDelMese({ mese: '2026-11', dal: '2026-11-21', cambi: [{ piano: 'pro', dal: '2026-11-21' }], attuale: 'pro', prezzi, canone: 900, tariffa: 0, prenotazioni: { '2026-11-25': 4 } }),
+    { canone_cents: 300, prenotazioni: 4, quote_cents: 0, importo_cents: 300 },
+  );
+  // Licenza fino al giorno 3 del mese dopo (anche a dicembre).
+  uguale(scadenzaLicenza('2026-11-01', 3), '2026-12-03');
+  uguale(scadenzaLicenza('2026-12-28', 3), '2027-01-03');
+  uguale(piuGiorni('2026-02-27', 3), '2026-03-02');
+  uguale(giorniPerPagare(), 3);
+});
+
+Deno.test('bonifici riconosciuti dal codice, dall\'IBAN e dal mese', async () => {
+  const { abbina, ibanValido } = await import('./costi.ts');
+  const centri = [
+    { id: 'a', codice: 'K9-ABC234', iban: 'IT60X0542811101000000123456' },
+    { id: 'b', codice: 'K9-XYZ789', iban: '' },
+  ];
+  const aperti = [
+    { id: 'a9', centro: 'a', mese: '2026-09', importo_cents: 1500 },
+    { id: 'a10', centro: 'a', mese: '2026-10', importo_cents: 2000 },
+    { id: 'b10', centro: 'b', mese: '2026-10', importo_cents: 700 },
+  ];
+  const m = (importo_cents: number, causale: string, iban = '', nome = '') => ({ id: 'x', importo_cents, iban, nome, causale });
+  // Codice senza trattino e mese nella causale: paga quel mese.
+  uguale(abbina(m(2000, 'k9abc234 2026-10'), centri, aperti), { centro: 'a', addebiti: ['a10'] });
+  // Solo l'IBAN, nessuna causale utile: paga i mesi più vecchi finché basta.
+  uguale(abbina(m(3500, 'quota', 'IT60 X054 2811 1010 0000 0123 456'), centri, aperti), { centro: 'a', addebiti: ['a9', 'a10'] });
+  uguale(abbina(m(1600, 'K9-ABC234'), centri, aperti), { centro: 'a', addebiti: ['a9'] });
+  // Troppo poco: centro riconosciuto, niente pagato.
+  uguale(abbina(m(500, 'K9-XYZ789 2026-10'), centri, aperti), { centro: 'b', addebiti: [] });
+  // Non è di un centro.
+  uguale(abbina(m(700, 'stipendio', 'IT02L1234512345123456789012'), centri, aperti), { centro: null, addebiti: [] });
+  uguale([ibanValido('IT60X0542811101000000123456'), ibanValido('IT61X0542811101000000123456')], [true, false]);
+});
+
+Deno.test('Enable Banking: JWT RS256 e movimenti in entrata', async () => {
+  const { accredito, chiavePrivata, jwt } = await import('./banca.ts');
+  const coppia = await crypto.subtle.generateKey(
+    { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+    true,
+    ['sign', 'verify'],
+  );
+  const der = new Uint8Array(await crypto.subtle.exportKey('pkcs8', coppia.privateKey));
+  const pem = `-----BEGIN PRIVATE KEY-----\n${btoa(String.fromCharCode(...der)).replace(/(.{64})/g, '$1\n')}\n-----END PRIVATE KEY-----`;
+  // Anche con gli a capo scritti come \n (come capita incollando la chiave nei segreti).
+  const token = await jwt('app-1', await chiavePrivata(pem.replace(/\n/g, '\\n')), 1_800_000_000);
+  const [testa, corpo, firma] = token.split('.');
+  uguale(JSON.parse(new TextDecoder().decode(b64(testa))), { typ: 'JWT', alg: 'RS256', kid: 'app-1' });
+  uguale(JSON.parse(new TextDecoder().decode(b64(corpo))), { iss: 'enablebanking.com', aud: 'api.enablebanking.com', iat: 1_800_000_000, exp: 1_800_003_600 });
+  if (!(await crypto.subtle.verify('RSASSA-PKCS1-v1_5', coppia.publicKey, b64(firma), new TextEncoder().encode(`${testa}.${corpo}`)))) throw new Error('firma non valida');
+
+  uguale(
+    accredito({
+      transaction_id: 't1',
+      credit_debit_indicator: 'CRDT',
+      status: 'BOOK',
+      transaction_amount: { amount: '34.10', currency: 'EUR' },
+      booking_date: '2026-11-02',
+      debtor: { name: 'Le Querce' },
+      debtor_account: { iban: 'IT60X0542811101000000123456' },
+      remittance_information: ['K9-ABC234 2026-10'],
+    }),
+    { id: 't1', data: '2026-11-02', importo_cents: 3410, iban: 'IT60X0542811101000000123456', nome: 'Le Querce', causale: 'K9-ABC234 2026-10' },
+  );
+  uguale(accredito({ credit_debit_indicator: 'DBIT', transaction_amount: { amount: '5', currency: 'EUR' } }), null);
+  uguale(accredito({ credit_debit_indicator: 'CRDT', status: 'PDNG', transaction_amount: { amount: '5', currency: 'EUR' } }), null);
 });

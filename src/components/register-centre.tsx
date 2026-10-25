@@ -1,15 +1,16 @@
-import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
 
+import { priceText } from '@/components/subscription-panel';
 import { Badge, Body, Button, Card, Chips, ErrorText, Field, Muted, Row } from '@/components/ui';
-import { centreStatus, registerCentre, type CentreState } from '@/lib/gestore';
+import { centreStatus, planPrices, registerCentre, type CentreState, type PlanPrice } from '@/lib/gestore';
 import { t, tKey } from '@/lib/i18n';
 import { useLicense } from '@/lib/license-gate';
 import { PLANS, type PlanId } from '@/lib/plans';
+import { isValidIban, normalizeIban } from '@/lib/transfer';
 
 const STORE = 'campo-cani-registrazione';
 
-type Pending = { codice: string; mandato: string | null; email: string };
+type Pending = { codice: string; email: string };
 
 const read = (): Pending | null => {
   try {
@@ -35,16 +36,22 @@ const STEP_TEXT: Record<string, string> = {
   licenza: tKey('Attivo la licenza…'),
 };
 
-/** Un centro nuovo si registra dall'app: firma il mandato SEPA su Stripe e il gestore gli prepara il database. */
+/** Un centro nuovo si registra dall'app e il gestore gli prepara il database. Paga ogni mese con un bonifico istantaneo. */
 export function RegisterCentre({ onBack }: { onBack: () => void }) {
   const { activate } = useLicense();
   const [pending, setPending] = useState<Pending | null>(read);
   const [campo, setCampo] = useState('');
   const [email, setEmail] = useState('');
   const [piano, setPiano] = useState<PlanId>('professional');
+  const [iban, setIban] = useState('');
+  const [prices, setPrices] = useState<Partial<Record<string, PlanPrice>>>({});
   const [state, setState] = useState<CentreState | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+
+  useEffect(() => {
+    planPrices().then(setPrices, () => {});
+  }, []);
 
   // Mentre il centro si prepara si chiede lo stato ogni pochi secondi; pronto, l'app si attiva da sola.
   useEffect(() => {
@@ -72,13 +79,14 @@ export function RegisterCentre({ onBack }: { onBack: () => void }) {
 
   async function submit() {
     setErr('');
+    const i = normalizeIban(iban);
+    if (i && !isValidIban(i)) return setErr(t('IBAN non valido.'));
     setBusy(true);
     try {
-      const r = await registerCentre(campo.trim(), email.trim().toLowerCase(), piano);
-      const p = { codice: r.codice, mandato: r.mandato, email: email.trim().toLowerCase() };
+      const r = await registerCentre(campo.trim(), email.trim().toLowerCase(), piano, i);
+      const p = { codice: r.codice, email: email.trim().toLowerCase() };
       write(p);
       setPending(p);
-      if (r.mandato) WebBrowser.openBrowserAsync(r.mandato).catch(() => {});
     } catch (e) {
       setErr(t((e as Error).message));
     }
@@ -102,12 +110,6 @@ export function RegisterCentre({ onBack }: { onBack: () => void }) {
           <Badge tone="ok">{pending.codice}</Badge>
         </Row>
         <Muted style={{ fontSize: 13 }}>{t("Dallo ai tuoi clienti e trainer: lo scrivono alla prima apertura dell'app.")}</Muted>
-        {(state === null || state === 'mandato') && (
-          <>
-            <Body>{t('Per continuare firma il mandato di addebito diretto SEPA sulla pagina di Stripe.')}</Body>
-            {!!pending.mandato && <Button title={t('Apri Stripe')} onPress={() => WebBrowser.openBrowserAsync(pending.mandato!).catch(() => {})} />}
-          </>
-        )}
         {step >= 0 && (
           <>
             <Body>{t(STEP_TEXT[state!])}</Body>
@@ -129,12 +131,22 @@ export function RegisterCentre({ onBack }: { onBack: () => void }) {
     <Card>
       <Body bold>{t('Registra il tuo centro')}</Body>
       <Muted>
-        {t('Paghi 1 € per ogni prenotazione dei tuoi clienti, addebitato una volta al mese sul tuo conto con addebito diretto SEPA. Ti serve solo l\'IBAN del centro.')}
+        {t("Ogni mese paghi il canone del piano e una quota per ogni prenotazione dei tuoi clienti, con un bonifico istantaneo: nell'app trovi importo, IBAN e causale. Se il pagamento non arriva entro il giorno 3 del mese, l'app del centro si blocca finché non arriva.")}
       </Muted>
       <Field label={t('Nome del centro')} value={campo} onChangeText={setCampo} />
       <Field label={t('Email del titolare')} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" placeholder="nome@email.it" />
       <Body bold>{t('Piano')}</Body>
       <Chips items={(Object.keys(PLANS) as PlanId[]).map((id) => ({ value: id, label: PLANS[id].label }))} value={piano} onChange={setPiano} />
+      {!!prices[piano] && <Muted>{t('Piano {piano}: {prezzo}', { piano: PLANS[piano].label, prezzo: priceText(prices[piano]!) })}</Muted>}
+      <Muted style={{ fontSize: 13 }}>{t('Puoi cambiare piano quando vuoi dalle Impostazioni.')}</Muted>
+      <Field
+        label={t('IBAN da cui paghi (facoltativo)')}
+        value={iban}
+        onChangeText={setIban}
+        placeholder="IT60 X054 2811 1010 0000 0123 456"
+        autoCapitalize="characters"
+        autoCorrect={false}
+      />
       <ErrorText>{err}</ErrorText>
       <Button title={t('Continua')} onPress={submit} loading={busy} disabled={campo.trim().length < 2 || !email.includes('@')} />
       <Button small kind="ghost" title={t('Ho già un codice')} onPress={onBack} disabled={busy} />

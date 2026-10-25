@@ -15,7 +15,11 @@ export type Centro = {
   stato: 'mandato' | 'progetto' | 'avvio' | 'database' | 'chiavi' | 'licenza' | 'pronto' | 'errore';
   errore: string;
   tentativi: number;
-  tariffa_cents: number;
+  /** Quota per prenotazione e canone mensile fatti apposta per il centro; null = quelli del piano. */
+  tariffa_cents: number | null;
+  canone_cents: number | null;
+  /** IBAN da cui il centro fa i bonifici, per riconoscerli. */
+  iban: string;
   stripe_cliente: string | null;
   stripe_metodo: string | null;
   stripe_conto: string | null;
@@ -27,6 +31,7 @@ export type Centro = {
   licenza: string;
   scade: string | null;
   sospeso: boolean;
+  creato: string;
 };
 
 const CORS = {
@@ -59,3 +64,15 @@ export const messaggio = (e: unknown) => (e instanceof Error ? e.message : Strin
 
 /** Oggi a Roma, AAAA-MM-GG. */
 export const oggi = (d = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(d);
+
+/** Il ruolo di chi chiama, letto dal database del centro con il suo accesso (null se non ha accesso). */
+export async function ruolo(c: Centro, token: string) {
+  if (!token || !c.url) return null;
+  const h = { apikey: c.chiave ?? '', Authorization: `Bearer ${token}` };
+  const u = await fetch(`${c.url}/auth/v1/user`, { headers: h });
+  if (!u.ok) return null;
+  const { id } = await u.json();
+  const p = await fetch(`${c.url}/rest/v1/profiles?select=role&id=eq.${encodeURIComponent(id)}`, { headers: h });
+  const [profilo] = p.ok ? await p.json() : [];
+  return (profilo?.role as string | undefined) ?? null;
+}

@@ -1,7 +1,7 @@
-import type { AdminCentre, AdminData, Charge } from '@/lib/gestore-admin';
+import type { AdminCentre, AdminData, Charge, PlanRow } from '@/lib/gestore-admin';
 
 // Demo del pannello K9 Gestore: centri e addebiti finti, tutto nel dispositivo, senza server.
-// Le azioni (piano, tariffa, rinnovo, sospensione...) cambiano i dati finti finché la pagina resta aperta.
+// Le azioni (piano, prezzi, IBAN, rinnovo, sospensione...) cambiano i dati finti finché la pagina resta aperta.
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const dayKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -9,7 +9,15 @@ const monthOf = (d: Date, delta: number) => {
   const x = new Date(d.getFullYear(), d.getMonth() + delta, 1);
   return `${x.getFullYear()}-${pad(x.getMonth() + 1)}`;
 };
-const endOfMonth = (d: Date, delta: number) => dayKey(new Date(d.getFullYear(), d.getMonth() + delta + 1, 0));
+/** Il giorno 3 del mese (delta = 1: del mese dopo): fin lì vale la licenza. */
+const dayThree = (d: Date, delta: number) => dayKey(new Date(d.getFullYear(), d.getMonth() + delta, 3));
+
+const PIANI: PlanRow[] = [
+  { piano: 'base', canone_cents: 0, tariffa_cents: 100 },
+  { piano: 'professional', canone_cents: 1900, tariffa_cents: 80 },
+  { piano: 'pro', canone_cents: 3900, tariffa_cents: 60 },
+];
+const price = (p: AdminCentre['piano']) => PIANI.find((x) => x.piano === p)!;
 
 type Seed = [campo: string, città: string, piano: AdminCentre['piano'], stato: AdminCentre['stato'], mesiFa: number, base: number];
 
@@ -36,16 +44,17 @@ function build(): AdminData {
     piano,
     stato,
     errore: stato === 'errore' ? 'Supabase 402 su POST /projects: raggiunto il limite dei progetti gratuiti.' : '',
-    tariffa_cents: i === 0 ? 80 : 100,
-    stripe_metodo: stato === 'mandato' ? null : `pm_demo_${i}`,
+    tariffa_cents: i === 0 ? 50 : null,
+    canone_cents: null,
+    iban: i % 2 === 0 && stato === 'pronto' ? `IT${String(10 + i)}X05428111010000001234${String(50 + i)}` : '',
     stripe_conto: stato === 'pronto' && i % 3 !== 2 ? `acct_demo_${i}` : null,
     stripe_attivo: stato === 'pronto' && i % 3 === 0,
-    scade: stato === 'pronto' ? (i === 4 ? endOfMonth(now, 0) : endOfMonth(now, 1)) : null,
+    scade: stato === 'pronto' ? (i === 4 ? dayThree(now, 0) : dayThree(now, 1)) : null,
     sospeso: false,
     creato: `${monthOf(now, -Math.max(mesiFa, 0))}-0${(i % 8) + 1}T10:00:00Z`,
   }));
   const addebiti: Charge[] = [];
-  SEEDS.forEach(([, , , stato, mesiFa, base], i) => {
+  SEEDS.forEach(([, , piano, stato, mesiFa, base], i) => {
     if (stato !== 'pronto') return;
     for (let k = Math.min(mesiFa, 12); k >= 1; k--) {
       const mese = monthOf(now, -k);
@@ -55,19 +64,47 @@ function build(): AdminData {
       const n = Math.round(base * stagione * (1 + (mesiFa - k) * 0.06) * (0.9 + ((i * 7 + k * 3) % 5) * 0.05));
       const ultimo = k === 1;
       const statoAddebito: Charge['stato'] = ultimo && i === 4 ? 'non_pagato' : ultimo && i % 2 === 0 ? 'inviato' : 'pagato';
+      const p = price(piano);
+      const codice = centri[i].codice;
+      const [y, mm] = mese.split('-').map(Number);
       addebiti.push({
         id: `a-${i}-${mese}`,
         centro: `demo-${i}`,
         mese,
         prenotazioni: n,
-        importo_cents: n * (i === 0 ? 80 : 100),
+        canone_cents: p.canone_cents,
+        importo_cents: p.canone_cents + n * (i === 0 ? 50 : p.tariffa_cents),
         stato: statoAddebito,
-        fattura: `in_demo_${i}_${k}`,
-        errore: statoAddebito === 'non_pagato' ? 'Addebito SEPA rifiutato dalla banca: fondi insufficienti.' : '',
+        fattura: null,
+        errore: '',
+        scadenza: dayKey(new Date(y, mm, 3)),
+        causale: `${codice} ${mese}`,
+        pagato_il: statoAddebito === 'pagato' ? dayKey(new Date(y, mm, 1 + (i % 3))) : null,
       });
     }
   });
-  return { oggi: dayKey(now), centri, addebiti };
+  return {
+    oggi: dayKey(now),
+    centri,
+    addebiti,
+    piani: PIANI.map((x) => ({ ...x })),
+    banca: {
+      bonifico_iban: 'IT60X0542811101000000123456',
+      bonifico_intestatario: 'Edoardo Domenichini',
+      banca: 'Banca Demo',
+      paese: 'IT',
+      tipo: 'personal',
+      iban: 'IT60X0542811101000000123456',
+      valido_fino: `${dayThree(now, 4)}T00:00:00Z`,
+      ultimo_controllo: new Date(now.getTime() - 2 * 3600_000).toISOString(),
+      errore: '',
+      collegata: true,
+      abilitata: true,
+    },
+    movimenti: [
+      { id: 'm-1', data: dayKey(now), importo_cents: 4100, iban: 'IT02L1234512345123456789012', nome: 'ASD Cani Felici', causale: 'K9 abbonamento', centro: null },
+    ],
+  };
 }
 
 let data: AdminData | null = null;
@@ -85,11 +122,38 @@ export async function demoCall<T>(azione: string, b: Record<string, unknown>): P
     case 'piano':
       set({ piano: b.piano as AdminCentre['piano'] });
       break;
-    case 'tariffa':
-      set({ tariffa_cents: Number(b.cents) });
+    case 'centro': {
+      const patch: Partial<AdminCentre> = {};
+      if (b.iban !== undefined) patch.iban = String(b.iban);
+      if (b.canone_cents !== undefined) patch.canone_cents = b.canone_cents as number | null;
+      if (b.tariffa_cents !== undefined) patch.tariffa_cents = b.tariffa_cents as number | null;
+      set(patch);
       break;
+    }
+    case 'prezzi':
+      d.piani = d.piani.map((x) => (x.piano === b.piano ? { ...x, canone_cents: Number(b.canone_cents), tariffa_cents: Number(b.tariffa_cents) } : x));
+      break;
+    case 'conto':
+      d.banca = { ...d.banca, bonifico_iban: String(b.iban), bonifico_intestatario: String(b.intestatario) };
+      break;
+    case 'banche':
+      return { banche: ['Banca Demo', 'BPER Banca', 'Intesa Sanpaolo', 'UniCredit', 'Fineco', 'Banca Sella'].map((nome) => ({ nome, paese: 'IT', tipi: ['personal', 'business'] })) } as T;
+    case 'collega_banca':
+      throw new Error('Nella demo non ci si collega a una banca vera.');
+    case 'controlla':
+      d.banca = { ...d.banca, ultimo_controllo: new Date().toISOString() };
+      return { letti: 3, nuovi: 0, abbinati: 0, non_riconosciuti: 0 } as T;
+    case 'abbina': {
+      const a = d.addebiti.find((x) => x.id === b.addebito);
+      if (a) {
+        d.addebiti = d.addebiti.map((x) => (x.id === a.id ? { ...x, stato: 'pagato', pagato_il: dayKey(today) } : x));
+        d.centri = d.centri.map((x) => (x.id === a.centro ? { ...x, scade: dayThree(today, 1) } : x));
+      }
+      d.movimenti = d.movimenti.filter((x) => x.id !== b.movimento);
+      break;
+    }
     case 'rinnova':
-      set({ scade: endOfMonth(today, 1) > (c?.scade ?? '') ? endOfMonth(today, 1) : c?.scade });
+      set({ scade: dayThree(today, 1) > (c?.scade ?? '') ? dayThree(today, 1) : c?.scade });
       break;
     case 'sospendi':
       set({ sospeso: !!b.sospeso });
@@ -97,13 +161,13 @@ export async function demoCall<T>(azione: string, b: Record<string, unknown>): P
     case 'riprova':
       set({ stato: 'avvio', errore: '' });
       // Nella demo la preparazione finisce da sola dopo qualche secondo.
-      setTimeout(() => (d.centri = d.centri.map((x) => (x.id === b.id ? { ...x, stato: 'pronto', scade: endOfMonth(today, 1), stripe_metodo: x.stripe_metodo } : x))), 8000);
+      setTimeout(() => (d.centri = d.centri.map((x) => (x.id === b.id ? { ...x, stato: 'pronto', scade: dayThree(today, 1) } : x))), 8000);
       break;
     case 'pagato': {
       const a = d.addebiti.find((x) => x.id === b.addebito);
       if (a) {
-        d.addebiti = d.addebiti.map((x) => (x.id === a.id ? { ...x, stato: 'pagato', errore: '' } : x));
-        d.centri = d.centri.map((x) => (x.id === a.centro ? { ...x, scade: endOfMonth(today, 1) } : x));
+        d.addebiti = d.addebiti.map((x) => (x.id === a.id ? { ...x, stato: 'pagato', errore: '', pagato_il: dayKey(today) } : x));
+        d.centri = d.centri.map((x) => (x.id === a.centro ? { ...x, scade: dayThree(today, 1) } : x));
       }
       break;
     }

@@ -3,10 +3,11 @@ import { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
 
 import { RegisterCentre, registrationPending } from '@/components/register-centre';
+import { BlockedDues } from '@/components/subscription-panel';
 import { Body, Button, Card, ErrorText, Field, H1, LangMenu, Muted, Row } from '@/components/ui';
 import { gestoreEnabled } from '@/lib/gestore';
 import { t } from '@/lib/i18n';
-import { useLicense } from '@/lib/license-gate';
+import { storedCentre, useLicense } from '@/lib/license-gate';
 import { useColors } from '@/lib/theme';
 
 /** Primo avvio dell'app venduta: si apre con il codice di licenza del centro. */
@@ -41,6 +42,7 @@ export function Activate({ reason }: { reason: string }) {
         <RegisterCentre onBack={() => setRegistering(false)} />
       ) : (
         <>
+          {!!reason && <BlockedDues code={storedCentre()} />}
           <Card>
             <Muted>
               {gestoreEnabled

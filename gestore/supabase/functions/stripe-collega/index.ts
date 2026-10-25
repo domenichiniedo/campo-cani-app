@@ -4,19 +4,8 @@
 // Risponde con lo stato del conto e, finché il centro non ha finito di inserire i suoi dati, con il link
 // alla pagina di Stripe dove farlo (documento, partita IVA, IBAN: per legge li chiede Stripe, non noi).
 
-import { db, funzione, json, messaggio, preflight, type Centro } from '../_shared/comune.ts';
+import { db, funzione, json, messaggio, preflight, ruolo, type Centro } from '../_shared/comune.ts';
 import { stripe } from '../_shared/stripe.ts';
-
-/** Il ruolo di chi chiama, letto dal database del centro con il suo accesso. */
-async function ruolo(c: Centro, token: string) {
-  const h = { apikey: c.chiave ?? '', Authorization: `Bearer ${token}` };
-  const u = await fetch(`${c.url}/auth/v1/user`, { headers: h });
-  if (!u.ok) return null;
-  const { id } = await u.json();
-  const p = await fetch(`${c.url}/rest/v1/profiles?select=role&id=eq.${encodeURIComponent(id)}`, { headers: h });
-  const [profilo] = p.ok ? await p.json() : [];
-  return (profilo?.role as string | undefined) ?? null;
-}
 
 Deno.serve(async (req) => {
   const pre = preflight(req);

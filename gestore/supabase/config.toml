@@ -1,6 +1,7 @@
 # Server gestore di K9 Manager: un progetto Supabase tuo, separato da quelli dei centri (vedi gestore/README.md).
 # Le funzioni si chiamano senza accesso Supabase: ognuna controlla da sé chi la chiama
-# (parola segreta di pg_cron, firma di Stripe, accesso del proprietario al database del suo centro).
+# (parola segreta di pg_cron, firma di Stripe, accesso del proprietario al database del suo centro,
+# parola casuale del collegamento alla banca).
 
 [functions.registra-centro]
 verify_jwt = false
@@ -21,4 +22,13 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.pannello]
+verify_jwt = false
+
+[functions.controlla-bonifici]
+verify_jwt = false
+
+[functions.banca]
+verify_jwt = false
+
+[functions.abbonamento]
 verify_jwt = false
