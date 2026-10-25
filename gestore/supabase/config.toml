@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.invito]
 verify_jwt = false
+
+[functions.pagamento]
+verify_jwt = false

@@ -269,7 +269,12 @@ export default function OwnerSettings() {
 
   // Nel programma per Windows i paragrafi stanno nel menu a sinistra e se ne vede uno alla volta.
   const open = useSections('settings', [
-    ...(licensingEnabled ? [{ id: 'licenza', title: t('Licenza') }] : []),
+    ...(licensingEnabled
+      ? [
+          { id: 'licenza', title: t('Licenza') },
+          { id: 'piano', title: t('Piano e abbonamento') },
+        ]
+      : []),
     { id: 'centro', title: t('Centro e logo') },
     { id: 'campi', title: t('Campi') },
     { id: 'trainer', title: t('Trainer') },
@@ -304,6 +309,12 @@ export default function OwnerSettings() {
         <>
           <Step title={t('Licenza')} />
           <LicensePanel />
+        </>
+      )}
+
+      {licensingEnabled && show('piano') && (
+        <>
+          <Step title={t('Piano e abbonamento')} />
           <SubscriptionPanel />
         </>
       )}

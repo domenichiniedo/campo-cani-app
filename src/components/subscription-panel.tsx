@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { PayNow } from '@/components/pay-now';
 import { TransferBox } from '@/components/transfer';
 import { Badge, Body, Button, Card, Chips, ErrorText, Field, Muted, Row } from '@/components/ui';
 import { dayKey, euro, today } from '@/lib/format';
 import { cancelSubscription, changePlan, gestoreEnabled, keepSubscription, isCentreCode, setCentreIban, subscription, subscriptionCode, type Due, type Formula, type PlanPrice, type Subscription } from '@/lib/gestore';
 import { t } from '@/lib/i18n';
 import { useLicense } from '@/lib/license-gate';
-import { PLAN_IDS, PLANS, type PlanId } from '@/lib/plans';
+import { PLAN_IDS, PLANS, usePlan, type PlanId } from '@/lib/plans';
 import { supabase } from '@/lib/supabase';
 import { formatIban, isValidIban, normalizeIban } from '@/lib/transfer';
 
@@ -52,7 +53,7 @@ export function FormulaPick({ value, onChange, price }: { value: Formula; onChan
 }
 
 /** Un addebito del mese da pagare con il bonifico istantaneo sul conto del gestore. */
-function DueTransfer({ due, to }: { due: Due; to: Subscription['bonifico'] }) {
+function DueTransfer({ due, to, code }: { due: Due; to: Subscription['bonifico']; code: string }) {
   const late = due.stato === 'non_pagato' || (!!due.scadenza && due.scadenza < dayKey(today()));
   const intro = [
     t('Canone e prenotazioni di {mese}: {n} prenotazioni.', { mese: month(due.mese), n: due.prenotazioni }),
@@ -80,8 +81,23 @@ function DueTransfer({ due, to }: { due: Due; to: Subscription['bonifico'] }) {
       holder={to.intestatario}
       iban={to.iban}
       cents={due.importo_cents}
-      reason={due.causale}
-    />
+      reason={due.causale}>
+      <PayNow code={code} due={due} />
+    </TransferBox>
+  );
+}
+
+/** Il piano di un centro con la licenza fatta a mano: si cambia con un codice nuovo del gestore. */
+function ManualPlan() {
+  const p = usePlan();
+  return (
+    <Card>
+      <Body bold>{t('Piano {piano}', { piano: p.label })}</Body>
+      <Muted style={{ fontSize: 13 }}>
+        {[t('Clienti: {n}', { n: limit(p.maxClients) }), t('Trainer: {n}', { n: limit(p.maxTrainers) }), t('Proprietari: {n}', { n: limit(p.maxOwners) }), t('Campi: {n}', { n: limit(p.maxFields) })].join(' · ')}
+      </Muted>
+      <Muted>{t('Per cambiare piano chiedi al gestore un nuovo codice di licenza e incollalo in Licenza.')}</Muted>
+    </Card>
   );
 }
 
@@ -116,7 +132,7 @@ export function SubscriptionPanel() {
     load();
   }, [load]);
 
-  if (!code) return null;
+  if (!code) return <ManualPlan />;
   if (!sub) return err ? <ErrorText>{err}</ErrorText> : null;
 
   const current = (sub.piano as PlanId) in PLANS ? (sub.piano as PlanId) : 'pro';
@@ -125,9 +141,13 @@ export function SubscriptionPanel() {
   const target = next ?? current;
   const chosen = pick ?? target;
   const formula: Formula = sub.formula ?? 'consumo';
-  const chosenFormula = pickFormula ?? formula;
-  const changed = chosen !== target || chosenFormula !== formula;
-  const smaller = PLAN_IDS.indexOf(chosen) < PLAN_IDS.indexOf(current);
+  const nextFormula = sub.formula_prossima ?? null;
+  const chosenFormula = pickFormula ?? nextFormula ?? formula;
+  const changed = chosen !== target || chosenFormula !== (nextFormula ?? formula);
+  // Un piano superiore vale da oggi; un piano più piccolo e il passaggio fra consumo e fisso dal mese prossimo.
+  const bigger = PLAN_IDS.indexOf(chosen) > PLAN_IDS.indexOf(current);
+  const later = !bigger && (chosen !== current || chosenFormula !== formula);
+  const formulaText = (f: Formula) => (f === 'fisso' ? t('Prezzo fisso') : t('A consumo'));
 
   async function change() {
     if (!armed) {
@@ -146,11 +166,23 @@ export function SubscriptionPanel() {
       setPickFormula(null);
       const e = r.piano !== current ? await activate(r.licenza) : '';
       if (e) setErr(e);
-      else if (r.piano_prossimo && r.piano_dal)
-        setMsg(t('Il piano {piano} parte dal {data}: fino ad allora resta il piano {attuale}.', { piano: PLANS[chosen].label, data: date(r.piano_dal), attuale: PLANS[current].label }));
-      else if (r.piano !== current)
-        setMsg(t("Piano {piano} attivo da oggi: i tuoi clienti lo ricevono alla prossima apertura dell'app.", { piano: PLANS[chosen].label }));
-      else setMsg(chosenFormula === 'fisso' ? t('Da oggi paghi il prezzo fisso.') : t('Da oggi paghi a consumo.'));
+      else
+        setMsg(
+          [
+            r.piano !== current ? t("Piano {piano} attivo da oggi: i tuoi clienti lo ricevono alla prossima apertura dell'app.", { piano: PLANS[chosen].label }) : '',
+            r.piano_dal && (r.piano_prossimo || r.formula_prossima)
+              ? t('Dal {data}: {cosa}.', {
+                  data: date(r.piano_dal),
+                  cosa: [r.piano_prossimo ? t('piano {piano}', { piano: PLANS[r.piano_prossimo as PlanId]?.label ?? r.piano_prossimo }) : '', r.formula_prossima ? formulaText(r.formula_prossima).toLowerCase() : '']
+                    .filter(Boolean)
+                    .join(', '),
+                })
+              : '',
+            !r.piano_prossimo && !r.formula_prossima && r.piano === current ? t('Cambio annullato: resta tutto com\'è.') : '',
+          ]
+            .filter(Boolean)
+            .join(' '),
+        );
     } catch (e) {
       setErr(t((e as Error).message));
     }
@@ -194,7 +226,7 @@ export function SubscriptionPanel() {
   return (
     <>
       {sub.da_pagare.map((d) => (
-        <DueTransfer key={d.id} due={d} to={sub.bonifico} />
+        <DueTransfer key={d.id} due={d} to={sub.bonifico} code={code} />
       ))}
       <Card>
         <Row style={{ justifyContent: 'space-between' }}>
@@ -204,6 +236,9 @@ export function SubscriptionPanel() {
         <Body>{t('Piano {piano}: {prezzo}', { piano: PLANS[current].label, prezzo: priceText(sub.piani[current], formula) })}</Body>
         {!!next && !!sub.piano_dal && (
           <Badge tone="warn">{t('Dal {data} passi al piano {piano}.', { data: date(sub.piano_dal), piano: PLANS[next].label })}</Badge>
+        )}
+        {!!nextFormula && !!sub.piano_dal && (
+          <Badge tone="warn">{t('Dal {data} paghi: {come}.', { data: date(sub.piano_dal), come: formulaText(nextFormula).toLowerCase() })}</Badge>
         )}
         {!!sub.disdetta && <Badge tone="bad">{t('Abbonamento disdetto: il servizio finisce il {data}.', { data: date(sub.disdetta) })}</Badge>}
         {!!sub.credito_cents && (
@@ -232,9 +267,12 @@ export function SubscriptionPanel() {
         {changed && (
           <>
             <Muted style={{ fontSize: 13 }}>
-              {smaller
-                ? t('Un piano più piccolo parte dal primo del mese prossimo: fino ad allora resta il piano {piano}.', { piano: PLANS[current].label })
-                : t('Il cambio vale da oggi: il canone e le prenotazioni di questo mese si dividono a giorni fra il piano di prima e quello nuovo.')}
+              {bigger
+                ? t('Il piano superiore vale da oggi: il canone e le prenotazioni di questo mese si dividono a giorni fra il piano di prima e quello nuovo.') +
+                  (chosenFormula !== formula ? ' ' + t('Il passaggio fra consumo e fisso parte dal primo del mese prossimo.') : '')
+                : later
+                  ? t('Il cambio parte dal primo del mese prossimo: fino ad allora resta tutto com\'è.')
+                  : t('Annulli il cambio già scelto: resta tutto com\'è.')}
             </Muted>
             <Button
               small
@@ -242,9 +280,11 @@ export function SubscriptionPanel() {
                 chosen === current
                   ? armed
                     ? t('Confermi?')
-                    : chosenFormula === 'fisso'
-                      ? t('Passa al prezzo fisso')
-                      : t('Passa a consumo')
+                    : chosenFormula === formula
+                      ? t('Annulla il cambio')
+                      : chosenFormula === 'fisso'
+                        ? t('Passa al prezzo fisso')
+                        : t('Passa a consumo')
                   : armed
                     ? t('Confermi il piano {piano}?', { piano: p.label })
                     : t('Passa al piano {piano}', { piano: p.label })
@@ -306,7 +346,7 @@ export function BlockedDues({ code }: { code: string }) {
   return (
     <>
       {sub.da_pagare.map((d) => (
-        <DueTransfer key={d.id} due={d} to={sub.bonifico} />
+        <DueTransfer key={d.id} due={d} to={sub.bonifico} code={code} />
       ))}
     </>
   );

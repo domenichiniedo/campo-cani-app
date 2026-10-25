@@ -40,6 +40,8 @@ export type AdminCentre = CentreBilling & {
   fisso_cents: number | null;
   /** Piano più piccolo scelto dal centro, che parte dal primo del mese dopo. */
   piano_prossimo?: 'base' | 'professional' | 'pro' | null;
+  /** Formula scelta dal centro, che parte dal primo del mese dopo. */
+  formula_prossima?: 'consumo' | 'fisso' | null;
   /** Disdetto: ultimo giorno del servizio. */
   disdetta?: string | null;
   /** IBAN da cui il centro paga, per riconoscere i suoi bonifici. */

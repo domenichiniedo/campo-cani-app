@@ -504,6 +504,7 @@
       var formula = localStorage.getItem('campo-demo-formula') === 'fisso' ? 'fisso' : 'consumo';
       var ORDINE = ['base', 'professional', 'pro'];
       var prossimo = localStorage.getItem('campo-demo-piano-prossimo') || null;
+      var formulaProssima = localStorage.getItem('campo-demo-formula-prossima') || null;
       var oggi = new Date();
       var giorno = function (d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
       var primoDopo = giorno(new Date(oggi.getFullYear(), oggi.getMonth() + 1, 1));
@@ -511,22 +512,23 @@
       if (a.azione === 'cambia') {
         if (!PREZZI[a.piano] || !lic[a.piano]) return json(400, { errore: 'Piano non valido.' });
         if (a.formula && a.formula !== 'consumo' && a.formula !== 'fisso') return json(400, { errore: 'Scegli a consumo o fisso.' });
-        formula = a.formula || formula;
-        prossimo = null;
-        // Come il gestore vero: un piano più piccolo parte dal primo del mese dopo.
-        if (ORDINE.indexOf(a.piano) < ORDINE.indexOf(piano)) prossimo = a.piano;
-        else piano = a.piano;
+        // Come il gestore vero: un piano superiore subito; un piano più piccolo e il passaggio fra consumo e fisso
+        // dal primo del mese dopo.
+        if (ORDINE.indexOf(a.piano) > ORDINE.indexOf(piano)) piano = a.piano;
+        prossimo = a.piano !== piano ? a.piano : null;
+        formulaProssima = a.formula && a.formula !== formula ? a.formula : null;
         try {
           localStorage.setItem('campo-cani-demo-piano', piano);
-          localStorage.setItem('campo-demo-formula', formula);
           if (prossimo) localStorage.setItem('campo-demo-piano-prossimo', prossimo); else localStorage.removeItem('campo-demo-piano-prossimo');
+          if (formulaProssima) localStorage.setItem('campo-demo-formula-prossima', formulaProssima); else localStorage.removeItem('campo-demo-formula-prossima');
         } catch (e) {}
         db.settings[0].license_code = lic[piano]; save();
       }
       if (a.azione === 'disdici') try { localStorage.setItem('campo-demo-disdetta', fineDopo); } catch (e) {}
+      if (a.azione === 'banche') return json(200, { banche: [] });
       if (a.azione === 'tieni') try { localStorage.removeItem('campo-demo-disdetta'); } catch (e) {}
       if (a.azione === 'iban') try { localStorage.setItem('campo-demo-iban-centro', String(a.iban || '')); } catch (e) {}
-      var out = { piano: piano, formula: formula, piano_prossimo: prossimo, piano_dal: prossimo ? primoDopo : null, disdetta: localStorage.getItem('campo-demo-disdetta') || null, disdetta_se_oggi: fineDopo, piani: PREZZI, iban_centro: localStorage.getItem('campo-demo-iban-centro') || '', scade: null,
+      var out = { piano: piano, formula: formula, piano_prossimo: prossimo, formula_prossima: formulaProssima, piano_dal: prossimo || formulaProssima ? primoDopo : null, disdetta: localStorage.getItem('campo-demo-disdetta') || null, disdetta_se_oggi: fineDopo, piani: PREZZI, iban_centro: localStorage.getItem('campo-demo-iban-centro') || '', scade: null,
         bonifico: { iban: 'IT60X0542811101000000123456', intestatario: 'K9 Manager' }, da_pagare: [],
         credito_cents: Number(localStorage.getItem('campo-demo-bonus') || 0) };
       if (a.azione === 'cambia') out.licenza = lic[piano];

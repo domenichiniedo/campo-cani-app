@@ -65,6 +65,8 @@ export type Subscription = {
   formula?: Formula;
   /** Il piano più piccolo già scelto, che parte il giorno piano_dal. */
   piano_prossimo?: string | null;
+  /** La formula già scelta, che parte anche lei il giorno piano_dal. */
+  formula_prossima?: Formula | null;
   piano_dal?: string | null;
   /** Disdetto: l'ultimo giorno del servizio. disdetta_se_oggi: quando finirebbe disdicendo oggi. */
   disdetta?: string | null;
@@ -89,6 +91,13 @@ export const changePlan = (codice: string, piano: string, formula: Formula, toke
 /** Disdetta con un mese di preavviso (solo con i conti pagati), o la disdetta annullata. */
 export const cancelSubscription = (codice: string, token: string) => call<Subscription>('abbonamento', { codice, azione: 'disdici' }, token);
 export const keepSubscription = (codice: string, token: string) => call<Subscription>('abbonamento', { codice, azione: 'tieni' }, token);
+
+/** Le banche da cui si può pagare con "Paga ora" (bonifico istantaneo già compilato); vuoto se il gestore non lo ha. */
+export const payBanks = (codice: string, token: string) => call<{ banche: { nome: string; paese: string }[] }>('abbonamento', { codice, azione: 'banche' }, token);
+
+/** Prepara il bonifico istantaneo di un addebito nella banca scelta: torna la pagina della banca dove confermarlo. */
+export const payNow = (codice: string, addebito: string, banca: { nome: string; paese: string }, token: string) =>
+  call<{ url: string }>('abbonamento', { codice, azione: 'paga', addebito, banca }, token);
 
 /** L'IBAN da cui il centro paga, per riconoscere i suoi bonifici. */
 export const setCentreIban = (codice: string, iban: string, token: string) => call<Subscription>('abbonamento', { codice, azione: 'iban', iban }, token);

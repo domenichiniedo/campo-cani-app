@@ -8,9 +8,12 @@
 //   iban    l'IBAN da cui il centro fa i bonifici, per riconoscerli anche senza causale
 //   disdici disdetta con un mese di preavviso, solo con i conti pagati: il servizio finisce alla fine del mese dopo
 //   tieni   annulla la disdetta, finché il servizio non è finito
+//   banche  le banche da cui si può usare "Paga ora" (vuoto se è spento)
+//   paga    "Paga ora": prepara il bonifico istantaneo di un addebito nella banca del centro e torna la sua pagina
 
 import { cambiaPiano, debiti, prezzi } from '../_shared/addebiti.ts';
-import { db, json, messaggio, oggi, preflight, ruolo, type Centro } from '../_shared/comune.ts';
+import { db, funzione, json, messaggio, oggi, preflight, ruolo, type Centro } from '../_shared/comune.ts';
+import { bancheConPagamento, disponi, pagaOraSpento } from '../_shared/paga.ts';
 import { fineDelMeseDopo, ibanValido, primoDelMeseDopo, type Formula, type Piano } from '../_shared/costi.ts';
 
 const PIANI: Piano[] = ['base', 'professional', 'pro'];
@@ -42,9 +45,10 @@ async function vedi(c: Centro) {
   return {
     piano: c.piano,
     formula: c.formula,
-    // Il piano più piccolo già scelto e da quando vale.
+    // Il piano più piccolo o la formula già scelti, e da quando valgono.
     piano_prossimo: c.piano_prossimo,
-    piano_dal: c.piano_prossimo ? primoDelMeseDopo(oggi()) : null,
+    formula_prossima: c.formula_prossima,
+    piano_dal: c.piano_prossimo || c.formula_prossima ? primoDelMeseDopo(oggi()) : null,
     // Disdetto: l'ultimo giorno del servizio; e da quando finirebbe se lo disdicesse oggi.
     disdetta: c.disdetta,
     disdetta_se_oggi: fineDelMeseDopo(oggi()),
@@ -91,6 +95,36 @@ Deno.serve(async (req) => {
         if (c.disdetta && c.disdetta < oggi()) return json({ errore: 'Il servizio è già finito: scrivi al gestore per riattivarlo.' }, 400);
         await db.from('centri').update({ disdetta: null, disdetta_chiesta: null }).eq('id', c.id);
         return json(await vedi({ ...c, disdetta: null }));
+      }
+      case 'banche':
+        return json({ banche: pagaOraSpento() ? [] : (await bancheConPagamento()).map(({ nome, paese }) => ({ nome, paese })) });
+      case 'paga': {
+        if (pagaOraSpento()) return json({ errore: 'Il pagamento dalla banca non è attivo: usa i dati del bonifico.' }, 400);
+        const { data: a } = await db
+          .from('addebiti')
+          .select('id, importo_cents, causale, stato')
+          .eq('id', String(body.addebito ?? ''))
+          .eq('centro', c.id)
+          .in('stato', ['inviato', 'non_pagato'])
+          .maybeSingle();
+        if (!a || !(a.importo_cents > 0)) return json({ errore: 'Questo conto è già pagato.' }, 400);
+        const banca = (await bancheConPagamento()).find((x) => x.nome === body.banca?.nome && x.paese === body.banca?.paese);
+        if (!banca) return json({ errore: 'Scegli la tua banca.' }, 400);
+        const { data: conto } = await db.from('banca').select('bonifico_iban, bonifico_intestatario').eq('id', 1).maybeSingle();
+        if (!conto?.bonifico_iban) return json({ errore: "Il gestore non ha ancora indicato l'IBAN per il pagamento. Riprova più tardi." }, 400);
+        const state = crypto.randomUUID();
+        const p = await disponi({
+          banca,
+          tipo: banca.tipo,
+          importo_cents: a.importo_cents,
+          iban: conto.bonifico_iban,
+          intestatario: conto.bonifico_intestatario || 'K9 Manager',
+          causale: a.causale,
+          state,
+          ritorno: funzione('pagamento'),
+        });
+        await db.from('pagamenti').insert({ centro: c.id, addebito: a.id, state, payment_id: p.payment_id, stato: 'RCVD' });
+        return json({ url: p.url });
       }
       case 'iban': {
         const iban = String(body.iban ?? '').toUpperCase().replace(/\s/g, '');

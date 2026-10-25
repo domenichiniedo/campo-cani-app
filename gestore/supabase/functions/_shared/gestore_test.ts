@@ -310,3 +310,11 @@ Deno.test('le build del pannello esistono nel repository e la prova controlla i 
     if (!errore) throw new Error(`accettata: ${JSON.stringify(b)}`);
   }
 });
+
+Deno.test('Paga ora: il bonifico istantaneo se la banca lo ha, se no il SEPA', async () => {
+  const { tipoBonifico } = await import('./paga.ts');
+  uguale(tipoBonifico([{ payment_type: 'SEPA', currencies: ['EUR'] }, { payment_type: 'INST_SEPA', currencies: ['EUR'] }]), 'INST_SEPA');
+  uguale(tipoBonifico([{ payment_type: 'BULK_SEPA', currencies: ['EUR'] }, { payment_type: 'SEPA', currencies: ['EUR'] }]), 'SEPA');
+  uguale(tipoBonifico([{ payment_type: 'DOMESTIC', currencies: ['SEK'] }]), null);
+  uguale(tipoBonifico(undefined), null);
+});

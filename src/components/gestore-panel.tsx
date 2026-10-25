@@ -943,6 +943,7 @@ function CentreRow({
             {x.stato === 'pronto' && <Badge tone={days !== null && days < 7 ? 'bad' : 'neutral'}>Licenza fino al {data(x.scade)}</Badge>}
             {credit > 0 && <Badge tone="ok">Bonus da scalare {euro(credit)}</Badge>}
             {!!x.piano_prossimo && <Badge tone="warn">Dal mese prossimo {PIANI.find((p) => p.value === x.piano_prossimo)?.label}</Badge>}
+            {!!x.formula_prossima && <Badge tone="warn">Dal mese prossimo {x.formula_prossima === 'fisso' ? 'prezzo fisso' : 'a consumo'}</Badge>}
             {!!x.disdetta && <Badge tone="bad">Disdetto: finisce il {data(x.disdetta)}</Badge>}
           </Row>
           {billing.length > 0 && <Muted style={{ fontSize: 13 }}>{billing.join('\n')}</Muted>}
@@ -994,10 +995,9 @@ function CentreRow({
                   <Button small kind="ghost" title="Togli la disdetta" onPress={() => run('centro', { disdetta: null })} loading={busy === 'centro'} />
                 </Row>
               )}
-              {!!x.piano_prossimo && (
+              {(!!x.piano_prossimo || !!x.formula_prossima) && (
                 <Muted style={{ fontSize: 13 }}>
-                  Ha scelto il piano {PIANI.find((p) => p.value === x.piano_prossimo)?.label} dal primo del mese prossimo. Se cambi il piano da qui vale subito e
-                  annulla quella scelta.
+                  Ha scelto un cambio dal primo del mese prossimo. Se cambi piano o come paga da qui vale subito e annulla quella scelta.
                 </Muted>
               )}
               <Body bold>Piano</Body>

@@ -1,5 +1,5 @@
 -- K9 Manager, server gestore: il prezzo fisso al mese, la quota sui pacchetti, il passaggio a un piano più
--- piccolo dal mese dopo e la disdetta con un mese di preavviso.
+-- piccolo dal mese dopo, la disdetta con un mese di preavviso e il pulsante "Paga ora".
 -- Ogni centro sceglie come pagare il suo piano:
 --   a consumo  canone al mese + quota per ogni prenotazione + il 2% del prezzo di ogni pacchetto attivato nel
 --              mese (le lezioni scalate da un pacchetto non pagano la quota per prenotazione);
@@ -23,11 +23,29 @@ alter table public.centri
   -- Prezzo fisso fatto apposta per il centro; null = quello del piano.
   add column fisso_cents int check (fisso_cents >= 0);
 
--- Un piano più piccolo scelto dall'app parte dal primo del mese dopo: fino ad allora resta quello di prima.
-alter table public.centri add column piano_prossimo text check (piano_prossimo in ('base', 'professional', 'pro'));
+-- Un piano più piccolo, o il passaggio fra consumo e fisso, scelti dall'app partono dal primo del mese dopo:
+-- fino ad allora resta quello di prima.
+alter table public.centri
+  add column piano_prossimo text check (piano_prossimo in ('base', 'professional', 'pro')),
+  add column formula_prossima text check (formula_prossima in ('consumo', 'fisso'));
 -- Disdetta: l'ultimo giorno pagato (la fine del mese dopo quello della richiesta). Si chiede solo con i conti
 -- pagati; il conto di quel mese arriva come sempre, poi la licenza non si rinnova più.
 alter table public.centri add column disdetta date, add column disdetta_chiesta timestamptz;
 
 -- Ogni cambio segna piano e formula dal giorno in cui valgono: i cambi già fatti erano tutti a consumo.
 alter table public.cambi_piano add column formula text not null default 'consumo' check (formula in ('consumo', 'fisso'));
+
+-- "Paga ora": il bonifico istantaneo già compilato che il centro conferma nella sua banca (Enable Banking,
+-- pagamento disposto). Una riga per ogni tentativo; state è la parola casuale del ritorno dalla banca.
+create table public.pagamenti (
+  id uuid primary key default gen_random_uuid(),
+  centro uuid not null references public.centri on delete cascade,
+  addebito uuid not null references public.addebiti on delete cascade,
+  state text not null unique,
+  payment_id text,
+  stato text not null default '',
+  errore text not null default '',
+  creato timestamptz not null default now()
+);
+create index on public.pagamenti (centro, creato);
+alter table public.pagamenti enable row level security;

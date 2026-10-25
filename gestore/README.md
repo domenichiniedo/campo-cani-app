@@ -13,7 +13,7 @@ oggi fai a mano con `tools/nuovo-centro.mjs`:
    prenotazione pagata al campo, con bonifico o con carta al centro, anche se poi è stata annullata, e il **2%**
    del prezzo di ogni pacchetto attivato (le lezioni scalate dal pacchetto non pagano la quota). **A prezzo
    fisso**: solo il fisso del piano. Il centro sceglie come pagare alla registrazione e lo cambia dall'app. Dal
-   conto si scala il **bonus** del centro, se ne ha. Il centro lo vede nell'app (Impostazioni → Licenza)
+   conto si scala il **bonus** del centro, se ne ha. Il centro lo vede nell'app (Impostazioni → Piano e abbonamento, e appena apre l'app)
    con il tuo IBAN, la causale (`K9-XXXXXX AAAA-MM`) e il codice QR, e ti paga con un **bonifico istantaneo**;
 4. ogni 6 ore il gestore legge i bonifici in entrata sul tuo conto (open banking con **Enable Banking**, solo
    lettura: non può muovere soldi), riconosce quelli dei centri dal codice nella causale o dall'IBAN e
@@ -56,6 +56,7 @@ al centro con la carta (Nexi) contano nel conto del mese come quelle pagate al c
 | `banca` | pagina di ritorno dalla tua banca quando colleghi il conto |
 | `abbonamento` | piano, prezzi e cosa pagare, dall'app del proprietario; cambio di piano |
 | `pannello` | i dati e le azioni del pannello K9 Gestore |
+| `pagamento` | pagina di ritorno dalla banca del centro dopo "Paga ora" |
 | `invito` | il link e il QR code che i centri danno ai clienti: su Android apre l'app già sul centro, o porta a scaricarla |
 
 ## Come si accende (una volta sola)
@@ -128,6 +129,13 @@ in chat, nell'app o su GitHub.
    Poi nel pannello, sezione **Banca**: scrivi il tuo IBAN e l'intestatario (quelli che vedono i centri), scegli la
    banca e premi **Collega**: entri nella tua banca e dai il permesso di sola lettura. Il permesso dura di solito
    90 o 180 giorni: quando scade il pannello te lo dice e lo ricolleghi con lo stesso bottone.
+
+   **"Paga ora" (facoltativo).** Con `PAGA_ORA=1` in `gestore.env` il centro, quando arriva il conto, tocca
+   **Paga ora**, sceglie la sua banca e trova il bonifico istantaneo già compilato: deve solo confermarlo (la
+   PSD2 vuole sempre la conferma di chi paga). Usa la stessa applicazione Enable Banking, ma per disporre
+   pagamenti in produzione Enable Banking chiede un contratto apposito (scrivi a support.api@enablebanking.com);
+   in modalità Sandbox lo provi subito. Aggiungi `https://<ref>.supabase.co/functions/v1/pagamento` ai redirect
+   URL dell'applicazione. Senza `PAGA_ORA` il centro vede solo i dati del bonifico e il codice QR, come prima.
 
 6. **Orari automatici.** Nel SQL Editor del gestore (Database → Extensions: attiva `pg_cron` e `pg_net`):
 

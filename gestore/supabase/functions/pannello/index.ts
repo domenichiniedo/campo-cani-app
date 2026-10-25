@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
         const [centri, addebiti, piani, banca, movimenti, codici, crediti] = await Promise.all([
           db
             .from('centri')
-            .select(`id, codice, campo, email, piano, formula, piano_prossimo, disdetta, stato, errore, tariffa_cents, canone_cents, fisso_cents, iban, scade, sospeso, creato, ${CAMPI_FATTURA.join(', ')}`)
+            .select(`id, codice, campo, email, piano, formula, piano_prossimo, formula_prossima, disdetta, stato, errore, tariffa_cents, canone_cents, fisso_cents, iban, scade, sospeso, creato, ${CAMPI_FATTURA.join(', ')}`)
             .order('creato', { ascending: false }),
           db
             .from('addebiti')

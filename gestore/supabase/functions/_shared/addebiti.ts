@@ -52,29 +52,8 @@ export async function cambi(centro: string): Promise<Cambio[]> {
   return (data ?? []) as Cambio[];
 }
 
-/**
- * Cambia il piano del centro, o come lo paga (a consumo o fisso), da oggi: lo segna per l'addebito (canone e
- * quote si dividono a giorni). Con un piano nuovo firma anche una licenza nuova con la stessa scadenza, che
- * l'app prende perché è più recente.
- * Dall'app un piano più piccolo parte dal primo del mese dopo (lo applica addebito-mensile): fino ad allora resta
- * quello di prima. Una nuova scelta annulla il passaggio già prenotato.
- */
-export async function cambiaPiano(c: Centro, piano: Piano, da: 'app' | 'pannello', formula: Formula = c.formula): Promise<Centro> {
-  const g = oggi();
-  if (c.piano_prossimo) {
-    await db.from('cambi_piano').delete().eq('centro', c.id).gt('dal', g);
-    await db.from('centri').update({ piano_prossimo: null }).eq('id', c.id);
-    c = { ...c, piano_prossimo: null };
-  }
-  if (da === 'app' && piuPiccolo(piano, c.piano)) {
-    if (formula !== c.formula) {
-      await db.from('centri').update({ formula }).eq('id', c.id);
-      await db.from('cambi_piano').insert({ centro: c.id, piano: c.piano, formula, dal: g, da });
-    }
-    await db.from('cambi_piano').insert({ centro: c.id, piano, formula, dal: primoDelMeseDopo(g), da });
-    await db.from('centri').update({ piano_prossimo: piano }).eq('id', c.id);
-    return { ...c, formula, piano_prossimo: piano };
-  }
+/** Cambia piano e formula da oggi, con la licenza nuova se il piano è cambiato. */
+async function subito(c: Centro, piano: Piano, formula: Formula, da: 'app' | 'pannello'): Promise<Centro> {
   if (c.piano === piano && c.formula === formula) return c;
   const nuovo = { ...c, piano, formula };
   const licenza = c.piano !== piano && c.stato === 'pronto' && c.scade ? await rinnova(nuovo, ambiente(), c.scade) : {};
@@ -84,17 +63,52 @@ export async function cambiaPiano(c: Centro, piano: Piano, da: 'app' | 'pannello
 }
 
 /**
- * Il primo del mese: i centri con un piano più piccolo prenotato ci passano, con la licenza nuova (cambi_piano
- * ha già la riga dal primo del mese, per l'addebito).
+ * Cambia il piano del centro, o come lo paga (a consumo o fisso): lo segna per l'addebito (canone e quote si
+ * dividono a giorni). Con un piano nuovo firma anche una licenza nuova con la stessa scadenza, che l'app prende
+ * perché è più recente.
+ * Dall'app un piano superiore vale da oggi; un piano più piccolo e il passaggio fra consumo e fisso partono dal
+ * primo del mese dopo (li applica addebito-mensile). Una nuova scelta annulla quella già prenotata. Dal pannello
+ * tutto vale da oggi.
+ */
+export async function cambiaPiano(c: Centro, piano: Piano, da: 'app' | 'pannello', formula: Formula = c.formula): Promise<Centro> {
+  const g = oggi();
+  if (c.piano_prossimo || c.formula_prossima) {
+    await db.from('cambi_piano').delete().eq('centro', c.id).gt('dal', g);
+    await db.from('centri').update({ piano_prossimo: null, formula_prossima: null }).eq('id', c.id);
+    c = { ...c, piano_prossimo: null, formula_prossima: null };
+  }
+  if (da === 'pannello') return await subito(c, piano, formula, da);
+  // Un piano superiore subito, con la formula di adesso.
+  if (piuPiccolo(c.piano, piano)) c = await subito(c, piano, c.formula, da);
+  if (c.piano === piano && c.formula === formula) return c;
+  await db.from('cambi_piano').insert({ centro: c.id, piano, formula, dal: primoDelMeseDopo(g), da });
+  const prossimi = { piano_prossimo: piano !== c.piano ? piano : null, formula_prossima: formula !== c.formula ? formula : null };
+  await db.from('centri').update(prossimi).eq('id', c.id);
+  return { ...c, ...prossimi };
+}
+
+/**
+ * Il primo del mese: i centri con un piano più piccolo o una formula prenotati ci passano, con la licenza nuova
+ * se cambia il piano (cambi_piano ha già la riga dal primo del mese, per l'addebito).
  */
 export async function applicaCambiPrenotati() {
   const g = oggi();
-  const { data } = await db.from('centri').select('*').not('piano_prossimo', 'is', null);
+  const { data } = await db.from('centri').select('*').or('piano_prossimo.not.is.null,formula_prossima.not.is.null');
   for (const c of (data ?? []) as Centro[]) {
-    const { data: ultimo } = await db.from('cambi_piano').select('piano').eq('centro', c.id).lte('dal', g).order('dal', { ascending: false }).order('creato', { ascending: false }).limit(1).maybeSingle();
-    if (ultimo?.piano !== c.piano_prossimo) continue;
-    const nuovo = { ...c, piano: c.piano_prossimo!, piano_prossimo: null };
-    const licenza = c.stato === 'pronto' && c.scade ? await rinnova(nuovo, ambiente(), c.scade) : {};
-    await db.from('centri').update({ piano: nuovo.piano, piano_prossimo: null, ...licenza }).eq('id', c.id);
+    const { data: ultimo } = await db
+      .from('cambi_piano')
+      .select('piano, formula')
+      .eq('centro', c.id)
+      .lte('dal', g)
+      .order('dal', { ascending: false })
+      .order('creato', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const piano = c.piano_prossimo ?? c.piano;
+    const formula = c.formula_prossima ?? c.formula;
+    if (ultimo?.piano !== piano || ultimo?.formula !== formula) continue;
+    const nuovo = { ...c, piano, formula, piano_prossimo: null, formula_prossima: null };
+    const licenza = piano !== c.piano && c.stato === 'pronto' && c.scade ? await rinnova(nuovo, ambiente(), c.scade) : {};
+    await db.from('centri').update({ piano, formula, piano_prossimo: null, formula_prossima: null, ...licenza }).eq('id', c.id);
   }
 }
