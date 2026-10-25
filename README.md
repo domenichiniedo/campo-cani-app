@@ -493,7 +493,7 @@ suoi dati. Per registrare un secondo centro cancella prima su supabase.com il pr
 
 Per la sezione **App e versioni** del pannello (le app da scaricare e i pulsanti per rifarle) crea su github.com →
 Settings → Developer settings → Fine-grained tokens un token solo per questo repository, con i permessi Actions (Read and
-write) e Contents (Read-only), salvalo nei secrets del repository come `GESTORE_GITHUB_TOKEN` e rilancia la prova
+write) e Contents (Read and write, per cancellare le versioni dal pannello), salvalo nei secrets del repository come `GESTORE_GITHUB_TOKEN` e rilancia la prova
 generale: lo copia lei nel gestore.
 
 Per **Password dimenticata** e la conferma dell'email serve un SMTP che mandi il codice: senza, Supabase manda solo un
