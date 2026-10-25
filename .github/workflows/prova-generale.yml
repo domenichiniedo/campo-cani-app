@@ -5,7 +5,7 @@
 # Una volta sola serve il secret SUPABASE_ACCESS_TOKEN, lo stesso di "Prova con database" (supabase.com → Account →
 # Access Tokens, poi qui in Settings → Secrets and variables → Actions).
 # Facoltativo, per la sezione "App e versioni" del pannello: il secret GESTORE_GITHUB_TOKEN, un token fine-grained di
-# GitHub solo per questo repository con i permessi Actions (Read and write) e Contents (Read-only). Il workflow lo
+# GitHub solo per questo repository con i permessi Actions (Read and write) e Contents (Read and write, per cancellare le versioni dal pannello). Il workflow lo
 # copia nei segreti del gestore come GITHUB_TOKEN.
 # Per le email con il codice (password dimenticata, conferma dell'email): i secret SMTP_USER e SMTP_PASS. Con Gmail
 # SMTP_USER è il tuo indirizzo e SMTP_PASS una "password per le app" (myaccount.google.com/apppasswords); per un altro

@@ -8,6 +8,7 @@ import { fineMese, firmaLicenza } from './licenza.ts';
 import { MIGRAZIONI } from './migrazioni.ts';
 import { passo, type Ambiente } from './passi.ts';
 import { cambiaPassword, passwordNonValida, passwordNuova } from './password.ts';
+import { accendiDatabase, databaseCentro, tuttiIDatabase } from './database.ts';
 
 const uguale = (a: unknown, b: unknown) => {
   if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(`atteso ${JSON.stringify(b)}, trovato ${JSON.stringify(a)}`);
@@ -344,4 +345,22 @@ Deno.test('cambio password dal pannello: solo la nuova, e chi era dentro esce', 
   const p = passwordNuova();
   uguale(p.length, 12);
   uguale(passwordNonValida(p), null);
+});
+
+Deno.test('database dal pannello: quanti sono, di chi, accesi e spenti', async () => {
+  const chiamate: string[] = [];
+  const api: Ambiente['api'] = async (method, path) => {
+    chiamate.push(`${method} ${path}`);
+    if (path === '/projects') return [{ id: 'gestoreref', name: 'K9 Gestore', status: 'ACTIVE_HEALTHY', region: 'eu-central-1' }, { id: 'centroref', name: 'K9 K9-ABCDEF', status: 'INACTIVE', region: 'eu-central-1' }];
+    if (path === '/projects/centroref') return { status: 'ACTIVE_HEALTHY', region: 'eu-central-1', database: { version: '17.4' } };
+    if (path.endsWith('/database/query')) return [{ byte: 5 * 1048576, tabelle: '[{"nome":"dogs","righe":3}]', utenti: 2 }];
+    return null;
+  };
+  const tutti = await tuttiIDatabase(api, [{ id: 'c1', campo: "L'Oasi", codice: 'K9-ABCDEF', progetto: 'centroref' }], 'gestoreref');
+  uguale(tutti.map((p) => [p.ref, p.gestore, p.centro?.codice ?? null, p.stato]), [['gestoreref', true, null, 'ACTIVE_HEALTHY'], ['centroref', false, 'K9-ABCDEF', 'INACTIVE']]);
+  const d = await databaseCentro(api, 'centroref', 3);
+  uguale([d.mb, d.utenti, d.tabelle, d.postgres, d.migrazioni], [5, 2, [{ nome: 'dogs', righe: 3 }], '17.4', 3]);
+  await accendiDatabase(api, 'centroref', true);
+  await accendiDatabase(api, 'centroref', false);
+  uguale(chiamate.slice(-2), ['POST /projects/centroref/restore', 'POST /projects/centroref/pause']);
 });

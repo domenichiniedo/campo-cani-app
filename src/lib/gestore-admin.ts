@@ -49,6 +49,34 @@ export type AdminCentre = CentreBilling & {
   scade: string | null;
   sospeso: boolean;
   creato: string;
+  /** Il progetto Supabase del centro (null finché non è creato) e le migrazioni dell'app già caricate. */
+  progetto?: string | null;
+  migrazioni?: number;
+};
+
+/** Un progetto Supabase del tuo account: il database di un centro, del gestore o un altro tuo. */
+export type DbProject = {
+  ref: string;
+  nome: string;
+  stato: string;
+  regione: string;
+  creato: string | null;
+  centro: { id: string; campo: string; codice: string } | null;
+  gestore: boolean;
+};
+
+/** Il database di un centro: solo numeri, nessun dato dei clienti. righe è una stima di Postgres. */
+export type CentreDatabase = {
+  stato: string;
+  regione: string;
+  creato: string | null;
+  postgres: string;
+  mb: number;
+  utenti: number;
+  tabelle: { nome: string; righe: number }[];
+  migrazioni: number;
+  migrazioni_app: number;
+  link: string;
 };
 
 export type Charge = {
@@ -94,8 +122,8 @@ export type Bank = {
 export type Movement = { id: string; data: string; importo_cents: number; iban: string; nome: string; causale: string; centro: string | null };
 
 /** Un file da scaricare in una Release di GitHub. */
-export type ReleaseFile = { nome: string; url: string; mb: number; scaricato: number; data: string };
-export type Release = { tag: string; titolo: string; data: string; note: string; file: ReleaseFile[] };
+export type ReleaseFile = { id: number; nome: string; url: string; mb: number; scaricato: number; data: string };
+export type Release = { id: number; tag: string; titolo: string; data: string; note: string; file: ReleaseFile[] };
 /** Una build di GitHub Actions: stato queued/in_progress/completed, esito success/failure/cancelled. */
 export type BuildRun = { id: number; nome: string; stato: string; esito: string | null; quando: string; url: string; titolo: string };
 /** Le app su GitHub; abilitato = c'è il token di GitHub sul gestore. */

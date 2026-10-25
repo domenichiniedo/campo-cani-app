@@ -7,8 +7,9 @@ import { bancaSpenta, enableBanking } from '../_shared/banca.ts';
 import { controllaBonifici, segnaPagati } from '../_shared/bonifici.ts';
 import { db, env, funzione, json, messaggio, oggi, preflight, type Centro } from '../_shared/comune.ts';
 import { ibanValido, piuGiorni, type Piano } from '../_shared/costi.ts';
+import { accendiDatabase, databaseCentro, tuttiIDatabase } from '../_shared/database.ts';
 import { CAMPI_FATTURA, leggiFatturazione } from '../_shared/fatturazione.ts';
-import { githubSpento, lancia, LANCI, versioni, type Lancio } from '../_shared/github.ts';
+import { cancellaVersione, githubSpento, lancia, LANCI, versioni, type Lancio } from '../_shared/github.ts';
 import { cambiaPassword, passwordNuova } from '../_shared/password.ts';
 import { managementApi } from '../_shared/supabase-api.ts';
 
@@ -52,7 +53,7 @@ Deno.serve(async (req) => {
         const [centri, addebiti, piani, banca, movimenti, codici, crediti] = await Promise.all([
           db
             .from('centri')
-            .select(`id, codice, campo, email, piano, formula, piano_prossimo, formula_prossima, disdetta, stato, errore, tariffa_cents, canone_cents, fisso_cents, iban, scade, sospeso, creato, ${CAMPI_FATTURA.join(', ')}`)
+            .select(`id, codice, campo, email, piano, formula, piano_prossimo, formula_prossima, disdetta, stato, errore, tariffa_cents, canone_cents, fisso_cents, iban, scade, sospeso, creato, progetto, migrazioni, ${CAMPI_FATTURA.join(', ')}`)
             .order('creato', { ascending: false }),
           db
             .from('addebiti')
@@ -173,6 +174,25 @@ Deno.serve(async (req) => {
       case 'sospendi':
         await db.from('centri').update({ sospeso: !!b.sospeso }).eq('id', b.id);
         return json({ fatto: true });
+      case 'database': {
+        const c = await centro(b.id);
+        if (!c.progetto) throw new Error('Il database di questo centro non è ancora stato creato.');
+        return json(await databaseCentro(managementApi, c.progetto, c.migrazioni));
+      }
+      case 'database_tutti': {
+        const { data, error } = await db.from('centri').select('id, campo, codice, progetto');
+        if (error) throw new Error(error.message);
+        const gestore = new URL(env('SUPABASE_URL')).hostname.split('.')[0];
+        return json({ progetti: await tuttiIDatabase(managementApi, data ?? [], gestore) });
+      }
+      case 'database_accendi': {
+        // Solo i database dei centri: il gestore non si spegne da qui (il pannello smetterebbe di funzionare).
+        const c = await centro(b.id);
+        if (!c.progetto) throw new Error('Il database di questo centro non è ancora stato creato.');
+        await accendiDatabase(managementApi, c.progetto, !!b.acceso);
+        console.log(`Database ${b.acceso ? 'acceso' : 'spento'} da ${chi}: centro ${c.codice} (${c.progetto})`);
+        return json({ fatto: true });
+      }
       case 'password': {
         // La password nuova di chi entra nel centro (titolare, trainer o cliente): scritta da te o inventata qui.
         // Torna una volta sola, da comunicare tu; nel gestore resta solo chi l'ha cambiata e quando, nei log.
@@ -232,6 +252,11 @@ Deno.serve(async (req) => {
       case 'lancia':
         if (githubSpento()) throw new Error('Manca il segreto GITHUB_TOKEN sul gestore (vedi gestore/README.md).');
         await lancia(b.quale as Lancio, b);
+        return json({ fatto: true });
+      case 'cancella_versione':
+        if (githubSpento()) throw new Error('Manca il segreto GITHUB_TOKEN sul gestore (vedi gestore/README.md).');
+        await cancellaVersione(b);
+        console.log(`Versione cancellata da ${chi}: ${b.file !== undefined ? `file ${b.file}` : `release ${b.rilascio}`}`);
         return json({ fatto: true });
       case 'addebita': {
         const r = await fetch(funzione('addebito-mensile'), {
