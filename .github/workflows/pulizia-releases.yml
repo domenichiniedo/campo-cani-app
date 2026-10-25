@@ -1,0 +1,32 @@
+# Toglie dalle Releases le app rimaste indietro, che "Aggiorna le app" non rifà a ogni PR unita: la prova vecchia
+# (in pausa), la demo per Mac, la demo del pannello e la prova Pro. Si cancellano con il loro tag; si possono sempre
+# rifare dai loro workflow. Restano Prova generale, K9 Gestore, Demo per Android e Demo per Windows.
+# Actions → Pulizia delle Releases → Run workflow.
+name: Pulizia delle Releases
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  VECCHIE: prova-jnysclqgutqetrxitlez demo-mac pannello-demo demo-prova
+
+jobs:
+  pulizia:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancella le release vecchie
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for tag in $VECCHIE; do
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "Cancello $tag"
+              gh release delete "$tag" --yes --cleanup-tag
+            else
+              echo "$tag non c'è già più"
+            fi
+          done
