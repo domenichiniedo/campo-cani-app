@@ -15,6 +15,8 @@ export type Plan = {
   maxClients: number | null;
   /** Tipi di lezione prenotabili; null = senza limite. */
   maxLessonTypes: number | null;
+  /** Opzioni di ogni lezione (per esempio Pista, Obbedienza, Attacco); null = senza limite. */
+  maxOptions: number | null;
   /** Pacchetti richiedibili dai clienti; null = senza limite. */
   maxPackages: number | null;
   /** Trainer attivi; 0 = niente trainer, null = senza limite. */
@@ -37,6 +39,8 @@ export type Plan = {
   groups: boolean;
   /** Schede di valutazione del proprietario, compilate nel diario dei cani. */
   evals: boolean;
+  /** Schede di valutazione in uso; null = senza limite. */
+  maxEvalForms: number | null;
   /** Report mensile in Excel per email, l'ultimo venerdì del mese. */
   report: boolean;
   /** Il cliente scrive una nota per il centro quando prenota. */
@@ -48,8 +52,9 @@ export const PLANS: Record<PlanId, Plan> = {
     id: 'base',
     label: 'Base',
     maxFields: 1,
-    maxClients: 100,
+    maxClients: 60,
     maxLessonTypes: 3,
+    maxOptions: 2,
     maxPackages: 3,
     maxTrainers: 0,
     maxOwners: 1,
@@ -62,6 +67,7 @@ export const PLANS: Record<PlanId, Plan> = {
     desktop: false,
     groups: false,
     evals: false,
+    maxEvalForms: 0,
     report: false,
     notes: false,
   },
@@ -71,6 +77,7 @@ export const PLANS: Record<PlanId, Plan> = {
     maxFields: 2,
     maxClients: 100,
     maxLessonTypes: 5,
+    maxOptions: 5,
     maxPackages: 5,
     maxTrainers: 2,
     maxOwners: 3,
@@ -82,7 +89,8 @@ export const PLANS: Record<PlanId, Plan> = {
     receiptDevices: false,
     desktop: false,
     groups: false,
-    evals: false,
+    evals: true,
+    maxEvalForms: 3,
     report: false,
     notes: true,
   },
@@ -92,6 +100,7 @@ export const PLANS: Record<PlanId, Plan> = {
     maxFields: null,
     maxClients: null,
     maxLessonTypes: null,
+    maxOptions: null,
     maxPackages: null,
     maxTrainers: null,
     maxOwners: 10,
@@ -104,6 +113,7 @@ export const PLANS: Record<PlanId, Plan> = {
     desktop: true,
     groups: true,
     evals: true,
+    maxEvalForms: null,
     report: true,
     notes: true,
   },
@@ -121,7 +131,10 @@ export const planWith = (feature: { [K in keyof Plan]: Plan[K] extends boolean ?
   PLAN_IDS.map((id) => PLANS[id]).find((p) => p[feature])!.label;
 
 /** Il primo piano che permette più di `n` elementi di quel tipo (null se nessuno). */
-export const planAbove = (limit: 'maxFields' | 'maxClients' | 'maxLessonTypes' | 'maxPackages' | 'maxTrainers' | 'maxOwners', n: number) =>
+export const planAbove = (
+  limit: 'maxFields' | 'maxClients' | 'maxLessonTypes' | 'maxOptions' | 'maxPackages' | 'maxTrainers' | 'maxOwners' | 'maxEvalForms',
+  n: number,
+) =>
   PLAN_IDS.map((id) => PLANS[id]).find((p) => p[limit] === null || p[limit] > n)?.label ?? null;
 
 /** I primi `max` elementi (tutti se il piano non ha limite). */

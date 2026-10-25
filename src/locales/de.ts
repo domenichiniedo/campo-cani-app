@@ -858,6 +858,9 @@ const dict: Record<string, string> = {
   "Da oggi paghi a consumo.": "Ab heute zahlst du nach Nutzung.",
   "Passa al prezzo fisso": "Zum Festpreis wechseln",
   "Passa a consumo": "Zu Nach Nutzung wechseln",
+  "opzioni per lezione": "Optionen pro Stunde",
+  "schede in uso": "Bögen in Verwendung",
+  "{lezione}: il piano {piano} comprende fino a {max} opzioni per lezione.": "{lezione}: Der Tarif {piano} umfasst bis zu {max} Optionen pro Stunde.",
 };
 
 export default dict;

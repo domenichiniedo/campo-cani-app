@@ -217,13 +217,16 @@ export default function OwnerSettings() {
       const seats = ty.group ? Number(ty.seats) : null;
       if (seats !== null && (!Number.isInteger(seats) || seats < 2 || seats > 50))
         return setErr(t('{lezione}: i posti della classe vanno da 2 a 50.', { lezione: ty.label }));
+      const options = ty.options.split(',').map((x) => x.trim()).filter(Boolean);
+      if (plan.maxOptions !== null && options.length > plan.maxOptions)
+        return setErr(t('{lezione}: il piano {piano} comprende fino a {max} opzioni per lezione.', { lezione: ty.label, piano: plan.label, max: plan.maxOptions }));
       typeRows.push({
         id: ty.id,
         label: ty.label.trim(),
         description: ty.description.trim(),
         duration_min: dur,
         price_cents: price,
-        options: ty.options.split(',').map((x) => x.trim()).filter(Boolean),
+        options,
         sort: i,
         active: ty.active,
         group_seats: seats,
@@ -478,6 +481,11 @@ export default function OwnerSettings() {
             {t('Per togliere una lezione spegni "Prenotabile": i clienti non la vedono più, ma restano le prenotazioni già fatte.')}
           </Muted>
           <LimitNote kind="maxLessonTypes" count={activeTypes} what={t('lezioni prenotabili')} />
+          <LimitNote
+            kind="maxOptions"
+            count={Math.max(0, ...types.map((ty) => ty.options.split(',').filter((x) => x.trim()).length))}
+            what={t('opzioni per lezione')}
+          />
           {!plan.groups && (
             <Muted style={{ fontSize: 13 }}>
               {t('Le lezioni di gruppo, con più cani nella stessa classe, sono nel piano {piano}. Per passare a un piano superiore chiedi un nuovo codice di licenza.', { piano: planWith('groups') })}

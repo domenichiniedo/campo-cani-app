@@ -5,7 +5,7 @@ import { Avatar } from '@/components/photo';
 import { Button, Chips, Dialog, ErrorText, Field, H1, Muted, Row } from '@/components/ui';
 import { cap, longDay } from '@/lib/format';
 import { t } from '@/lib/i18n';
-import { usePlan } from '@/lib/plans';
+import { upTo, usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
@@ -109,8 +109,8 @@ function useEvalForms(on: boolean) {
       .select('*')
       .eq('active', true)
       .order('sort')
-      .then(({ data }) => setForms((data ?? []) as EvalForm[]));
-  }, [on, plan.evals]);
+      .then(({ data }) => setForms(upTo((data ?? []) as EvalForm[], plan.maxEvalForms)));
+  }, [on, plan.evals, plan.maxEvalForms]);
   return forms;
 }
 
