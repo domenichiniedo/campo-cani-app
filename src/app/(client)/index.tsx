@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { CardPay } from '@/components/card-pay';
 import { TransferDetails } from '@/components/transfer';
 import { Badge, Body, Button, Card, Chips, ErrorText, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { addDays, cap, dayKey, euro, fromKey, hm, longDay, monthShort, slotDate, today, weekdayShort } from '@/lib/format';
@@ -40,9 +41,11 @@ export default function Book() {
   const [note, setNote] = useState('');
   const transfer = useTransfer();
   const canTransfer = !!transfer?.enabled;
-  const payNow = pay === 'transfer' && !canTransfer ? 'onsite' : pay;
+  const payNow = (pay === 'transfer' && !canTransfer) || (pay === 'online' && !settings?.online_payments) ? 'onsite' : pay;
   // La lezione appena prenotata con bonifico, per mostrare subito i dati da pagare.
   const [toPay, setToPay] = useState<{ booking: Booking; dog: string } | null>(null);
+  // La lezione appena prenotata da pagare con carta.
+  const [toCard, setToCard] = useState<Booking | null>(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const [done, setDone] = useState<string | null>(null);
@@ -114,9 +117,10 @@ export default function Book() {
           ? t('Paga con il bonifico qui sotto: trovi i dati anche in "Le mie lezioni".')
           : b.pay === 'onsite'
             ? t('Paghi al campo.')
-            : t('Pagamento online registrato.'),
+            : t('Paga con la carta qui sotto: se non lo fai adesso, trovi il pagamento anche in "Le mie lezioni".'),
     );
     setToPay(b.pay === 'transfer' && b.price_cents > 0 ? { booking: b, dog: dogName } : null);
+    setToCard(b.pay === 'online' && b.price_cents > 0 ? b : null);
     setNote('');
   }
 
@@ -193,6 +197,7 @@ export default function Book() {
           </Muted>
         </Card>
         {toPay && transfer && <TransferDetails booking={toPay.booking} dog={toPay.dog} cfg={transfer} />}
+        {toCard && <CardPay booking={toCard.id} cents={toCard.price_cents} />}
         <Button title={t('Vedi le mie lezioni')} onPress={() => { setDone(null); router.push('/bookings'); }} />
         <Button title={t("Prenota un'altra lezione")} kind="ghost" onPress={() => setDone(null)} />
       </Screen>
@@ -440,7 +445,7 @@ export default function Book() {
                 items={[
                   { value: 'onsite', label: t('Pago al campo') },
                   ...(canTransfer ? [{ value: 'transfer', label: t('Bonifico istantaneo') }] : []),
-                  { value: 'online', label: t('Pago online'), disabled: !settings?.online_payments },
+                  ...(settings?.online_payments ? [{ value: 'online', label: t('Carta (Nexi)') }] : []),
                 ]}
                 value={payNow}
                 onChange={(v) => setPay(v as 'onsite' | 'online' | 'transfer')}
@@ -449,7 +454,9 @@ export default function Book() {
             {!pack && payNow === 'transfer' && (
               <Muted style={{ fontSize: 13 }}>{t('Dopo la conferma ti mostriamo IBAN, importo e causale, con il QR per la tua banca.')}</Muted>
             )}
-            {!pack && !settings?.online_payments && <Muted style={{ fontSize: 12 }}>{t('Il pagamento online non è ancora attivo.')}</Muted>}
+            {!pack && payNow === 'online' && (
+              <Muted style={{ fontSize: 13 }}>{t('Dopo la conferma paghi con la carta sulla pagina sicura di Nexi.')}</Muted>
+            )}
             {plan.notes && (
               <Field
                 label={t('Nota per il centro (se vuoi)')}

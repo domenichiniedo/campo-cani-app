@@ -6,6 +6,7 @@ import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Muted, Row 
 import { euro, hm, timeOf } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import type { OwnerBooking } from '@/lib/owner';
+import { refundCard } from '@/lib/nexi';
 import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
@@ -120,6 +121,9 @@ export function OwnerBookingCard({
         />
         {b.pay === 'package' ? (
           <Badge tone="ok">{t('Dal pacchetto')}</Badge>
+        ) : b.pay === 'online' ? (
+          // Con la carta lo segna pagato Nexi, non il proprietario.
+          <Badge tone={b.paid ? 'ok' : 'warn'}>{b.paid ? t('Pagato con carta {prezzo} ✓', { prezzo: euro(b.price_cents) }) : t('Carta da pagare {prezzo}', { prezzo: euro(b.price_cents) })}</Badge>
         ) : (
           // Il bonifico si segna come pagato con ogni piano: solo il proprietario vede l'accredito.
           (plan.payments || b.pay === 'transfer') && (
@@ -138,7 +142,12 @@ export function OwnerBookingCard({
         <ConfirmButton
           title={inClass ? t('Togli dalla classe') : t('Annulla lezione')}
           onConfirm={() =>
-            run(() => supabase.from('bookings').update({ status: 'cancelled', cancelled_at: new Date().toISOString() }).eq('id', b.id))
+            run(async () => {
+              const r = await supabase.from('bookings').update({ status: 'cancelled', cancelled_at: new Date().toISOString() }).eq('id', b.id);
+              // Pagata con carta: il rimborso torna sulla carta del cliente.
+              if (!r.error && b.pay === 'online' && b.paid) await refundCard(b.id).catch((e: Error) => setErr(e.message));
+              return r;
+            })
           }
         />
       </Row>

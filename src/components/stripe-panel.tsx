@@ -1,7 +1,7 @@
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 
-import { Badge, Body, Button, ErrorText, Muted, Row } from '@/components/ui';
+import { Badge, Body, Button, Card, ErrorText, Muted, Row } from '@/components/ui';
 import { connectStripe, gestoreEnabled, isCentreCode } from '@/lib/gestore';
 import { t } from '@/lib/i18n';
 import { useLicense } from '@/lib/license-gate';
@@ -34,7 +34,7 @@ export function StripePanel() {
   }
 
   return (
-    <>
+    <Card>
       <Row style={{ justifyContent: 'space-between' }}>
         <Body bold>{t('Conto Stripe')}</Body>
         {status === 'attivo' && <Badge tone="ok">{t('Collegato')}</Badge>}
@@ -48,6 +48,6 @@ export function StripePanel() {
       {status !== 'attivo' && (
         <Button small kind="ghost" title={status ? t('Continua su Stripe') : t('Collega il conto Stripe')} onPress={connect} loading={busy} />
       )}
-    </>
+    </Card>
   );
 }

@@ -13,7 +13,7 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
    nel progetto apri **SQL Editor**, incolla tutto il file e premi **Run**. Crea in un colpo tabelle, regole di accesso,
    lezioni di partenza e spazi per logo e foto, e segna la tua email come quella del proprietario.
    `setup.sql` è solo per un progetto **nuovo**. Se il database esiste già, esegui solo le migrazioni nuove di
-   `supabase/migrations`, una volta ciascuna e in ordine (l'ultima è `0020_nota_bonifico_conferme.sql`).
+   `supabase/migrations`, una volta ciascuna e in ordine (l'ultima è `0021_nexi.sql`).
 3. In **Project Settings → API Keys** copia l'URL del progetto e la **Publishable key** (inizia con `sb_publishable_`).
    Non usare mai la Secret key nell'app.
 4. Copia il file `.env.example` in `.env.local` e incolla i due valori:
@@ -457,8 +457,19 @@ Quando la prova è finita puoi mettere in pausa o cancellare il progetto in Supa
   sbaglia. Alla soglia il cane viene sospeso; lo riattiva il proprietario.
 - Profilo: cambia la sua foto; nome e lezioni che segue li decide il centro.
 
-**Pagamento online.** È predisposto ma spento: i clienti pagano al campo. Per accenderlo serve collegare un conto Stripe e un
-piccolo servizio lato server, da fare a parte.
+**Metodi di pagamento.** I clienti possono sempre pagare al campo. In **Impostazioni → Metodi di pagamento** il
+proprietario apre anche il bonifico istantaneo (con il suo IBAN) e la carta con Nexi.
+
+La carta con Nexi per ora è **solo di prova**: la funzione parla con l'ambiente di prova di Nexi (XPay) e non addebita
+niente; si paga con le carte di prova di Nexi, per esempio
+VISA `4999 3402 6197 7289`, scadenza `12/30`, CVV `663`. Il cliente sceglie "Carta (Nexi)" quando prenota, paga sulla
+pagina sicura di Nexi e la lezione risulta pagata da sola (Nexi avvisa la funzione, che controlla l'ordine). Se la lezione
+pagata viene disdetta, il rimborso torna sulla carta. Per installarla nel progetto del centro:
+```sh
+supabase functions deploy nexi --no-verify-jwt
+```
+Senza altro usa la chiave pubblica di prova di Nexi; con un tuo account di prova puoi mettere la tua:
+`supabase secrets set NEXI_API_KEY=la_chiave_di_prova`. I dati della carta non passano mai dall'app né dal database.
 
 ## Sicurezza
 

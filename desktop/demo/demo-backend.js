@@ -449,6 +449,21 @@
     return json(200, shaped);
   }
 
+  // Carta con Nexi: nella demo il pagamento riesce subito, senza aprire la pagina di Nexi.
+  function nexi(headers, a) {
+    var p = me(headers);
+    if (!p) return json(401, { error: 'Accedi di nuovo.' });
+    if (a.azione === 'stato') return json(200, { pronto: true, prova: true });
+    var b = db.bookings.filter(function (x) { return x.id === a.booking && (x.user_id === p.id || p.role === 'owner'); })[0];
+    if (!b) return json(404, { error: 'Lezione non trovata.' });
+    if (a.azione === 'paga') {
+      if (!db.settings[0].online_payments || b.pay !== 'online' || b.status !== 'active') return json(400, { error: 'Il pagamento con carta non è attivo.' });
+      b.paid = true; save();
+      return json(200, { pagato: true, prova: true });
+    }
+    if (a.azione === 'rimborsa') return json(200, { rimborsato: b.paid === true });
+    return json(400, { error: 'Azione sconosciuta.' });
+  }
   function refund(b) {
     if (!b.package_id) return;
     db.client_packages.forEach(function (cp) { if (cp.id === b.package_id) cp.lessons_used = Math.max(cp.lessons_used - 1, 0); });
@@ -842,6 +857,7 @@
     if (path.indexOf('/auth/v1') === 0) return auth(method, path.slice(8), u, headers, body || {});
     if (path.indexOf('/rest/v1/rpc/') === 0) return rpc(path.slice(13), headers, body || {});
     if (path.indexOf('/rest/v1/') === 0) return rest(method, path.slice(9), u.searchParams, headers, body);
+    if (path === '/functions/v1/nexi') return nexi(headers, body || {});
     // Nella demo Fatture in Cloud e l'invio del report per email non sono collegati.
     if (path === '/functions/v1/report-mensile') return json(500, { error: 'Mancano RESEND_API_KEY o REPORT_FROM nei Secrets di Supabase' });
     if (path.indexOf('/functions/v1/') === 0) return json(500, { error: 'Manca il secret FIC_ACCESS_TOKEN' });

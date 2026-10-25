@@ -1,11 +1,13 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
+import { CardPay } from '@/components/card-pay';
 import { Avatar } from '@/components/photo';
 import { TransferDetails } from '@/components/transfer';
 import { Badge, Body, Button, Card, ConfirmButton, ErrorText, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { dayKey, euro, hm, longDay, slotDate, today } from '@/lib/format';
 import { t } from '@/lib/i18n';
+import { refundCard } from '@/lib/nexi';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useTransfer } from '@/lib/transfer';
@@ -26,6 +28,7 @@ export default function MyBookings() {
   const transfer = useTransfer();
   // La lezione di cui si stanno guardando i dati del bonifico.
   const [payOpen, setPayOpen] = useState<string | null>(null);
+  const [msg, setMsg] = useState('');
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -55,6 +58,7 @@ export default function MyBookings() {
     <Screen onRefresh={load} refreshing={loading}>
       <H1>{t('Le mie lezioni')}</H1>
       <ErrorText>{err}</ErrorText>
+      {!!msg && <Muted>{msg}</Muted>}
       {rows.length === 0 && !loading && <Muted>{t('Non hai lezioni in programma.')}</Muted>}
       {rows.map((b) => {
         const startsAt = slotDate(b.day, b.start_min);
@@ -88,7 +92,7 @@ export default function MyBookings() {
                   : b.paid
                     ? t('Pagato')
                     : b.pay === 'online'
-                      ? t('Online')
+                      ? t('Carta da pagare {prezzo}', { prezzo: euro(b.price_cents) })
                       : b.pay === 'transfer'
                         ? t('Bonifico da fare {prezzo}', { prezzo: euro(b.price_cents) })
                         : t('Al campo {prezzo}', { prezzo: euro(b.price_cents) })}
@@ -107,13 +111,22 @@ export default function MyBookings() {
                 {payOpen === b.id && <TransferDetails booking={b} dog={b.dogs?.name ?? ''} cfg={transfer} />}
               </>
             )}
+            {b.pay === 'online' && !b.paid && b.price_cents > 0 && <CardPay booking={b.id} cents={b.price_cents} onDone={load} card={false} />}
             {canCancel ? (
               <ConfirmButton
                 title={t('Disdici')}
                 onConfirm={async () => {
                   setErr('');
+                  setMsg('');
                   const { error } = await supabase.rpc('cancel_booking', { p_id: b.id });
                   if (error) setErr(errorText(error));
+                  // Pagata con carta: il rimborso torna sulla stessa carta.
+                  else if (b.pay === 'online' && b.paid) {
+                    await refundCard(b.id).then(
+                      (r) => r.rimborsato && setMsg(t('Lezione disdetta: il rimborso torna sulla tua carta.')),
+                      (e: Error) => setErr(e.message),
+                    );
+                  }
                   load();
                 }}
               />

@@ -10,6 +10,7 @@ import { SubscriptionPanel } from '@/components/subscription-panel';
 import { TransferPanel } from '@/components/transfer-panel';
 import { LicensePanel } from '@/components/license-panel';
 import { LimitNote } from '@/components/limit-note';
+import { NexiPanel } from '@/components/nexi-panel';
 import { OwnersPanel } from '@/components/owners-panel';
 import { PackagesEditor } from '@/components/packages-editor';
 import { Body, Button, Card, ErrorText, Field, H1, Muted, Row, Screen, Step, Toggle } from '@/components/ui';
@@ -381,15 +382,17 @@ export default function OwnerSettings() {
           <Field label={t('Disdetta fino a (ore prima)')} value={cancelHours} onChangeText={setCancelHours} keyboardType="number-pad" style={{ flex: 1, minWidth: 140 }} />
           <Field label={t('Sospendi alla penalità n° (0 = mai)')} value={penaltyLimit} onChangeText={setPenaltyLimit} keyboardType="number-pad" style={{ flex: 1, minWidth: 140 }} />
         </Row>
-        <Toggle label={t('Pagamento online')} value={settings.online_payments} onChange={() => {}} disabled />
-        <Muted style={{ fontSize: 13 }}>
-          {t('Il pagamento online si attiva dopo aver collegato un conto Stripe. Per ora i clienti pagano al campo.')}
-        </Muted>
-        <StripePanel />
       </Card>
+
+      <Step title={t('Metodi di pagamento')} />
+      <Muted>{t('I clienti possono sempre pagare al campo. Qui apri gli altri metodi che vuoi offrire.')}</Muted>
       <Card>
         <TransferPanel />
       </Card>
+      <Card>
+        <NexiPanel />
+      </Card>
+      <StripePanel />
 
       <Step title={t('Lezioni')} />
       {types.map((ty, i) => (
