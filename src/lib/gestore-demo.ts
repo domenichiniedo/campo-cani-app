@@ -177,7 +177,9 @@ const LANCI = [
 /** Releases e build finte, come le mostra GitHub. */
 function versions(): AppVersions {
   const ago = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
+  let n = 0;
   const file = (tag: string, nome: string, mb: number, scaricato: number, h: number) => ({
+    id: ++n,
     nome,
     url: `${REPO}/releases/download/${tag}/${nome}`,
     mb,
@@ -203,10 +205,10 @@ function versions(): AppVersions {
       run(6, 'Demo per Mac', 75, 'failure', 'Demo per Mac'),
     ],
     rilasci: [
-      { tag: 'demo-android', titolo: 'Demo per Android', data: ago(50), note: '', file: [file('demo-android', 'K9Manager-Demo.apk', 9.4, 128, 50), file('demo-android', 'K9Manager-Demo.aab', 8.1, 3, 50)] },
-      { tag: 'demo-windows', titolo: 'Demo per Windows', data: ago(50), note: '', file: [file('demo-windows', 'K9Manager-Windows-Demo.exe', 92.3, 41, 50)] },
-      { tag: 'prova-jnysclqgutqetrxitlez', titolo: 'Prova di K9 Manager – jnysclqgutqetrxitlez', data: ago(26), note: '', file: [file('prova-jnysclqgutqetrxitlez', 'K9Manager-Prova.apk', 9.5, 17, 26), file('prova-jnysclqgutqetrxitlez', 'K9Manager-Prova-Windows.exe', 92.4, 6, 26)] },
-      { tag: 'demo-mac', titolo: 'Demo per Mac', data: ago(300), note: '', file: [file('demo-mac', 'K9Manager-Mac-Demo.dmg', 118.0, 9, 300)] },
+      { id: 100, tag: 'demo-android', titolo: 'Demo per Android', data: ago(50), note: '', file: [file('demo-android', 'K9Manager-Demo.apk', 9.4, 128, 50), file('demo-android', 'K9Manager-Demo.aab', 8.1, 3, 50)] },
+      { id: 101, tag: 'demo-windows', titolo: 'Demo per Windows', data: ago(50), note: '', file: [file('demo-windows', 'K9Manager-Windows-Demo.exe', 92.3, 41, 50)] },
+      { id: 102, tag: 'prova-jnysclqgutqetrxitlez', titolo: 'Prova di K9 Manager – jnysclqgutqetrxitlez', data: ago(26), note: '', file: [file('prova-jnysclqgutqetrxitlez', 'K9Manager-Prova.apk', 9.5, 17, 26), file('prova-jnysclqgutqetrxitlez', 'K9Manager-Prova-Windows.exe', 92.4, 6, 26)] },
+      { id: 103, tag: 'demo-mac', titolo: 'Demo per Mac', data: ago(300), note: '', file: [file('demo-mac', 'K9Manager-Mac-Demo.dmg', 118.0, 9, 300)] },
     ],
   };
 }
@@ -353,6 +355,13 @@ export async function demoCall<T>(azione: string, b: Record<string, unknown>): P
       ver.build.unshift({ id: Date.now(), nome, stato: 'queued', esito: null, quando: new Date().toISOString(), url: `${REPO}/actions`, titolo: nome });
       break;
     }
+    case 'cancella_versione':
+      ver ??= versions();
+      ver.rilasci =
+        b.file !== undefined
+          ? ver.rilasci.map((r) => ({ ...r, file: r.file.filter((f) => f.id !== b.file) }))
+          : ver.rilasci.filter((r) => r.id !== b.rilascio);
+      break;
     case 'addebita': {
       const mese = typeof b.mese === 'string' && /^\d{4}-\d{2}$/.test(b.mese) ? b.mese : monthOf(today, -1);
       const centri = Object.fromEntries(

@@ -116,7 +116,7 @@ in chat, nell'app o su GitHub.
    `GITHUB_TOKEN` accende nel pannello la sezione **App e versioni**: i file delle Releases da scaricare, le ultime
    build e i pulsanti per rifare le app e creare una prova nuova. Su github.com → Settings → Developer settings →
    Personal access tokens → Fine-grained tokens creane uno con accesso **solo** al repository dell'app e i permessi
-   Actions (Read and write) e Contents (Read-only). Se il repository non è `domenichiniedo/campo-cani-app`, aggiungi
+   Actions (Read and write) e Contents (Read and write, per cancellare le versioni dal pannello). Se il repository non è `domenichiniedo/campo-cani-app`, aggiungi
    `GITHUB_REPO=proprietario/nome`.
 
    Il token di Supabase può creare progetti sul tuo account: tienilo solo qui. Ogni centro è un progetto,

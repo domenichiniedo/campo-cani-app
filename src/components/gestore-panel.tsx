@@ -647,6 +647,7 @@ function VersionsSection() {
   const [campo, setCampo] = useState('');
   const [email, setEmail] = useState('');
   const [giorni, setGiorni] = useState('30');
+  const [sure, setSure] = useState('');
 
   const load = useCallback(
     () =>
@@ -678,6 +679,23 @@ function VersionsSection() {
     setBusy('');
   }
 
+  /** Cancella una versione intera o un suo file: il primo tocco chiede conferma. */
+  async function remove(key: string, body: { rilascio: number } | { file: number }, what: string) {
+    if (sure !== key) return setSure(key);
+    setSure('');
+    setErr('');
+    setMsg('');
+    setBusy(key);
+    try {
+      await adminCall('cancella_versione', body);
+      setMsg(`Cancellato: ${what}.`);
+      await load();
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+    setBusy('');
+  }
+
   if (!v) return err ? <ErrorText>{err}</ErrorText> : <Muted>Carico le versioni…</Muted>;
   if (!v.abilitato) {
     return (
@@ -685,7 +703,7 @@ function VersionsSection() {
         <Body bold>Collega GitHub al gestore</Body>
         <Muted>
           Per vedere e rifare le app da qui serve un token di GitHub sul gestore: su github.com → Settings → Developer settings → Fine-grained tokens
-          creane uno solo per il repository dell&apos;app, con i permessi Actions (lettura e scrittura) e Contents (lettura). Poi salvalo nei segreti del
+          creane uno solo per il repository dell&apos;app, con i permessi Actions (lettura e scrittura) e Contents (lettura e scrittura, per cancellare le versioni). Poi salvalo nei segreti del
           gestore con il nome GITHUB_TOKEN (gestore/README.md, passo 3). Con la prova generale basta salvarlo su GitHub, in Settings → Secrets and
           variables → Actions, con il nome GESTORE_GITHUB_TOKEN, e rilanciare Actions → Prova generale. Non scriverlo in chat né nel codice.
         </Muted>
@@ -754,7 +772,17 @@ function VersionsSection() {
         <Card key={r.tag}>
           <Row style={{ justifyContent: 'space-between' }}>
             <Body bold>{r.titolo}</Body>
-            <Muted style={{ fontSize: 13 }}>aggiornata il {quando(r.data)}</Muted>
+            <Row>
+              <Muted style={{ fontSize: 13 }}>aggiornata il {quando(r.data)}</Muted>
+              <Button
+                small
+                kind="danger"
+                title={sure === `r${r.id}` ? 'Sicuro? Cancella tutto' : 'Cancella la versione'}
+                onPress={() => remove(`r${r.id}`, { rilascio: r.id }, `la versione ${r.titolo}`)}
+                loading={busy === `r${r.id}`}
+                disabled={!!busy}
+              />
+            </Row>
           </Row>
           {r.file.map((f) => (
             <Row key={f.nome} style={{ justifyContent: 'space-between' }}>
@@ -767,6 +795,14 @@ function VersionsSection() {
               <Row>
                 <Button small kind="ghost" title="Copia link" onPress={() => copyText(f.url).then(() => setMsg(`Link di ${f.nome} copiato.`))} />
                 <Button small title="Scarica" onPress={() => Linking.openURL(f.url)} />
+                <Button
+                  small
+                  kind="danger"
+                  title={sure === `f${f.id}` ? 'Sicuro?' : 'Cancella'}
+                  onPress={() => remove(`f${f.id}`, { file: f.id }, f.nome)}
+                  loading={busy === `f${f.id}`}
+                  disabled={!!busy}
+                />
               </Row>
             </Row>
           ))}

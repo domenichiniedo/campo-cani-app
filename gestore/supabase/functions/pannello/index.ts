@@ -9,7 +9,7 @@ import { db, env, funzione, json, messaggio, oggi, preflight, type Centro } from
 import { ibanValido, piuGiorni, type Piano } from '../_shared/costi.ts';
 import { accendiDatabase, databaseCentro, tuttiIDatabase } from '../_shared/database.ts';
 import { CAMPI_FATTURA, leggiFatturazione } from '../_shared/fatturazione.ts';
-import { githubSpento, lancia, LANCI, versioni, type Lancio } from '../_shared/github.ts';
+import { cancellaVersione, githubSpento, lancia, LANCI, versioni, type Lancio } from '../_shared/github.ts';
 import { cambiaPassword, passwordNuova } from '../_shared/password.ts';
 import { managementApi } from '../_shared/supabase-api.ts';
 
@@ -252,6 +252,11 @@ Deno.serve(async (req) => {
       case 'lancia':
         if (githubSpento()) throw new Error('Manca il segreto GITHUB_TOKEN sul gestore (vedi gestore/README.md).');
         await lancia(b.quale as Lancio, b);
+        return json({ fatto: true });
+      case 'cancella_versione':
+        if (githubSpento()) throw new Error('Manca il segreto GITHUB_TOKEN sul gestore (vedi gestore/README.md).');
+        await cancellaVersione(b);
+        console.log(`Versione cancellata da ${chi}: ${b.file !== undefined ? `file ${b.file}` : `release ${b.rilascio}`}`);
         return json({ fatto: true });
       case 'addebita': {
         const r = await fetch(funzione('addebito-mensile'), {
