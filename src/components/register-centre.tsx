@@ -89,7 +89,8 @@ export function RegisterCentre({ onBack }: { onBack: () => void }) {
     const i = normalizeIban(iban);
     const fErr = centreBillingError(fattura);
     if (fErr) return setErr(fErr);
-    if (i && !isValidIban(i)) return setErr(t('IBAN non valido.'));
+    if (!i) return setErr(t("Scrivi l'IBAN da cui paghi il piano."));
+    if (!isValidIban(i)) return setErr(t('IBAN non valido.'));
     setBusy(true);
     try {
       const r = await registerCentre(campo.trim(), email.trim().toLowerCase(), piano, hasFixed(prices) ? formula : 'consumo', i, cleanCentreBilling(fattura), bonus.trim().toUpperCase());
@@ -161,7 +162,7 @@ export function RegisterCentre({ onBack }: { onBack: () => void }) {
       <Muted style={{ fontSize: 13 }}>{t('Servono per la fattura del canone e delle prenotazioni.')}</Muted>
       <CentreBillingFields value={fattura} onChange={setFattura} />
       <Field
-        label={t('IBAN da cui paghi (facoltativo)')}
+        label={t('IBAN da cui paghi')}
         value={iban}
         onChangeText={setIban}
         placeholder="IT60 X054 2811 1010 0000 0123 456"

@@ -3,8 +3,8 @@
 Il gestore è il tuo server: un progetto Supabase tuo, separato da quelli dei centri. Fa da solo quello che
 oggi fai a mano con `tools/nuovo-centro.mjs`:
 
-1. un centro si registra dall'app (**Registra il tuo centro**): nome, email del titolare, piano e, se vuole,
-   l'IBAN da cui ti pagherà;
+1. un centro si registra dall'app (**Registra il tuo centro**): nome, email del titolare, piano e
+   l'IBAN da cui ti pagherà (obbligatorio);
 2. il gestore crea il suo progetto Supabase, carica tutte le tabelle, rende proprietaria quella email e
    firma la licenza con la **chiave del server**. Il centro riceve il codice corto (K9-XXXXXX) da dare a
    clienti e trainer;
