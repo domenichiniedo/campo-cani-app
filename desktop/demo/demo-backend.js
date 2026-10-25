@@ -89,7 +89,7 @@
     person('c1', 'Giulia', 'Rossi', '347 111 2233', 'cliente@demo.it', 'client', 'RSSGLI90C41A944Q');
     person('c2', 'Marco', 'Bianchi', '349 555 7788', 'marco@demo.it', 'client', 'BNCMRC85M12A944S');
     person('c3', 'Sara', 'Verdi', '338 222 4466', 'sara@demo.it', 'client', 'VRDSRA92E50A944C');
-    function dog(id, owner, name, breed, birth) { db.dogs.push({ id: id, owner_id: owner, name: name, breed: breed, birth: birth, blocked: false, archived: false }); }
+    function dog(id, owner, name, breed, birth) { db.dogs.push({ id: id, owner_id: owner, name: name, breed: breed, birth: birth, chip: '', blocked: false, archived: false }); }
     dog('d1', 'c1', 'Argo', 'Pastore tedesco', '2022-04-10');
     dog('d2', 'c1', 'Luna', 'Malinois', '2025-06-02');
     dog('d3', 'c2', 'Kira', 'Pastore belga', '2021-09-15');
@@ -387,7 +387,7 @@
     }
   }
   function defaults(table, row, who) {
-    var base = { dogs: { blocked: false, archived: false, breed: '', birth: null }, penalties: { created_at: nowIso() }, bookings: { created_at: nowIso() },
+    var base = { dogs: { blocked: false, archived: false, breed: '', birth: null, chip: '' }, penalties: { created_at: nowIso() }, bookings: { created_at: nowIso() },
       fields: { address: '', sort: 0, active: true }, eval_forms: { sort: 0, active: true }, packages: { lesson_type: null, valid_days: null, sort: 0, active: true }, trainers: { lessons: [], sort: 0, active: true } }[table] || {};
     var r = Object.assign({}, base, row);
     if (pk(table)[0] === 'id' && r.id === undefined) r.id = uid();
@@ -937,7 +937,7 @@
       // Come nel database vero: chi si iscrive con l'email di un trainer diventa trainer.
       db.trainer_accounts.forEach(function (x) { if (x.email === email && !x.user_id) { x.user_id = np.id; np.role = 'trainer'; } });
       if (db.owner_emails.some(function (x) { return x.email === email; })) np.role = 'owner';
-      (d.dogs || []).forEach(function (g) { db.dogs.push({ id: uid(), owner_id: np.id, name: g.name, breed: g.breed || '', birth: g.birth || null, blocked: false, archived: false }); });
+      (d.dogs || []).forEach(function (g) { db.dogs.push({ id: uid(), owner_id: np.id, name: g.name, breed: g.breed || '', birth: g.birth || null, chip: g.chip || '', blocked: false, archived: false }); });
       save();
       return json(200, sessionFor(np));
     }

@@ -274,6 +274,7 @@ function ClientDetail({ p, act }: { p: Client; act: Act }) {
               {d.blocked && <Badge tone="bad">{t('Sospeso')}</Badge>}
             </Row>
           </Row>
+          <Muted style={{ fontSize: 13 }}>{d.chip ? t('microchip {n}', { n: d.chip }) : t('Microchip non inserito')}</Muted>
           {d.penalties.map((pen) => (
             <Row key={pen.id} style={{ justifyContent: 'space-between' }}>
               <Muted style={{ fontSize: 13, flex: 1 }}>

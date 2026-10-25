@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { EmailCode } from '@/components/email-code';
 import { GoogleButton } from '@/components/google-button';
 import { PhotoPicker, saveSignupPhoto } from '@/components/photo';
-import { ConsentCard, DogCards, InvoiceCard, newDog, OptionalSection, SocialCheck, type DogDraft } from '@/components/signup-parts';
+import { ChipField, chipOk, cleanChip, ConsentCard, DogCards, InvoiceCard, newDog, OptionalSection, SocialCheck, type DogDraft } from '@/components/signup-parts';
 import { Button, Card, Chips, ErrorText, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingColumns, billingError, emptyBilling, type BillingDraft } from '@/lib/billing';
 import { isDayKey } from '@/lib/format';
@@ -43,6 +43,7 @@ export default function Register() {
     const bErr = asTrainer || !wantsInvoice ? null : billingError(billing);
     if (bErr) return setErr(bErr);
     if (!asTrainer && !cleanDogs.length) return setErr(t('Scrivi il nome del tuo cane.'));
+    if (cleanDogs.some((d) => !chipOk(d.chip))) return setErr(t('Il microchip ha 15 cifre: controllalo o lascialo vuoto.'));
     if (cleanDogs.some((d) => d.birth && !isDayKey(d.birth))) return setErr(t('Scrivi la data di nascita come AAAA-MM-GG, per esempio 2024-03-15.'));
     if (password.length < 8) return setErr(t('La password deve avere almeno 8 caratteri.'));
     if (!accepted) return setErr(t('Per iscriverti devi accettare il regolamento e l’informativa privacy.'));
@@ -68,7 +69,7 @@ export default function Register() {
           rules_ver: settings.rules_ver,
           privacy_ver: settings.privacy_ver,
           social_consent: !asTrainer && socialOk,
-          dogs: asTrainer ? [] : cleanDogs.map((d) => ({ name: d.name.trim(), breed: d.breed.trim(), birth: d.birth || null })),
+          dogs: asTrainer ? [] : cleanDogs.map((d) => ({ name: d.name.trim(), breed: d.breed.trim(), birth: d.birth || null, chip: cleanChip(d.chip) })),
         },
       },
     });
@@ -105,6 +106,7 @@ export default function Register() {
   }
 
   const setDogName = (name: string) => setDogs(dogs.map((d, i) => (i === 0 ? { ...d, name } : d)));
+  const setDogChip = (chip: string) => setDogs(dogs.map((d, i) => (i === 0 ? { ...d, chip } : d)));
 
   return (
     <Screen>
@@ -133,7 +135,12 @@ export default function Register() {
         <Field label={t('Telefono')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" />
         <Field label={t('Email')} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
         <Field label={t('Password (almeno 8 caratteri)')} value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
-        {!asTrainer && <Field label={t('Nome del cane')} value={dogs[0].name} onChangeText={setDogName} />}
+        {!asTrainer && (
+          <>
+            <Field label={t('Nome del cane')} value={dogs[0].name} onChangeText={setDogName} />
+            <ChipField value={dogs[0].chip} onChange={setDogChip} />
+          </>
+        )}
       </Card>
 
       <ConsentCard accepted={accepted} onAccepted={setAccepted} />

@@ -9,8 +9,22 @@ import { rulesLines } from '@/lib/types';
 
 // Pezzi del modulo di iscrizione, uguali per chi si iscrive con email e password e per chi entra con Google.
 
-export type DogDraft = { name: string; breed: string; birth: string };
-export const newDog = (): DogDraft => ({ name: '', breed: '', birth: '' });
+export type DogDraft = { name: string; breed: string; birth: string; chip: string };
+export const newDog = (): DogDraft => ({ name: '', breed: '', birth: '', chip: '' });
+
+/** Il microchip senza spazi: 15 cifre, o vuoto. */
+export const cleanChip = (s: string) => s.replace(/\s/g, '');
+export const chipOk = (s: string) => !cleanChip(s) || /^\d{15}$/.test(cleanChip(s));
+
+/** Il campo del microchip: facoltativo, ma consigliato (serve al centro se il cane si perde o per l'assicurazione). */
+export function ChipField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <>
+      <Field label={t('Microchip (consigliato)')} value={value} onChangeText={onChange} keyboardType="number-pad" maxLength={18} placeholder="380260000000000" />
+      <Muted style={{ fontSize: 13 }}>{t('Le 15 cifre del libretto o del passaporto del cane. Puoi metterlo anche dopo, dal Profilo.')}</Muted>
+    </>
+  );
+}
 
 /** Fattura sì o no; codice fiscale e indirizzo servono solo a chi la vuole. */
 export function InvoiceCard(p: { wants: boolean; onWants: (v: boolean) => void; billing: BillingDraft; onBilling: (v: BillingDraft) => void }) {
@@ -43,6 +57,8 @@ export function DogCards({ dogs, onChange, extraOnly }: { dogs: DogDraft[]; onCh
           ) : (
             <Field label={t('Nome del cane')} value={d.name} onChangeText={(v) => setDog(i, { name: v })} />
           )}
+          {/* Il microchip del primo cane è già nel modulo principale. */}
+          {!(extraOnly && i === 0) && <ChipField value={d.chip} onChange={(v) => setDog(i, { chip: v })} />}
           <Field label={t('Razza')} value={d.breed} onChangeText={(v) => setDog(i, { breed: v })} />
           <Field label={t('Nato il (AAAA-MM-GG)')} value={d.birth} onChangeText={(v) => setDog(i, { birth: v })} placeholder="2024-03-15" keyboardType="numbers-and-punctuation" />
           {dogs.length > 1 && i > 0 && <Button title={t('Togli questo cane')} kind="danger" small onPress={() => onChange(dogs.filter((_, j) => j !== i))} />}

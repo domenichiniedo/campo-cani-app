@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 
 import { BillingFields } from '@/components/billing-fields';
 import { PhotoEditor } from '@/components/photo';
+import { ChipField, chipOk, cleanChip } from '@/components/signup-parts';
 import { Badge, Body, Button, Card, Check, ConfirmButton, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingColumns, billingError, billingFromProfile } from '@/lib/billing';
 import { euro, isDayKey, shortDate } from '@/lib/format';
@@ -22,7 +23,9 @@ export default function Profile() {
   const [docPref, setDocPref] = useState(profile?.doc_pref ?? 'invoice');
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [penalties, setPenalties] = useState<Penalty[]>([]);
-  const [newDog, setNewDog] = useState({ name: '', breed: '', birth: '' });
+  const [newDog, setNewDog] = useState({ name: '', breed: '', birth: '', chip: '' });
+  // Il microchip da aggiungere a un cane che non ce l'ha, per cane.
+  const [chips, setChips] = useState<Record<string, string>>({});
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [deleteErr, setDeleteErr] = useState('');
   const [socialErr, setSocialErr] = useState('');
@@ -79,12 +82,22 @@ export default function Profile() {
   async function addDog() {
     if (!profile || !newDog.name.trim()) return;
     if (newDog.birth && !isDayKey(newDog.birth)) return setErr(t('Scrivi la data di nascita come AAAA-MM-GG.'));
+    if (!chipOk(newDog.chip)) return setErr(t('Il microchip ha 15 cifre: controllalo o lascialo vuoto.'));
     setErr('');
     const { error } = await supabase
       .from('dogs')
-      .insert({ owner_id: profile.id, name: newDog.name.trim(), breed: newDog.breed.trim(), birth: newDog.birth || null });
+      .insert({ owner_id: profile.id, name: newDog.name.trim(), breed: newDog.breed.trim(), birth: newDog.birth || null, chip: cleanChip(newDog.chip) });
     if (error) return setErr(errorText(error));
-    setNewDog({ name: '', breed: '', birth: '' });
+    setNewDog({ name: '', breed: '', birth: '', chip: '' });
+    load();
+  }
+
+  async function saveChip(id: string) {
+    const chip = cleanChip(chips[id] ?? '');
+    if (!chip || !chipOk(chip)) return setErr(t('Il microchip ha 15 cifre: controllalo o lascialo vuoto.'));
+    setErr('');
+    const { error } = await supabase.from('dogs').update({ chip }).eq('id', id);
+    if (error) return setErr(errorText(error));
     load();
   }
 
@@ -145,8 +158,15 @@ export default function Profile() {
               {d.blocked ? <Badge tone="bad">{t('Sospeso')}</Badge> : own.length > 0 && <Badge tone="warn">{t('{n} penalità', { n: own.length })}</Badge>}
             </Row>
             <Muted>
-              {[d.breed, d.birth && t('nato il {data}', { data: shortDate(d.birth) })].filter(Boolean).join(' · ') || t('Nessun dettaglio')}
+              {[d.breed, d.birth && t('nato il {data}', { data: shortDate(d.birth) }), d.chip && t('microchip {n}', { n: d.chip })].filter(Boolean).join(' · ') ||
+                t('Nessun dettaglio')}
             </Muted>
+            {!d.chip && (
+              <>
+                <ChipField value={chips[d.id] ?? ''} onChange={(v) => setChips({ ...chips, [d.id]: v })} />
+                <Button title={t('Salva il microchip')} small kind="ghost" onPress={() => saveChip(d.id)} disabled={!chips[d.id]?.trim()} />
+              </>
+            )}
             {own.map((p) => (
               <Muted key={p.id} style={{ fontSize: 13 }}>
                 {shortDate(p.created_at)}: {t(p.reason)}
@@ -161,6 +181,7 @@ export default function Profile() {
         <Field label={t('Nome')} value={newDog.name} onChangeText={(v) => setNewDog({ ...newDog, name: v })} />
         <Field label={t('Razza')} value={newDog.breed} onChangeText={(v) => setNewDog({ ...newDog, breed: v })} />
         <Field label={t('Nato il (AAAA-MM-GG)')} value={newDog.birth} onChangeText={(v) => setNewDog({ ...newDog, birth: v })} placeholder="2024-03-15" />
+        <ChipField value={newDog.chip} onChange={(v) => setNewDog({ ...newDog, chip: v })} />
         <Button title={t('Aggiungi')} small kind="ghost" onPress={addDog} disabled={!newDog.name.trim()} />
       </Card>
       <ErrorText>{err}</ErrorText>

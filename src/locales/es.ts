@@ -927,6 +927,12 @@ const dict: Record<string, string> = {
   "Scrivi nome e cognome.": "Escribe nombre y apellido.",
   "Se organizzi le lezioni come privato bastano nome e cognome, telefono e codice fiscale.": "Si organizas las clases como particular, bastan nombre y apellido, teléfono y código fiscal.",
   "Sono una persona": "Soy un particular",
+  "Il microchip ha 15 cifre: controllalo o lascialo vuoto.": "El microchip tiene 15 cifras: revísalo o déjalo vacío.",
+  "Le 15 cifre del libretto o del passaporto del cane. Puoi metterlo anche dopo, dal Profilo.": "Las 15 cifras de la cartilla o el pasaporte de tu perro. También puedes ponerlo después, desde el Perfil.",
+  "Microchip (consigliato)": "Microchip (recomendado)",
+  "Microchip non inserito": "Microchip no introducido",
+  "Salva il microchip": "Guardar el microchip",
+  "microchip {n}": "microchip {n}",
 };
 
 export default dict;

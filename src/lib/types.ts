@@ -84,6 +84,8 @@ export type Dog = {
   name: string;
   breed: string;
   birth: string | null;
+  /** Numero di microchip, 15 cifre; vuoto se non c'è. */
+  chip: string;
   blocked: boolean;
   archived: boolean;
 };

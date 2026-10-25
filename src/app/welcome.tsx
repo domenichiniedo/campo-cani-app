@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { ConsentCard, DogCards, InvoiceCard, newDog, OptionalSection, SocialCheck, type DogDraft } from '@/components/signup-parts';
+import { ChipField, chipOk, cleanChip, ConsentCard, DogCards, InvoiceCard, newDog, OptionalSection, SocialCheck, type DogDraft } from '@/components/signup-parts';
 import { Body, Button, Card, ErrorText, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingColumns, billingError, emptyBilling, type BillingDraft } from '@/lib/billing';
 import { isDayKey } from '@/lib/format';
@@ -58,6 +58,7 @@ export default function Welcome() {
     const bErr = wantsInvoice ? billingError(billing) : null;
     if (bErr) return setErr(bErr);
     if (askDogs && !cleanDogs.length) return setErr(t('Scrivi il nome del tuo cane.'));
+    if (cleanDogs.some((d) => !chipOk(d.chip))) return setErr(t('Il microchip ha 15 cifre: controllalo o lascialo vuoto.'));
     if (cleanDogs.some((d) => d.birth && !isDayKey(d.birth))) return setErr(t('Scrivi la data di nascita come AAAA-MM-GG, per esempio 2024-03-15.'));
     if (!accepted) return setErr(t('Per iscriverti devi accettare il regolamento e l’informativa privacy.'));
     if (!settings) return setErr(t('Impossibile leggere il regolamento. Controlla la connessione.'));
@@ -89,7 +90,7 @@ export default function Welcome() {
     if (askDogs) {
       const d = await supabase
         .from('dogs')
-        .insert(cleanDogs.map((x) => ({ owner_id: profile!.id, name: x.name.trim(), breed: x.breed.trim(), birth: x.birth || null })));
+        .insert(cleanDogs.map((x) => ({ owner_id: profile!.id, name: x.name.trim(), breed: x.breed.trim(), birth: x.birth || null, chip: cleanChip(x.chip) })));
       if (d.error) return fail(d.error);
     }
     // Per ultimi i consensi: da qui in poi l'iscrizione è completa e il layout porta avanti.
@@ -112,7 +113,12 @@ export default function Welcome() {
           <Field label={t('Cognome')} value={last} onChangeText={setLast} autoComplete="family-name" style={{ flex: 1, minWidth: 140 }} />
         </Row>
         <Field label={t('Telefono')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" />
-        {askDogs && <Field label={t('Nome del cane')} value={dogs[0].name} onChangeText={setDogName} />}
+        {askDogs && (
+          <>
+            <Field label={t('Nome del cane')} value={dogs[0].name} onChangeText={setDogName} />
+            <ChipField value={dogs[0].chip} onChange={(chip) => setDogs(dogs.map((d, i) => (i === 0 ? { ...d, chip } : d)))} />
+          </>
+        )}
         <Muted style={{ fontSize: 13 }}>{t('Email: {email}', { email: profile.email })}</Muted>
       </Card>
 
