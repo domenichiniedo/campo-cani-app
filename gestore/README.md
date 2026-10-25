@@ -10,8 +10,8 @@ oggi fai a mano con `tools/nuovo-centro.mjs`:
    clienti e trainer;
 3. il primo del mese il gestore fa il conto del mese prima di ogni centro. **A consumo**: il **canone** del piano
    (diviso a giorni se il centro ha cambiato piano o si è registrato a metà mese), la **quota** per ogni
-   prenotazione pagata al campo, con bonifico o con carta al centro, anche se poi è stata annullata, e il **2%**
-   del prezzo di ogni pacchetto attivato (le lezioni scalate dal pacchetto non pagano la quota). **A prezzo
+   prenotazione pagata al campo, con bonifico, con carta al centro o scalata da un pacchetto, anche se poi è stata
+   annullata, e l'**1%** del prezzo di ogni pacchetto attivato. **A prezzo
    fisso**: solo il fisso del piano. Il centro sceglie come pagare alla registrazione e lo cambia dall'app. Dal
    conto si scala il **bonus** del centro, se ne ha. Il centro lo vede nell'app (Impostazioni → Piano e abbonamento, e appena apre l'app)
    con il tuo IBAN, la causale (`K9-XXXXXX AAAA-MM`) e il codice QR, e ti paga con un **bonifico istantaneo**;
@@ -47,7 +47,7 @@ al centro con la carta (Nexi) contano nel conto del mese come quelle pagate al c
 | `supabase/migrations/0003_fatturazione.sql` | i dati per fatturare a ogni centro (ragione sociale, P.IVA o CF, sede, SDI o PEC) |
 | `supabase/migrations/0004_prezzi.sql` | i prezzi di partenza dei piani: Base 5,90 € + 1 €, Professional 29,99 € + 0,60 €, Pro 80 € + 0,30 € a prenotazione |
 | `supabase/migrations/0005_bonus.sql` | i bonus: codici da usare alla registrazione e crediti dei centri, scalati dai conti |
-| `supabase/migrations/0006_fisso_pacchetti.sql` | il prezzo fisso (Base 39 €, Professional 79 €, Pro 149 €), il 2% sui pacchetti, il piano più piccolo dal mese dopo e la disdetta |
+| `supabase/migrations/0006_fisso_pacchetti.sql` | il prezzo fisso (Base 39 €, Professional 79 €, Pro 149 €), l'1% sui pacchetti, il piano più piccolo dal mese dopo e la disdetta |
 | `registra-centro` | registrazione dall'app |
 | `centro` | stato di un centro dal codice e prezzi dei piani |
 | `prepara-centri` | crea e aggiorna i database dei centri, un passo alla volta (pg_cron ogni minuto) |
@@ -175,7 +175,7 @@ in chat, nell'app o su GitHub.
 9. **I prezzi.** Nel pannello, sezione **Piani e addebiti**: per Base, Professional e Pro il canone al mese, la quota
    per prenotazione, il prezzo fisso e la percentuale sui pacchetti. Quelli di partenza (`0004_prezzi.sql` e
    `0006_fisso_pacchetti.sql`): a consumo Base 5,90 € al mese + 1 €, Professional 29,99 € + 0,60 €, Pro 80 € +
-   0,30 € a prenotazione, più il 2% dei pacchetti; fissi Base 39 €, Professional 79 €, Pro 149 € al mese. Per un
+   0,30 € a prenotazione, più l'1% dei pacchetti; fissi Base 39 €, Professional 79 €, Pro 149 € al mese. Per un
    centro solo puoi farne di apposta (Centri → il centro → Modifica), dove cambi anche come paga.
 
 ## Prove

@@ -131,9 +131,9 @@ Deno.test('accesso con Google: con il client di Google si accende, senza no', as
 Deno.test('conto del mese: canone a giorni, quote del piano del giorno, prezzi del centro', async () => {
   const { contoDelMese, scadenzaLicenza, piuGiorni, giorniPerPagare } = await import('./costi.ts');
   const prezzi = {
-    base: { canone_cents: 0, tariffa_cents: 100, fisso_cents: 3900, pacchetti_bp: 200 },
-    professional: { canone_cents: 3000, tariffa_cents: 80, fisso_cents: 7900, pacchetti_bp: 200 },
-    pro: { canone_cents: 6000, tariffa_cents: 50, fisso_cents: 15000, pacchetti_bp: 200 },
+    base: { canone_cents: 0, tariffa_cents: 100, fisso_cents: 3900, pacchetti_bp: 100 },
+    professional: { canone_cents: 3000, tariffa_cents: 80, fisso_cents: 7900, pacchetti_bp: 100 },
+    pro: { canone_cents: 6000, tariffa_cents: 50, fisso_cents: 15000, pacchetti_bp: 100 },
   };
   // Tutto il mese in Professional: canone pieno e 80 cent a prenotazione.
   uguale(
@@ -176,10 +176,10 @@ Deno.test('conto del mese: canone a giorni, quote del piano del giorno, prezzi d
       canone: null,
       tariffa: null,
       prenotazioni: { '2026-11-03': 2, '2026-11-20': 3 },
-      // Un pacchetto da 150 € a consumo (2% = 3 €), uno da 200 € quando paga già il fisso (niente).
+      // Un pacchetto da 150 € a consumo (1% = 1,50 €), uno da 200 € quando paga già il fisso (niente).
       pacchetti: { '2026-11-05': 15000, '2026-11-25': 20000 },
     }),
-    { canone_cents: 5450, prenotazioni: 5, quote_cents: 160, pacchetti_cents: 300, importo_cents: 5910 },
+    { canone_cents: 5450, prenotazioni: 5, quote_cents: 160, pacchetti_cents: 150, importo_cents: 5760 },
   );
   // Fisso fatto apposta per il centro.
   uguale(

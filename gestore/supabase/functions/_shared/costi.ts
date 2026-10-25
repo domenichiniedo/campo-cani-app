@@ -4,7 +4,7 @@
 export type Piano = 'base' | 'professional' | 'pro';
 /** Come paga il centro: canone + quota per prenotazione, oppure una cifra fissa al mese. */
 export type Formula = 'consumo' | 'fisso';
-/** pacchetti_bp: la quota sul prezzo dei pacchetti attivati, in centesimi di punto (200 = 2%). */
+/** pacchetti_bp: la quota sul prezzo dei pacchetti attivati, in centesimi di punto (100 = 1%). */
 export type Prezzi = Record<Piano, { canone_cents: number; tariffa_cents: number; fisso_cents: number; pacchetti_bp: number }>;
 export type Cambio = { piano: Piano; dal: string; formula?: Formula };
 

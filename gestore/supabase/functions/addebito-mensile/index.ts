@@ -1,7 +1,7 @@
 // Il primo del mese fa il conto del mese prima di ogni centro: canone del piano (diviso a giorni se il piano è
 // cambiato o il centro si è registrato a metà mese) più la quota per ogni prenotazione pagata al campo, con
-// bonifico o con carta al centro, anche se poi è stata annullata. Le lezioni scalate da un pacchetto non
-// contano: si conta invece il 2% (pacchetti_bp del piano) del prezzo di ogni pacchetto attivato nel mese.
+// bonifico, con carta al centro o scalata da un pacchetto, anche se poi è stata annullata. In più l'1%
+// (pacchetti_bp del piano) del prezzo di ogni pacchetto attivato nel mese.
 // Il centro a prezzo fisso paga solo il fisso del piano, senza quote.
 // Il centro vede l'addebito nell'app (Impostazioni → Licenza) con IBAN, causale e codice QR, e lo paga con un
 // bonifico istantaneo sul tuo conto: controlla-bonifici lo trova nei movimenti e rinnova la licenza.
@@ -32,8 +32,8 @@ async function addebita(c: Centro, mese: string, listino: Prezzi) {
   if (fatto && fatto.stato !== 'da_fare') return `già fatto (${fatto.stato})`;
 
   const righe = (await managementApi('POST', `/projects/${c.progetto}/database/query`, {
-    // Contano anche le prenotazioni annullate; non quelle pagate con un pacchetto.
-    query: `select day::text as g, count(*)::int as n from public.bookings where pay in ('onsite', 'transfer', 'online') and day >= '${mese}-01' and day < '${meseDopo(mese)}-01' group by day;`,
+    // Contano tutte: anche quelle annullate e quelle scalate da un pacchetto.
+    query: `select day::text as g, count(*)::int as n from public.bookings where day >= '${mese}-01' and day < '${meseDopo(mese)}-01' group by day;`,
   })) as { g: string; n: number }[];
   // I pacchetti attivati nel mese (anche se poi annullati), giorno per giorno, con il loro prezzo.
   const attivati = (await managementApi('POST', `/projects/${c.progetto}/database/query`, {

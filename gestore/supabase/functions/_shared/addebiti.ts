@@ -36,9 +36,9 @@ export async function prezzi(): Promise<Prezzi> {
   const { data } = await db.from('piani').select('*');
   // I prezzi di partenza (0004_prezzi.sql e 0006_fisso_pacchetti.sql), se la tabella non li ha.
   const p: Prezzi = {
-    base: { canone_cents: 590, tariffa_cents: 100, fisso_cents: 3900, pacchetti_bp: 200 },
-    professional: { canone_cents: 2999, tariffa_cents: 60, fisso_cents: 7900, pacchetti_bp: 200 },
-    pro: { canone_cents: 8000, tariffa_cents: 30, fisso_cents: 14900, pacchetti_bp: 200 },
+    base: { canone_cents: 590, tariffa_cents: 100, fisso_cents: 3900, pacchetti_bp: 100 },
+    professional: { canone_cents: 2999, tariffa_cents: 60, fisso_cents: 7900, pacchetti_bp: 100 },
+    pro: { canone_cents: 8000, tariffa_cents: 30, fisso_cents: 14900, pacchetti_bp: 100 },
   };
   for (const r of data ?? []) {
     const x = p[r.piano as Piano];

@@ -14,9 +14,9 @@ const monthOf = (d: Date, delta: number) => {
 const dayThree = (d: Date, delta: number) => dayKey(new Date(d.getFullYear(), d.getMonth() + delta, 3));
 
 const PIANI: PlanRow[] = [
-  { piano: 'base', canone_cents: 590, tariffa_cents: 100, fisso_cents: 3900, pacchetti_bp: 200 },
-  { piano: 'professional', canone_cents: 2999, tariffa_cents: 60, fisso_cents: 7900, pacchetti_bp: 200 },
-  { piano: 'pro', canone_cents: 8000, tariffa_cents: 30, fisso_cents: 14900, pacchetti_bp: 200 },
+  { piano: 'base', canone_cents: 590, tariffa_cents: 100, fisso_cents: 3900, pacchetti_bp: 100 },
+  { piano: 'professional', canone_cents: 2999, tariffa_cents: 60, fisso_cents: 7900, pacchetti_bp: 100 },
+  { piano: 'pro', canone_cents: 8000, tariffa_cents: 30, fisso_cents: 14900, pacchetti_bp: 100 },
 ];
 const price = (p: AdminCentre['piano']) => PIANI.find((x) => x.piano === p)!;
 
@@ -121,9 +121,9 @@ function build(): AdminData {
         mese,
         prenotazioni: n,
         canone_cents: i === 3 ? p.fisso_cents : p.canone_cents,
-        // Qualche pacchetto da 120 € al mese: il 2% del prezzo.
-        pacchetti_cents: i === 3 ? 0 : Math.round(n / 25) * 240,
-        importo_cents: i === 3 ? p.fisso_cents : p.canone_cents + n * (i === 0 ? 50 : p.tariffa_cents) + Math.round(n / 25) * 240,
+        // Qualche pacchetto da 120 € al mese: l'1% del prezzo.
+        pacchetti_cents: i === 3 ? 0 : Math.round(n / 25) * 120,
+        importo_cents: i === 3 ? p.fisso_cents : p.canone_cents + n * (i === 0 ? 50 : p.tariffa_cents) + Math.round(n / 25) * 120,
         bonus_cents: 0,
         stato: statoAddebito,
         fattura: null,

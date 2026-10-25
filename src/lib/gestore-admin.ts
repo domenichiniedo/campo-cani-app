@@ -71,7 +71,7 @@ export type Charge = {
   pagato_il: string | null;
 };
 
-/** pacchetti_bp: la quota sul prezzo dei pacchetti attivati, in centesimi di punto (200 = 2%). */
+/** pacchetti_bp: la quota sul prezzo dei pacchetti attivati, in centesimi di punto (100 = 1%). */
 export type PlanRow = { piano: AdminCentre['piano']; canone_cents: number; tariffa_cents: number; fisso_cents: number; pacchetti_bp: number };
 
 /** Il tuo conto: IBAN per i bonifici dei centri e collegamento in sola lettura con Enable Banking. */

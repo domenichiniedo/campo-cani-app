@@ -1283,7 +1283,7 @@ function PricesCard({ rows, onChange }: { rows: PlanRow[]; onChange: () => void 
     Object.fromEntries(
       rows.map((r) => [
         r.piano,
-        { canone: euroField(r.canone_cents), quota: euroField(r.tariffa_cents), fisso: euroField(r.fisso_cents ?? null), pct: euroField(r.pacchetti_bp ?? 200) },
+        { canone: euroField(r.canone_cents), quota: euroField(r.tariffa_cents), fisso: euroField(r.fisso_cents ?? null), pct: euroField(r.pacchetti_bp ?? 100) },
       ]),
     ),
   );
@@ -1325,7 +1325,7 @@ function PricesCard({ rows, onChange }: { rows: PlanRow[]; onChange: () => void 
           cents(e.canone) !== r.canone_cents ||
           cents(e.quota) !== r.tariffa_cents ||
           cents(e.fisso) !== (r.fisso_cents ?? null) ||
-          cents(e.pct) !== (r.pacchetti_bp ?? 200);
+          cents(e.pct) !== (r.pacchetti_bp ?? 100);
         return (
           <Row key={p.value}>
             <Body bold style={{ minWidth: 100 }}>
