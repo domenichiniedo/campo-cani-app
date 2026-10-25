@@ -104,9 +104,10 @@ jobs:
           # Con il gestore niente database nella build: lo dà la licenza di ogni centro.
           EXPO_PUBLIC_SUPABASE_URL: ${{ inputs.demo && 'https://demo.supabase.co' || env.EXPO_PUBLIC_GESTORE_URL == '' && (inputs.supabase_url || vars.EXPO_PUBLIC_SUPABASE_URL) || '' }}
           EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ inputs.demo && 'demo' || env.EXPO_PUBLIC_GESTORE_URL == '' && (inputs.supabase_key || vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY) || '' }}
-          # Accesso con Google (vedi README, "Accesso con Google"): vuote = niente pulsante. Non nella prova generale.
-          EXPO_PUBLIC_GOOGLE_DESKTOP_CLIENT_ID: ${{ !inputs.demo && env.EXPO_PUBLIC_GESTORE_URL == '' && vars.GOOGLE_DESKTOP_CLIENT_ID || '' }}
-          EXPO_PUBLIC_GOOGLE_DESKTOP_SECRET: ${{ !inputs.demo && env.EXPO_PUBLIC_GESTORE_URL == '' && vars.GOOGLE_DESKTOP_SECRET || '' }}
+          # Accesso con Google (vedi README, "Accesso con Google"): vuote = niente pulsante. Anche nella prova generale:
+          # il pulsante compare solo nei centri dove il gestore ha acceso Google.
+          EXPO_PUBLIC_GOOGLE_DESKTOP_CLIENT_ID: ${{ !inputs.demo && vars.GOOGLE_DESKTOP_CLIENT_ID || '' }}
+          EXPO_PUBLIC_GOOGLE_DESKTOP_SECRET: ${{ !inputs.demo && vars.GOOGLE_DESKTOP_SECRET || '' }}
       - if: ${{ inputs.demo }}
         run: node demo/inject.js
         working-directory: desktop
