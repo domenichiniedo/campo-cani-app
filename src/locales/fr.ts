@@ -862,6 +862,16 @@ const dict: Record<string, string> = {
   "schede in uso": "fiches utilisées",
   "{lezione}: il piano {piano} comprende fino a {max} opzioni per lezione.": "{lezione} : le forfait {piano} comprend jusqu'à {max} options par cours.",
   "{pct} del prezzo dei pacchetti": "{pct} du prix des forfaits",
+  "Abbonamento disdetto: il servizio finisce il {data}.": "Abonnement résilié : le service prend fin le {data}.",
+  "Annulla la disdetta": "Annuler la résiliation",
+  "Confermi la disdetta?": "Confirmer la résiliation ?",
+  "Dal {data} passi al piano {piano}.": "À partir du {data}, tu passes au forfait {piano}.",
+  "Disdetta": "Résiliation",
+  "Disdici l'abbonamento": "Résilier l'abonnement",
+  "Fino al {data} l'app funziona come sempre e il conto dell'ultimo mese arriva come gli altri. Puoi annullare la disdetta fino a quel giorno.": "Jusqu'au {data}, l'app fonctionne normalement et la facture du dernier mois arrive comme les autres. Tu peux annuler la résiliation jusqu'à ce jour.",
+  "Il piano {piano} parte dal {data}: fino ad allora resta il piano {attuale}.": "Le forfait {piano} commence le {data} : d'ici là, tu gardes le forfait {attuale}.",
+  "Il preavviso è di un mese: disdicendo oggi il servizio finisce il {data}, e il conto dell'ultimo mese arriva come gli altri. Si può disdire solo con tutti i conti pagati.": "Le préavis est d'un mois : en résiliant aujourd'hui, le service prend fin le {data}, et la facture du dernier mois arrive comme les autres. On ne peut résilier que si toutes les factures sont payées.",
+  "Un piano più piccolo parte dal primo del mese prossimo: fino ad allora resta il piano {piano}.": "Un forfait plus petit commence le 1er du mois prochain : d'ici là, tu gardes le forfait {piano}.",
 };
 
 export default dict;

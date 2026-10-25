@@ -78,6 +78,24 @@ export function scadenzaLicenza(oggi: string, giorni: number) {
   return d.toISOString().slice(0, 10);
 }
 
+/** I piani dal più piccolo al più grande. */
+export const PIANI_IN_ORDINE: Piano[] = ['base', 'professional', 'pro'];
+
+/** Il piano `a` è più piccolo di `b`. */
+export const piuPiccolo = (a: Piano, b: Piano) => PIANI_IN_ORDINE.indexOf(a) < PIANI_IN_ORDINE.indexOf(b);
+
+/** Il primo giorno del mese dopo quello di `giorno`: da lì parte un piano più piccolo. */
+export function primoDelMeseDopo(giorno: string) {
+  const [y, m] = giorno.split('-').map(Number);
+  return new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
+}
+
+/** L'ultimo giorno del mese dopo quello di `giorno`: la fine del servizio con un mese di preavviso. */
+export function fineDelMeseDopo(giorno: string) {
+  const [y, m] = giorno.split('-').map(Number);
+  return new Date(Date.UTC(y, m + 1, 0)).toISOString().slice(0, 10);
+}
+
 /** Più `giorni` giorni a una data AAAA-MM-GG. */
 export function piuGiorni(giorno: string, giorni: number) {
   const [y, m, d] = giorno.split('-').map(Number);

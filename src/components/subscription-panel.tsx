@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { TransferBox } from '@/components/transfer';
 import { Badge, Body, Button, Card, Chips, ErrorText, Field, Muted, Row } from '@/components/ui';
 import { dayKey, euro, today } from '@/lib/format';
-import { changePlan, gestoreEnabled, isCentreCode, setCentreIban, subscription, subscriptionCode, type Due, type Formula, type PlanPrice, type Subscription } from '@/lib/gestore';
+import { cancelSubscription, changePlan, gestoreEnabled, keepSubscription, isCentreCode, setCentreIban, subscription, subscriptionCode, type Due, type Formula, type PlanPrice, type Subscription } from '@/lib/gestore';
 import { t } from '@/lib/i18n';
 import { useLicense } from '@/lib/license-gate';
 import { PLAN_IDS, PLANS, type PlanId } from '@/lib/plans';
@@ -94,7 +94,8 @@ export function SubscriptionPanel() {
   const [pickFormula, setPickFormula] = useState<Formula | null>(null);
   const [armed, setArmed] = useState(false);
   const [iban, setIban] = useState('');
-  const [busy, setBusy] = useState<'plan' | 'iban' | null>(null);
+  const [busy, setBusy] = useState<'plan' | 'iban' | 'quit' | null>(null);
+  const [armedQuit, setArmedQuit] = useState(false);
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
 
@@ -119,10 +120,14 @@ export function SubscriptionPanel() {
   if (!sub) return err ? <ErrorText>{err}</ErrorText> : null;
 
   const current = (sub.piano as PlanId) in PLANS ? (sub.piano as PlanId) : 'pro';
-  const chosen = pick ?? current;
+  // Il piano più piccolo già scelto, che parte dal mese prossimo.
+  const next = sub.piano_prossimo && sub.piano_prossimo in PLANS ? (sub.piano_prossimo as PlanId) : null;
+  const target = next ?? current;
+  const chosen = pick ?? target;
   const formula: Formula = sub.formula ?? 'consumo';
   const chosenFormula = pickFormula ?? formula;
-  const changed = chosen !== current || chosenFormula !== formula;
+  const changed = chosen !== target || chosenFormula !== formula;
+  const smaller = PLAN_IDS.indexOf(chosen) < PLAN_IDS.indexOf(current);
 
   async function change() {
     if (!armed) {
@@ -139,11 +144,31 @@ export function SubscriptionPanel() {
       setSub(r);
       setPick(null);
       setPickFormula(null);
-      const e = chosen !== current ? await activate(r.licenza) : '';
+      const e = r.piano !== current ? await activate(r.licenza) : '';
       if (e) setErr(e);
-      else if (chosen !== current)
+      else if (r.piano_prossimo && r.piano_dal)
+        setMsg(t('Il piano {piano} parte dal {data}: fino ad allora resta il piano {attuale}.', { piano: PLANS[chosen].label, data: date(r.piano_dal), attuale: PLANS[current].label }));
+      else if (r.piano !== current)
         setMsg(t("Piano {piano} attivo da oggi: i tuoi clienti lo ricevono alla prossima apertura dell'app.", { piano: PLANS[chosen].label }));
       else setMsg(chosenFormula === 'fisso' ? t('Da oggi paghi il prezzo fisso.') : t('Da oggi paghi a consumo.'));
+    } catch (e) {
+      setErr(t((e as Error).message));
+    }
+    setBusy(null);
+  }
+
+  async function quit() {
+    if (!armedQuit) {
+      setArmedQuit(true);
+      setTimeout(() => setArmedQuit(false), 4000);
+      return;
+    }
+    setArmedQuit(false);
+    setErr('');
+    setMsg('');
+    setBusy('quit');
+    try {
+      setSub(await (sub!.disdetta ? keepSubscription : cancelSubscription)(code!, await token()));
     } catch (e) {
       setErr(t((e as Error).message));
     }
@@ -177,6 +202,10 @@ export function SubscriptionPanel() {
           {sub.da_pagare.length === 0 && <Badge tone="ok">{t('Tutto pagato')}</Badge>}
         </Row>
         <Body>{t('Piano {piano}: {prezzo}', { piano: PLANS[current].label, prezzo: priceText(sub.piani[current], formula) })}</Body>
+        {!!next && !!sub.piano_dal && (
+          <Badge tone="warn">{t('Dal {data} passi al piano {piano}.', { data: date(sub.piano_dal), piano: PLANS[next].label })}</Badge>
+        )}
+        {!!sub.disdetta && <Badge tone="bad">{t('Abbonamento disdetto: il servizio finisce il {data}.', { data: date(sub.disdetta) })}</Badge>}
         {!!sub.credito_cents && (
           <Badge tone="ok">{t('Bonus da scalare dai prossimi conti: {importo}', { importo: euro(sub.credito_cents) })}</Badge>
         )}
@@ -203,7 +232,9 @@ export function SubscriptionPanel() {
         {changed && (
           <>
             <Muted style={{ fontSize: 13 }}>
-              {t('Il cambio vale da oggi: il canone e le prenotazioni di questo mese si dividono a giorni fra il piano di prima e quello nuovo.')}
+              {smaller
+                ? t('Un piano più piccolo parte dal primo del mese prossimo: fino ad allora resta il piano {piano}.', { piano: PLANS[current].label })
+                : t('Il cambio vale da oggi: il canone e le prenotazioni di questo mese si dividono a giorni fra il piano di prima e quello nuovo.')}
             </Muted>
             <Button
               small
@@ -238,6 +269,22 @@ export function SubscriptionPanel() {
           onPress={saveIban}
           loading={busy === 'iban'}
           disabled={normalizeIban(iban) === sub.iban_centro}
+        />
+        <Body bold>{t('Disdetta')}</Body>
+        <Muted style={{ fontSize: 13 }}>
+          {sub.disdetta
+            ? t("Fino al {data} l'app funziona come sempre e il conto dell'ultimo mese arriva come gli altri. Puoi annullare la disdetta fino a quel giorno.", { data: date(sub.disdetta) })
+            : t("Il preavviso è di un mese: disdicendo oggi il servizio finisce il {data}, e il conto dell'ultimo mese arriva come gli altri. Si può disdire solo con tutti i conti pagati.", {
+                data: date(sub.disdetta_se_oggi ?? ''),
+              })}
+        </Muted>
+        <Button
+          small
+          kind="ghost"
+          title={armedQuit ? (sub.disdetta ? t('Confermi?') : t('Confermi la disdetta?')) : sub.disdetta ? t('Annulla la disdetta') : t("Disdici l'abbonamento")}
+          onPress={quit}
+          loading={busy === 'quit'}
+          disabled={!sub.disdetta && sub.da_pagare.length > 0}
         />
         <ErrorText>{err}</ErrorText>
         {!!msg && <Muted>{msg}</Muted>}

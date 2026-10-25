@@ -186,6 +186,14 @@ Deno.test('conto del mese: canone a giorni, quote del piano del giorno, prezzi d
     contoDelMese({ mese: '2026-11', dal: '2026-01-01', cambi: [], attuale: 'base', formula: 'fisso', prezzi, canone: null, tariffa: null, fisso: 2500, prenotazioni: { '2026-11-03': 9 } }),
     { canone_cents: 2500, prenotazioni: 9, quote_cents: 0, pacchetti_cents: 0, importo_cents: 2500 },
   );
+  // Piano più piccolo dal primo del mese dopo; disdetta alla fine del mese dopo.
+  const { primoDelMeseDopo, fineDelMeseDopo, piuPiccolo } = await import('./costi.ts');
+  uguale(primoDelMeseDopo('2026-10-25'), '2026-11-01');
+  uguale(primoDelMeseDopo('2026-12-31'), '2027-01-01');
+  uguale(fineDelMeseDopo('2026-10-25'), '2026-11-30');
+  uguale(fineDelMeseDopo('2026-12-01'), '2027-01-31');
+  uguale(fineDelMeseDopo('2027-01-31'), '2027-02-28');
+  uguale([piuPiccolo('base', 'pro'), piuPiccolo('pro', 'professional'), piuPiccolo('pro', 'pro')], [true, false, false]);
   // Licenza fino al giorno 3 del mese dopo (anche a dicembre).
   uguale(scadenzaLicenza('2026-11-01', 3), '2026-12-03');
   uguale(scadenzaLicenza('2026-12-28', 3), '2027-01-03');

@@ -862,6 +862,16 @@ const dict: Record<string, string> = {
   "schede in uso": "fichas en uso",
   "{lezione}: il piano {piano} comprende fino a {max} opzioni per lezione.": "{lezione}: el plan {piano} incluye hasta {max} opciones por clase.",
   "{pct} del prezzo dei pacchetti": "{pct} del precio de los bonos",
+  "Abbonamento disdetto: il servizio finisce il {data}.": "Suscripción cancelada: el servicio termina el {data}.",
+  "Annulla la disdetta": "Anular la cancelación",
+  "Confermi la disdetta?": "¿Confirmas la cancelación?",
+  "Dal {data} passi al piano {piano}.": "Desde el {data} pasas al plan {piano}.",
+  "Disdetta": "Cancelación",
+  "Disdici l'abbonamento": "Cancelar la suscripción",
+  "Fino al {data} l'app funziona come sempre e il conto dell'ultimo mese arriva come gli altri. Puoi annullare la disdetta fino a quel giorno.": "Hasta el {data} la app funciona como siempre y la factura del último mes llega como las demás. Puedes anular la cancelación hasta ese día.",
+  "Il piano {piano} parte dal {data}: fino ad allora resta il piano {attuale}.": "El plan {piano} empieza el {data}: hasta entonces sigue el plan {attuale}.",
+  "Il preavviso è di un mese: disdicendo oggi il servizio finisce il {data}, e il conto dell'ultimo mese arriva come gli altri. Si può disdire solo con tutti i conti pagati.": "El preaviso es de un mes: si cancelas hoy, el servicio termina el {data}, y la factura del último mes llega como las demás. Solo se puede cancelar con todas las facturas pagadas.",
+  "Un piano più piccolo parte dal primo del mese prossimo: fino ad allora resta il piano {piano}.": "Un plan más pequeño empieza el día 1 del mes que viene: hasta entonces sigue el plan {piano}.",
 };
 
 export default dict;

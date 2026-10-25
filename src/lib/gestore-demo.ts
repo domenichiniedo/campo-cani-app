@@ -92,6 +92,9 @@ function build(): AdminData {
     // Agility Team Brianza paga il prezzo fisso.
     formula: i === 3 ? 'fisso' : 'consumo',
     fisso_cents: null,
+    // Dog Village passa a Base dal mese prossimo; Bau Center Verona ha disdetto.
+    piano_prossimo: i === 1 ? 'base' : null,
+    disdetta: i === 6 ? dayKey(new Date(now.getFullYear(), now.getMonth() + 2, 0)) : null,
     iban: i % 2 === 0 && stato === 'pronto' ? `IT${String(10 + i)}X05428111010000001234${String(50 + i)}` : '',
     scade: stato === 'pronto' ? (i === 4 ? dayThree(now, 0) : dayThree(now, 1)) : null,
     sospeso: false,
@@ -222,7 +225,7 @@ export async function demoCall<T>(azione: string, b: Record<string, unknown>): P
     case 'dati':
       return structuredClone(d) as T;
     case 'piano':
-      set({ piano: b.piano as AdminCentre['piano'], ...(b.formula ? { formula: b.formula as AdminCentre['formula'] } : {}) });
+      set({ piano: b.piano as AdminCentre['piano'], piano_prossimo: null, ...(b.formula ? { formula: b.formula as AdminCentre['formula'] } : {}) });
       break;
     case 'centro': {
       const patch: Partial<AdminCentre> = {};
@@ -230,6 +233,7 @@ export async function demoCall<T>(azione: string, b: Record<string, unknown>): P
       if (b.canone_cents !== undefined) patch.canone_cents = b.canone_cents as number | null;
       if (b.tariffa_cents !== undefined) patch.tariffa_cents = b.tariffa_cents as number | null;
       if (b.fisso_cents !== undefined) patch.fisso_cents = b.fisso_cents as number | null;
+      if (b.disdetta === null) patch.disdetta = null;
       if (b.fattura !== undefined) Object.assign(patch, b.fattura);
       set(patch);
       break;

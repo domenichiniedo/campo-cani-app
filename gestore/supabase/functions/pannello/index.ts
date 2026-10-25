@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
         const [centri, addebiti, piani, banca, movimenti, codici, crediti] = await Promise.all([
           db
             .from('centri')
-            .select(`id, codice, campo, email, piano, formula, stato, errore, tariffa_cents, canone_cents, fisso_cents, iban, scade, sospeso, creato, ${CAMPI_FATTURA.join(', ')}`)
+            .select(`id, codice, campo, email, piano, formula, piano_prossimo, disdetta, stato, errore, tariffa_cents, canone_cents, fisso_cents, iban, scade, sospeso, creato, ${CAMPI_FATTURA.join(', ')}`)
             .order('creato', { ascending: false }),
           db
             .from('addebiti')
@@ -112,6 +112,8 @@ Deno.serve(async (req) => {
         if (b.canone_cents !== undefined) m.canone_cents = centesimi(b.canone_cents, true);
         if (b.tariffa_cents !== undefined) m.tariffa_cents = centesimi(b.tariffa_cents, true);
         if (b.fisso_cents !== undefined) m.fisso_cents = centesimi(b.fisso_cents, true);
+        // Solo per togliere una disdetta: la chiede il centro dall'app.
+        if (b.disdetta === null) Object.assign(m, { disdetta: null, disdetta_chiesta: null });
         await db.from('centri').update(m).eq('id', b.id);
         return json({ fatto: true });
       }

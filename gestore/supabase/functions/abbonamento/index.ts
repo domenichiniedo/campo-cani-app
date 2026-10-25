@@ -4,11 +4,14 @@
 //           istantaneo), scadenza
 //   cambia  cambia piano o formula (consumo, fisso) da oggi: canone e quote si dividono a giorni nell'addebito
 //           del mese; con un piano nuovo torna la licenza nuova
+//           (un piano più piccolo parte dal primo del mese dopo)
 //   iban    l'IBAN da cui il centro fa i bonifici, per riconoscerli anche senza causale
+//   disdici disdetta con un mese di preavviso, solo con i conti pagati: il servizio finisce alla fine del mese dopo
+//   tieni   annulla la disdetta, finché il servizio non è finito
 
-import { cambiaPiano, prezzi } from '../_shared/addebiti.ts';
-import { db, json, messaggio, preflight, ruolo, type Centro } from '../_shared/comune.ts';
-import { ibanValido, type Formula, type Piano } from '../_shared/costi.ts';
+import { cambiaPiano, debiti, prezzi } from '../_shared/addebiti.ts';
+import { db, json, messaggio, oggi, preflight, ruolo, type Centro } from '../_shared/comune.ts';
+import { fineDelMeseDopo, ibanValido, primoDelMeseDopo, type Formula, type Piano } from '../_shared/costi.ts';
 
 const PIANI: Piano[] = ['base', 'professional', 'pro'];
 const FORMULE: Formula[] = ['consumo', 'fisso'];
@@ -39,6 +42,12 @@ async function vedi(c: Centro) {
   return {
     piano: c.piano,
     formula: c.formula,
+    // Il piano più piccolo già scelto e da quando vale.
+    piano_prossimo: c.piano_prossimo,
+    piano_dal: c.piano_prossimo ? primoDelMeseDopo(oggi()) : null,
+    // Disdetto: l'ultimo giorno del servizio; e da quando finirebbe se lo disdicesse oggi.
+    disdetta: c.disdetta,
+    disdetta_se_oggi: fineDelMeseDopo(oggi()),
     piani,
     iban_centro: c.iban,
     scade: c.scade,
@@ -70,6 +79,18 @@ Deno.serve(async (req) => {
         if (c.sospeso) return json({ errore: 'Il centro è sospeso: scrivi al gestore.' }, 403);
         c = await cambiaPiano(c, piano, 'app', formula);
         return json({ ...(await vedi(c)), licenza: c.licenza });
+      }
+      case 'disdici': {
+        if (c.disdetta) return json(await vedi(c));
+        if ((await debiti(c)) > 0) return json({ errore: 'Prima paga i conti aperti: la disdetta si può chiedere solo con tutto pagato.' }, 400);
+        const disdetta = fineDelMeseDopo(oggi());
+        await db.from('centri').update({ disdetta, disdetta_chiesta: new Date().toISOString() }).eq('id', c.id);
+        return json(await vedi({ ...c, disdetta }));
+      }
+      case 'tieni': {
+        if (c.disdetta && c.disdetta < oggi()) return json({ errore: 'Il servizio è già finito: scrivi al gestore per riattivarlo.' }, 400);
+        await db.from('centri').update({ disdetta: null, disdetta_chiesta: null }).eq('id', c.id);
+        return json(await vedi({ ...c, disdetta: null }));
       }
       case 'iban': {
         const iban = String(body.iban ?? '').toUpperCase().replace(/\s/g, '');

@@ -920,6 +920,7 @@ function CentreRow({
             {[x.codice, `${PIANI.find((p) => p.value === x.piano)?.label}${fisso ? ' fisso' : ''}`, x.comune].filter(Boolean).join(' · ')}
           </Muted>
         </View>
+        {x.stato === 'pronto' && !x.sospeso && !!x.disdetta && <Badge tone="bad">Disdetto</Badge>}
         {(x.stato !== 'pronto' || x.sospeso) && (
           <Badge tone={x.stato === 'errore' || x.sospeso ? 'bad' : 'warn'}>{x.sospeso ? 'Sospeso' : STATO[x.stato]}</Badge>
         )}
@@ -941,6 +942,8 @@ function CentreRow({
             {!!x.iban && <Badge>IBAN {x.iban.slice(0, 4)}…{x.iban.slice(-4)}</Badge>}
             {x.stato === 'pronto' && <Badge tone={days !== null && days < 7 ? 'bad' : 'neutral'}>Licenza fino al {data(x.scade)}</Badge>}
             {credit > 0 && <Badge tone="ok">Bonus da scalare {euro(credit)}</Badge>}
+            {!!x.piano_prossimo && <Badge tone="warn">Dal mese prossimo {PIANI.find((p) => p.value === x.piano_prossimo)?.label}</Badge>}
+            {!!x.disdetta && <Badge tone="bad">Disdetto: finisce il {data(x.disdetta)}</Badge>}
           </Row>
           {billing.length > 0 && <Muted style={{ fontSize: 13 }}>{billing.join('\n')}</Muted>}
           {!!centreBillingError(x) && <ErrorText>Dati per la fattura incompleti: completali da Modifica.</ErrorText>}
@@ -983,6 +986,20 @@ function CentreRow({
           {open && (
             <View style={{ gap: 10 }}>
               <Muted style={{ fontSize: 13 }}>Registrato il {data(x.creato)}.</Muted>
+              {!!x.disdetta && (
+                <Row>
+                  <Muted style={{ flex: 1, fontSize: 13 }}>
+                    Ha disdetto: il servizio finisce il {data(x.disdetta)}, l&apos;ultimo conto arriva come sempre e poi la licenza non si rinnova.
+                  </Muted>
+                  <Button small kind="ghost" title="Togli la disdetta" onPress={() => run('centro', { disdetta: null })} loading={busy === 'centro'} />
+                </Row>
+              )}
+              {!!x.piano_prossimo && (
+                <Muted style={{ fontSize: 13 }}>
+                  Ha scelto il piano {PIANI.find((p) => p.value === x.piano_prossimo)?.label} dal primo del mese prossimo. Se cambi il piano da qui vale subito e
+                  annulla quella scelta.
+                </Muted>
+              )}
               <Body bold>Piano</Body>
               <Chips items={PIANI} value={x.piano} onChange={(piano) => run('piano', { piano })} disabled={!!busy} />
               <Body bold>Come paga</Body>

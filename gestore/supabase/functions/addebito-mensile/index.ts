@@ -10,7 +10,7 @@
 // La chiama pg_cron il primo del mese con x-webhook-secret. Per rifare un mese: body {"mese": "AAAA-MM"}.
 // Si può rilanciare senza paura: un centro già addebitato per quel mese viene saltato.
 
-import { allungaLicenza, cambi, prezzi } from '../_shared/addebiti.ts';
+import { allungaLicenza, applicaCambiPrenotati, cambi, prezzi } from '../_shared/addebiti.ts';
 import { daCron, db, json, messaggio, oggi, type Centro } from '../_shared/comune.ts';
 import { causale, contoDelMese, giorniPerPagare, scadenzaLicenza, type Prezzi } from '../_shared/costi.ts';
 import { managementApi } from '../_shared/supabase-api.ts';
@@ -26,6 +26,8 @@ const mesePrima = (mese: string) => {
 const euro = (cents: number) => (cents / 100).toFixed(2).replace('.', ',');
 
 async function addebita(c: Centro, mese: string, listino: Prezzi) {
+  // Disdetto: dopo l'ultimo mese non si addebita più niente.
+  if (c.disdetta && `${mese}-01` > c.disdetta) return `disdetto dal ${c.disdetta}`;
   const { data: fatto } = await db.from('addebiti').select('id, stato').eq('centro', c.id).eq('mese', mese).maybeSingle();
   if (fatto && fatto.stato !== 'da_fare') return `già fatto (${fatto.stato})`;
 
@@ -89,6 +91,8 @@ Deno.serve(async (req) => {
   if (!daCron(req)) return json({ errore: 'Non autorizzato.' }, 401);
   const body = await req.json().catch(() => ({}));
   const mese = /^\d{4}-\d{2}$/.test(body.mese ?? '') ? body.mese : mesePrima(oggi().slice(0, 7));
+  // I passaggi a un piano più piccolo prenotati partono oggi, il primo del mese (non quando si rifà un mese vecchio).
+  if (!body.mese) await applicaCambiPrenotati().catch((e) => console.error(`piani prenotati: ${messaggio(e)}`));
   const listino = await prezzi();
   const { data } = await db.from('centri').select('*').eq('stato', 'pronto').order('creato');
   const esito: Record<string, string> = {};

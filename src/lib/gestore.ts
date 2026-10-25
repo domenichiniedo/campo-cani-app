@@ -63,6 +63,12 @@ export type Due = { id: string; mese: string; prenotazioni: number; canone_cents
 export type Subscription = {
   piano: string;
   formula?: Formula;
+  /** Il piano più piccolo già scelto, che parte il giorno piano_dal. */
+  piano_prossimo?: string | null;
+  piano_dal?: string | null;
+  /** Disdetto: l'ultimo giorno del servizio. disdetta_se_oggi: quando finirebbe disdicendo oggi. */
+  disdetta?: string | null;
+  disdetta_se_oggi?: string;
   piani: Record<string, PlanPrice>;
   iban_centro: string;
   scade: string | null;
@@ -79,6 +85,10 @@ export const subscription = (codice: string, token: string) => call<Subscription
 /** Cambia piano o formula da oggi: torna anche la licenza (nuova se è cambiato il piano) da attivare subito. */
 export const changePlan = (codice: string, piano: string, formula: Formula, token: string) =>
   call<Subscription & { licenza: string }>('abbonamento', { codice, azione: 'cambia', piano, formula }, token);
+
+/** Disdetta con un mese di preavviso (solo con i conti pagati), o la disdetta annullata. */
+export const cancelSubscription = (codice: string, token: string) => call<Subscription>('abbonamento', { codice, azione: 'disdici' }, token);
+export const keepSubscription = (codice: string, token: string) => call<Subscription>('abbonamento', { codice, azione: 'tieni' }, token);
 
 /** L'IBAN da cui il centro paga, per riconoscere i suoi bonifici. */
 export const setCentreIban = (codice: string, iban: string, token: string) => call<Subscription>('abbonamento', { codice, azione: 'iban', iban }, token);

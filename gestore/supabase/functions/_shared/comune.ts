@@ -25,6 +25,10 @@ export type Centro = Fatturazione & {
   formula: 'consumo' | 'fisso';
   /** Prezzo fisso fatto apposta per il centro; null = quello del piano. */
   fisso_cents: number | null;
+  /** Piano più piccolo che parte dal primo del mese dopo. */
+  piano_prossimo: 'base' | 'professional' | 'pro' | null;
+  /** Disdetto: ultimo giorno del servizio. */
+  disdetta: string | null;
   /** IBAN da cui il centro fa i bonifici, per riconoscerli. */
   iban: string;
   progetto: string | null;
