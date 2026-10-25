@@ -1,5 +1,5 @@
 // Prepara i database dei centri che hanno firmato il mandato, e aggiunge a quelli pronti le migrazioni nuove.
-// La chiama pg_cron ogni minuto (e il webhook di Stripe appena un mandato è firmato), con x-webhook-secret.
+// La chiama pg_cron ogni minuto, con x-webhook-secret.
 // Ogni giro lavora al massimo un minuto e mezzo; quello che resta lo fa il giro dopo.
 
 import { daCron, db, env, json, messaggio, oggi, type Centro } from '../_shared/comune.ts';

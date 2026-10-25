@@ -5,7 +5,6 @@ import type { Centro } from './comune.ts';
 import { fineMese, firmaLicenza } from './licenza.ts';
 import { MIGRAZIONI } from './migrazioni.ts';
 import { passo, type Ambiente } from './passi.ts';
-import { firmaStripe, form } from './stripe.ts';
 
 const uguale = (a: unknown, b: unknown) => {
   if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(`atteso ${JSON.stringify(b)}, trovato ${JSON.stringify(a)}`);
@@ -32,27 +31,6 @@ Deno.test('licenza firmata dal server, letta come la legge l\'app', () => {
   uguale(prefix, 'CC1');
   if (!nacl.sign.detached.verify(new TextEncoder().encode(`${prefix}.${body}`), b64(sig), pubblica)) throw new Error('firma non valida');
   uguale(JSON.parse(new TextDecoder().decode(b64(body))), { v: 1, ...dati });
-});
-
-Deno.test('parametri per Stripe', () => {
-  uguale(
-    decodeURIComponent(form({ a: 1, b: { c: 'x', d: { e: true } }, f: ['sepa_debit'], g: undefined, h: null }).toString()),
-    'a=1&b[c]=x&b[d][e]=true&f[0]=sepa_debit',
-  );
-});
-
-Deno.test('firma degli eventi Stripe', async () => {
-  const segreto = 'whsec_prova';
-  const payload = '{"id":"evt_1"}';
-  const t = 1_800_000_000;
-  const k = await crypto.subtle.importKey('raw', new TextEncoder().encode(segreto), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const v1 = [...new Uint8Array(await crypto.subtle.sign('HMAC', k, new TextEncoder().encode(`${t}.${payload}`)))].map((b) => b.toString(16).padStart(2, '0')).join('');
-  uguale(await firmaStripe(payload, `t=${t},v1=${v1}`, segreto, t + 10), true);
-  uguale(await firmaStripe(payload, `t=${t},v0=x,v1=${v1}`, segreto, t), true);
-  uguale(await firmaStripe(payload + ' ', `t=${t},v1=${v1}`, segreto, t), false);
-  uguale(await firmaStripe(payload, `t=${t},v1=${v1}`, 'whsec_altro', t), false);
-  uguale(await firmaStripe(payload, `t=${t},v1=${v1}`, segreto, t + 1000), false);
-  uguale(await firmaStripe(payload, '', segreto, t), false);
 });
 
 Deno.test('preparazione di un centro, passo dopo passo', async () => {

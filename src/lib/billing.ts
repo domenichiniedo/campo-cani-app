@@ -9,10 +9,10 @@ const ODD: Record<string, number> = {
 
 const even = (ch: string) => (/\d/.test(ch) ? Number(ch) : ch.charCodeAt(0) - 65);
 
-export const normalizeTaxCode = (s: string) => s.replace(/\s/g, '').toUpperCase();
+const normalizeTaxCode = (s: string) => s.replace(/\s/g, '').toUpperCase();
 
 /** Codice fiscale di persona (16 caratteri, con carattere di controllo) o partita IVA (11 cifre). */
-export function isValidTaxCode(raw: string): boolean {
+function isValidTaxCode(raw: string): boolean {
   const s = normalizeTaxCode(raw);
   if (/^[A-Z0-9]{16}$/.test(s)) {
     if (!/^[A-Z]{6}[0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]$/.test(s)) return false;
@@ -66,7 +66,7 @@ export const billingColumns = (b: BillingDraft) => ({
   billing_province: b.province.trim().toUpperCase(),
 });
 
-export const hasBilling = (p: Profile | null) =>
+const hasBilling = (p: Profile | null) =>
   !!p && !!p.tax_code && !!p.billing_street && !!p.billing_zip && !!p.billing_city;
 
 /** Chi non vuole la fattura non deve dare codice fiscale e indirizzo (come billing_ok nel database). */

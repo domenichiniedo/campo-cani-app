@@ -23,7 +23,7 @@ export const priceText = (p: PlanPrice) =>
     : t('{quota} a prenotazione, senza canone', { quota: euro(p.tariffa_cents) });
 
 /** Un addebito del mese da pagare con il bonifico istantaneo sul conto del gestore. */
-export function DueTransfer({ due, to }: { due: Due; to: Subscription['bonifico'] }) {
+function DueTransfer({ due, to }: { due: Due; to: Subscription['bonifico'] }) {
   const late = due.stato === 'non_pagato' || (!!due.scadenza && due.scadenza < dayKey(today()));
   const intro = [
     t('Canone e prenotazioni di {mese}: {n} prenotazioni.', { mese: month(due.mese), n: due.prenotazioni }),
