@@ -32,7 +32,12 @@ export async function allungaLicenza(c: Centro, forza = false) {
 
 export async function prezzi(): Promise<Prezzi> {
   const { data } = await db.from('piani').select('*');
-  const p: Prezzi = { base: { canone_cents: 0, tariffa_cents: 100 }, professional: { canone_cents: 0, tariffa_cents: 100 }, pro: { canone_cents: 0, tariffa_cents: 100 } };
+  // I prezzi di partenza (0004_prezzi.sql), se la tabella non li ha.
+  const p: Prezzi = {
+    base: { canone_cents: 590, tariffa_cents: 100 },
+    professional: { canone_cents: 2999, tariffa_cents: 60 },
+    pro: { canone_cents: 8000, tariffa_cents: 30 },
+  };
   for (const r of data ?? []) p[r.piano as Piano] = { canone_cents: r.canone_cents, tariffa_cents: r.tariffa_cents };
   return p;
 }

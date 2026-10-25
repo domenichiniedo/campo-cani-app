@@ -92,7 +92,7 @@ export function CentreQr({ campo, link, code, message }: { campo: string; link: 
     return x;
   }, [link]);
   const qr = useMemo(() => q.createDataURL(8, 4), [q]);
-  const share = useMemo(canShareImage, []);
+  const share = useMemo(() => canShareImage(), []);
   const name = `qr-${campo.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'centro'}.png`;
 
   async function run(what: string, job: () => Promise<string | void>) {

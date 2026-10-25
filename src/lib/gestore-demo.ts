@@ -14,9 +14,9 @@ const monthOf = (d: Date, delta: number) => {
 const dayThree = (d: Date, delta: number) => dayKey(new Date(d.getFullYear(), d.getMonth() + delta, 3));
 
 const PIANI: PlanRow[] = [
-  { piano: 'base', canone_cents: 0, tariffa_cents: 100 },
-  { piano: 'professional', canone_cents: 1900, tariffa_cents: 80 },
-  { piano: 'pro', canone_cents: 3900, tariffa_cents: 60 },
+  { piano: 'base', canone_cents: 590, tariffa_cents: 100 },
+  { piano: 'professional', canone_cents: 2999, tariffa_cents: 60 },
+  { piano: 'pro', canone_cents: 8000, tariffa_cents: 30 },
 ];
 const price = (p: AdminCentre['piano']) => PIANI.find((x) => x.piano === p)!;
 

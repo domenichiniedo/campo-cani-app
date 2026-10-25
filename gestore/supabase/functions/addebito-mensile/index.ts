@@ -28,7 +28,8 @@ async function addebita(c: Centro, mese: string, listino: Prezzi) {
   if (fatto && fatto.stato !== 'da_fare') return `già fatto (${fatto.stato})`;
 
   const righe = (await managementApi('POST', `/projects/${c.progetto}/database/query`, {
-    query: `select day::text as g, count(*)::int as n from public.bookings where status = 'active' and pay in ('onsite', 'transfer', 'online') and day >= '${mese}-01' and day < '${meseDopo(mese)}-01' group by day;`,
+    // Contano anche le prenotazioni annullate; non quelle pagate con un pacchetto.
+    query: `select day::text as g, count(*)::int as n from public.bookings where pay in ('onsite', 'transfer', 'online') and day >= '${mese}-01' and day < '${meseDopo(mese)}-01' group by day;`,
   })) as { g: string; n: number }[];
   const conto = contoDelMese({
     mese,
