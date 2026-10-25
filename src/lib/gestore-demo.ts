@@ -116,6 +116,7 @@ function build(): AdminData {
         prenotazioni: n,
         canone_cents: p.canone_cents,
         importo_cents: p.canone_cents + n * (i === 0 ? 50 : p.tariffa_cents),
+        bonus_cents: 0,
         stato: statoAddebito,
         fattura: null,
         errore: '',
@@ -145,6 +146,14 @@ function build(): AdminData {
     },
     movimenti: [
       { id: 'm-1', data: dayKey(now), importo_cents: 4100, iban: 'IT02L1234512345123456789012', nome: 'ASD Cani Felici', causale: 'K9 abbonamento', centro: null },
+    ],
+    codici: [
+      { codice: 'BENVENUTO30', importo_cents: 3000, usi_max: null, usati: 4, scade: null, nota: 'Benvenuto per i centri nuovi', attivo: true, creato: `${monthOf(now, -5)}-01T10:00:00Z` },
+      { codice: 'FIERA-BO', importo_cents: 5000, usi_max: 10, usati: 10, scade: dayKey(new Date(now.getFullYear(), now.getMonth() - 1, 20)), nota: 'Fiera di Bologna', attivo: true, creato: `${monthOf(now, -3)}-10T10:00:00Z` },
+    ],
+    crediti: [
+      { id: 'cr-1', centro: 'demo-6', importo_cents: 3000, residuo_cents: 1200, codice: 'BENVENUTO30', nota: 'Benvenuto per i centri nuovi', creato: `${monthOf(now, -2)}-04T10:00:00Z` },
+      { id: 'cr-2', centro: 'demo-1', importo_cents: 2000, residuo_cents: 2000, codice: null, nota: 'Scuse per il disservizio di settembre', creato: `${monthOf(now, 0)}-02T10:00:00Z` },
     ],
   };
 }
@@ -260,6 +269,22 @@ export async function demoCall<T>(azione: string, b: Record<string, unknown>): P
       }
       break;
     }
+    case 'bonus_codice_crea': {
+      const codice = String(b.codice ?? '').trim().toUpperCase();
+      if (!/^[A-Z0-9-]{4,20}$/.test(codice)) throw new Error('Il codice va da 4 a 20 lettere, cifre o trattini.');
+      if (d.codici.some((x) => x.codice === codice)) throw new Error('Questo codice esiste già.');
+      if (!Number(b.importo_cents)) throw new Error('Scrivi quanto vale il bonus.');
+      const usi = b.usi_max === null || b.usi_max === '' || b.usi_max === undefined ? null : Number(b.usi_max);
+      d.codici.unshift({ codice, importo_cents: Number(b.importo_cents), usi_max: usi, usati: 0, scade: (b.scade as string) || null, nota: String(b.nota ?? ''), attivo: true, creato: new Date().toISOString() });
+      break;
+    }
+    case 'bonus_codice':
+      d.codici = d.codici.map((x) => (x.codice === b.codice ? { ...x, attivo: !!b.attivo } : x));
+      break;
+    case 'bonus_dai':
+      if (!Number(b.importo_cents)) throw new Error('Scrivi quanto vale il bonus.');
+      d.crediti.unshift({ id: `cr-${Date.now()}`, centro: String(b.id), importo_cents: Number(b.importo_cents), residuo_cents: Number(b.importo_cents), codice: null, nota: String(b.nota ?? ''), creato: new Date().toISOString() });
+      break;
     case 'versioni':
       ver ??= versions();
       return structuredClone(ver) as T;

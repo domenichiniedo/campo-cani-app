@@ -41,7 +41,10 @@ async function addebita(c: Centro, mese: string, listino: Prezzi) {
     tariffa: c.tariffa_cents,
     prenotazioni: Object.fromEntries(righe.map((r) => [r.g.slice(0, 10), r.n])),
   });
-  const importo = conto.importo_cents;
+  // Il bonus del centro (crediti dal pannello o da un codice bonus) si scala dal conto, finché c'è.
+  const { data: crediti } = await db.from('crediti').select('residuo_cents').eq('centro', c.id).gt('residuo_cents', 0);
+  const bonus = Math.min(conto.importo_cents, (crediti ?? []).reduce((s, x) => s + x.residuo_cents, 0));
+  const importo = conto.importo_cents - bonus;
   const { error } = await db
     .from('addebiti')
     .upsert(
@@ -51,6 +54,7 @@ async function addebita(c: Centro, mese: string, listino: Prezzi) {
         prenotazioni: conto.prenotazioni,
         canone_cents: conto.canone_cents,
         importo_cents: importo,
+        bonus_cents: bonus,
         stato: importo ? 'inviato' : 'zero',
         scadenza: scadenzaLicenza(`${mese}-01`, giorniPerPagare()),
         causale: causale(c.codice, mese),
@@ -58,11 +62,17 @@ async function addebita(c: Centro, mese: string, listino: Prezzi) {
       { onConflict: 'centro,mese' },
     );
   if (error) throw new Error(error.message);
+  // Dopo il conto: se qui qualcosa va storto il centro paga meno, mai due volte il bonus.
+  if (bonus) {
+    const { error: e } = await db.rpc('scala_crediti', { p_centro: c.id, p_importo: bonus });
+    if (e) console.error(`${c.codice} ${mese}: bonus non scalato: ${e.message}`);
+  }
+  const conBonus = bonus ? ` (bonus ${euro(bonus)} €)` : '';
   if (!importo) {
     await allungaLicenza(c);
-    return 'niente da pagare';
+    return `niente da pagare${conBonus}`;
   }
-  return `${conto.prenotazioni} prenotazioni, ${euro(importo)} €`;
+  return `${conto.prenotazioni} prenotazioni, ${euro(importo)} €${conBonus}`;
 }
 
 Deno.serve(async (req) => {

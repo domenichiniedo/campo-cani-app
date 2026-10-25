@@ -45,8 +45,9 @@ async function call<T>(fn: string, body: object, token?: string): Promise<T> {
 }
 
 /** Registra un centro nuovo, con i dati per fatturargli (e l'IBAN da cui pagherà, se lo dà): torna il suo codice. */
-export const registerCentre = (campo: string, email: string, piano: string, iban: string, fattura: CentreBilling) =>
-  call<{ codice: string }>('registra-centro', { campo, email, piano, iban, fattura });
+/** bonus: codice bonus del gestore (facoltativo); torna il credito che ha dato, in centesimi. */
+export const registerCentre = (campo: string, email: string, piano: string, iban: string, fattura: CentreBilling, bonus = '') =>
+  call<{ codice: string; bonus_cents?: number }>('registra-centro', { campo, email, piano, iban, fattura, bonus });
 
 export type PlanPrice = { canone_cents: number; tariffa_cents: number };
 
@@ -63,6 +64,8 @@ export type Subscription = {
   /** Il conto del gestore dove il centro paga con il bonifico istantaneo. */
   bonifico: { iban: string; intestatario: string };
   da_pagare: Due[];
+  /** Bonus che resta da scalare dai prossimi conti, in centesimi. */
+  credito_cents?: number;
 };
 
 /** Piano, prezzi e cosa c'è da pagare; solo il proprietario, con il suo accesso. */

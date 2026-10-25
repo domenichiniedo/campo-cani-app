@@ -466,13 +466,17 @@
       if (String(f.ragione_sociale || '').trim().length < 2 || !(f.partita_iva || f.codice_fiscale) || !/^\d{5}$/.test(f.cap || '')) {
         return json(400, { errore: 'Completa i dati per la fattura.' });
       }
+      // Nella demo vale un solo codice bonus, quello che si vede anche nella demo del pannello.
+      var bonus = String(a.bonus || '').trim().toUpperCase();
+      if (bonus && bonus !== 'BENVENUTO30') return json(400, { errore: 'Codice bonus non valido o scaduto. Correggilo o lascialo vuoto.' });
+      try { localStorage.setItem('campo-demo-bonus', bonus ? '3000' : '0'); } catch (e) {}
       var codice = 'K9-' + Array.from({ length: 6 }, function () { return 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.random() * 31 | 0]; }).join('');
       try { localStorage.setItem(CENTRO, JSON.stringify({ codice: codice, campo: campo, email: email, piano: a.piano, fattura: f, inizio: Date.now() })); } catch (e) {}
       // Come il gestore vero: nome del campo e titolare (chi si iscrive con questa email è il proprietario).
       db.settings[0].field_name = campo;
       if (!db.owner_emails.some(function (x) { return x.email === email; })) db.owner_emails.push({ email: email });
       save();
-      return json(200, { codice: codice });
+      return json(200, { codice: codice, bonus_cents: bonus ? 3000 : 0 });
     }
     if (fn === 'centro') {
       var c = null;
@@ -503,7 +507,8 @@
       }
       if (a.azione === 'iban') try { localStorage.setItem('campo-demo-iban-centro', String(a.iban || '')); } catch (e) {}
       var out = { piano: piano, piani: PREZZI, iban_centro: localStorage.getItem('campo-demo-iban-centro') || '', scade: null,
-        bonifico: { iban: 'IT60X0542811101000000123456', intestatario: 'K9 Manager' }, da_pagare: [] };
+        bonifico: { iban: 'IT60X0542811101000000123456', intestatario: 'K9 Manager' }, da_pagare: [],
+        credito_cents: Number(localStorage.getItem('campo-demo-bonus') || 0) };
       if (a.azione === 'cambia') out.licenza = lic[piano];
       return json(200, out);
     }

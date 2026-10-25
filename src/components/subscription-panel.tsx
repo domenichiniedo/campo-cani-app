@@ -141,6 +141,9 @@ export function SubscriptionPanel() {
           {sub.da_pagare.length === 0 && <Badge tone="ok">{t('Tutto pagato')}</Badge>}
         </Row>
         <Body>{t('Piano {piano}: {prezzo}', { piano: PLANS[current].label, prezzo: priceText(sub.piani[current]) })}</Body>
+        {!!sub.credito_cents && (
+          <Badge tone="ok">{t('Bonus da scalare dai prossimi conti: {importo}', { importo: euro(sub.credito_cents) })}</Badge>
+        )}
         <Muted style={{ fontSize: 13 }}>
           {t("Il primo del mese ricevi qui il conto del mese prima e lo paghi con un bonifico istantaneo entro il giorno 3. Se il pagamento non arriva, l'app del centro si blocca finché non arriva.")}
         </Muted>

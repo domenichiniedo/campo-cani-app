@@ -32,6 +32,13 @@ Deno.serve(async (req) => {
   // Ragione sociale, partita IVA o codice fiscale, sede e SDI o PEC: per fatturargli canone e prenotazioni.
   const fattura = leggiFatturazione(body.fattura);
   if ('errore' in fattura) return json({ errore: fattura.errore }, 400);
+  // Codice bonus (facoltativo): si controlla prima, così chi lo sbaglia lo corregge prima di registrarsi.
+  const bonus = String(body.bonus ?? '').trim().toUpperCase();
+  if (bonus) {
+    const { data: b } = await db.from('codici_bonus').select('attivo, scade, usi_max, usati').eq('codice', bonus).maybeSingle();
+    if (!b || !b.attivo || (b.scade && b.scade < oggi()) || (b.usi_max !== null && b.usati >= b.usi_max))
+      return json({ errore: 'Codice bonus non valido o scaduto. Correggilo o lascialo vuoto.' }, 400);
+  }
 
   // Ogni centro costa un progetto Supabase: si limita chi prova a registrarne tanti.
   const giorno = new Date(Date.now() - 24 * 3600_000).toISOString();
@@ -53,7 +60,8 @@ Deno.serve(async (req) => {
   }
   if (!centro) return json({ errore: 'Registrazione non riuscita, riprova.' }, 500);
   await db.from('cambi_piano').insert({ centro: centro.id, piano, dal: oggi(), da: 'registrazione' });
+  const { data: credito } = bonus ? await db.rpc('usa_codice_bonus', { p_codice: bonus, p_centro: centro.id }) : { data: 0 };
 
   sveglia();
-  return json({ codice: centro.codice });
+  return json({ codice: centro.codice, bonus_cents: Number(credito) || 0 });
 });

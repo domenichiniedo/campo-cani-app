@@ -20,6 +20,7 @@ import {
   type AdminCentre,
   type AdminData,
   type AppVersions,
+  type BonusCode,
   type Bank,
   type Charge,
   type Movement,
@@ -135,7 +136,7 @@ function Login() {
 /** Addebiti non ancora pagati: mandati e in attesa, scaduti, o da rifare per un errore. */
 const owed = (charges: Charge[]) => charges.filter((a) => a.stato === 'inviato' || a.stato === 'non_pagato' || (a.stato === 'da_fare' && !!a.errore));
 
-type Section = 'centri' | 'statistiche' | 'banca' | 'piani' | 'app';
+type Section = 'centri' | 'statistiche' | 'banca' | 'piani' | 'bonus' | 'app';
 
 function Dashboard() {
   const c = useColors();
@@ -210,6 +211,7 @@ function Dashboard() {
     { value: 'statistiche', label: 'Statistiche', icon: '▦' },
     { value: 'banca', label: 'Banca e bonifici', icon: '€', count: d.movimenti.length },
     { value: 'piani', label: 'Piani e addebiti', icon: '⚙' },
+    { value: 'bonus', label: 'Bonus', icon: '★' },
     { value: 'app', label: 'App e versioni', icon: '⇩' },
   ];
   const title = sections.find((s) => s.value === section)!.label;
@@ -259,7 +261,16 @@ function Dashboard() {
           </Row>
           <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.line, borderRadius: 8, overflow: 'hidden' }}>
             {shown.map((x, i) => (
-              <CentreRow key={x.id} first={i === 0} centre={x} plan={piani[x.piano]} charges={charges(x)} today={d.oggi} onChange={load} />
+              <CentreRow
+                key={x.id}
+                first={i === 0}
+                centre={x}
+                plan={piani[x.piano]}
+                charges={charges(x)}
+                credit={d.crediti.filter((k) => k.centro === x.id).reduce((s, k) => s + k.residuo_cents, 0)}
+                today={d.oggi}
+                onChange={load}
+              />
             ))}
             {!shown.length && <Muted style={{ padding: 14 }}>Nessun centro.</Muted>}
           </View>
@@ -278,6 +289,8 @@ function Dashboard() {
           {!d.movimenti.length && <Muted>Nessun bonifico da abbinare: quelli arrivati sono già tutti collegati a un addebito.</Muted>}
         </>
       )}
+
+      {section === 'bonus' && <BonusSection d={d} onChange={load} />}
 
       {section === 'app' && <VersionsSection />}
 
@@ -353,6 +366,151 @@ function PanelMenu({
         <Text style={{ color: SOFT, fontSize: 15, fontWeight: '600' }}>Esci</Text>
       </Pressable>
     </View>
+  );
+}
+
+/** Un codice bonus a caso, facile da dettare: niente lettere e cifre che si confondono. */
+const nuovoCodiceBonus = () => {
+  const a = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  return `BONUS-${Array.from(crypto.getRandomValues(new Uint8Array(5)), (b) => a[b % a.length]).join('')}`;
+};
+
+/** I bonus: codici per i centri nuovi e crediti già dati, che si scalano dai conti del mese. */
+function BonusSection({ d, onChange }: { d: AdminData; onChange: () => void }) {
+  const c = useColors();
+  const [codice, setCodice] = useState(nuovoCodiceBonus);
+  const [importo, setImporto] = useState('30');
+  const [usi, setUsi] = useState('');
+  const [scade, setScade] = useState('');
+  const [nota, setNota] = useState('');
+  const [busy, setBusy] = useState('');
+  const [err, setErr] = useState('');
+  const [msg, setMsg] = useState('');
+  const nome = (id: string) => d.centri.find((x) => x.id === id)?.campo ?? id;
+  const daScalare = d.crediti.reduce((s, x) => s + x.residuo_cents, 0);
+  const scalati = d.addebiti.reduce((s, a) => s + (a.bonus_cents ?? 0), 0);
+
+  async function run(azione: string, body: object, done = '') {
+    setErr('');
+    setMsg('');
+    setBusy(azione);
+    try {
+      await adminCall(azione, body);
+      if (done) setMsg(done);
+      onChange();
+      return true;
+    } catch (e) {
+      setErr((e as Error).message);
+      return false;
+    } finally {
+      setBusy('');
+    }
+  }
+
+  async function create() {
+    const cents = Math.round(Number(importo.replace(',', '.')) * 100);
+    if (!Number.isFinite(cents) || cents <= 0) return setErr('Scrivi quanto vale il bonus.');
+    const ok = await run(
+      'bonus_codice_crea',
+      { codice, importo_cents: cents, usi_max: usi.trim() ? Number(usi) : null, scade: scade.trim() || null, nota },
+      `Codice ${codice.toUpperCase()} creato: dallo ai centri, lo scrivono quando si registrano dall'app.`,
+    );
+    if (ok) {
+      setCodice(nuovoCodiceBonus());
+      setNota('');
+    }
+  }
+
+  const statoCodice = (x: BonusCode): [string, 'ok' | 'warn' | 'bad' | 'neutral'] =>
+    !x.attivo
+      ? ['Spento', 'neutral']
+      : x.scade && x.scade < d.oggi
+        ? ['Scaduto', 'bad']
+        : x.usi_max !== null && x.usati >= x.usi_max
+          ? ['Esaurito', 'warn']
+          : ['Attivo', 'ok'];
+
+  return (
+    <>
+      <Row>
+        <Stat label="Bonus da scalare" value={euro(daScalare)} />
+        <Stat label="Bonus già scalati (13 mesi)" value={euro(scalati)} />
+        <Stat label="Codici attivi" value={d.codici.filter((x) => statoCodice(x)[0] === 'Attivo').length} />
+      </Row>
+      <Muted style={{ fontSize: 13 }}>
+        Un bonus è un credito in euro del centro: si scala da solo dai suoi conti del mese finché non finisce. Lo dai con un codice, che il centro
+        nuovo scrive quando si registra dall&apos;app, oppure a mano a un centro (Centri → il centro → Dai un bonus).
+      </Muted>
+
+      <Step title="Nuovo codice bonus" />
+      <Card>
+        <Row>
+          <Field label="Codice" value={codice} onChangeText={(v) => setCodice(v.toUpperCase())} autoCapitalize="characters" style={{ flex: 2, minWidth: 180 }} />
+          <Button small kind="ghost" title="Genera" onPress={() => setCodice(nuovoCodiceBonus())} />
+        </Row>
+        <Row>
+          <Field label="Valore €" value={importo} onChangeText={setImporto} keyboardType="decimal-pad" style={{ flex: 1, minWidth: 100 }} />
+          <Field label="Quanti centri (vuoto = senza limite)" value={usi} onChangeText={setUsi} keyboardType="number-pad" style={{ flex: 1, minWidth: 160 }} />
+          <Field label="Valido fino al (AAAA-MM-GG)" value={scade} onChangeText={setScade} placeholder="sempre" style={{ flex: 1, minWidth: 160 }} />
+        </Row>
+        <Field label="Nota (la vedi solo tu)" value={nota} onChangeText={setNota} placeholder="Es. Fiera di Bologna" />
+        <Button small title="Crea il codice" onPress={create} loading={busy === 'bonus_codice_crea'} />
+        <ErrorText>{err}</ErrorText>
+        {!!msg && <Muted>{msg}</Muted>}
+      </Card>
+
+      <Step title="Codici" />
+      <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.line, borderRadius: 8, overflow: 'hidden' }}>
+        {d.codici.map((x, i) => {
+          const [stato, tone] = statoCodice(x);
+          return (
+            <Row key={x.codice} style={{ paddingVertical: 10, paddingHorizontal: 14, borderTopWidth: i ? 1 : 0, borderTopColor: c.line, justifyContent: 'space-between' }}>
+              <View style={{ flexShrink: 1 }}>
+                <Row>
+                  <Body bold>{x.codice}</Body>
+                  <Badge tone={tone}>{stato}</Badge>
+                </Row>
+                <Muted style={{ fontSize: 13 }}>
+                  {euro(x.importo_cents)} · usato {x.usi_max === null ? `${x.usati} volte` : `${x.usati} su ${x.usi_max}`}
+                  {x.scade ? ` · fino al ${data(x.scade)}` : ''}
+                  {x.nota ? ` · ${x.nota}` : ''}
+                </Muted>
+              </View>
+              <Row>
+                <Button small kind="ghost" title="Copia" onPress={() => copyText(x.codice).then(() => setMsg(`Codice ${x.codice} copiato.`))} />
+                <Button
+                  small
+                  kind={x.attivo ? 'danger' : 'ghost'}
+                  title={x.attivo ? 'Spegni' : 'Riaccendi'}
+                  onPress={() => run('bonus_codice', { codice: x.codice, attivo: !x.attivo })}
+                  disabled={!!busy}
+                />
+              </Row>
+            </Row>
+          );
+        })}
+        {!d.codici.length && <Muted style={{ padding: 14 }}>Ancora nessun codice.</Muted>}
+      </View>
+
+      <Step title="Bonus dei centri" />
+      <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.line, borderRadius: 8, overflow: 'hidden' }}>
+        {d.crediti.map((x, i) => (
+          <Row key={x.id} style={{ paddingVertical: 10, paddingHorizontal: 14, borderTopWidth: i ? 1 : 0, borderTopColor: c.line, justifyContent: 'space-between' }}>
+            <View style={{ flexShrink: 1 }}>
+              <Body bold>{nome(x.centro)}</Body>
+              <Muted style={{ fontSize: 13 }}>
+                {data(x.creato)} · {x.codice ? `codice ${x.codice}` : 'dato a mano'}
+                {x.nota ? ` · ${x.nota}` : ''}
+              </Muted>
+            </View>
+            <Text style={{ color: x.residuo_cents ? c.accent : c.muted, fontWeight: '700' }}>
+              {x.residuo_cents ? `${euro(x.residuo_cents)} rimasti di ${euro(x.importo_cents)}` : `${euro(x.importo_cents)} usati tutti`}
+            </Text>
+          </Row>
+        ))}
+        {!d.crediti.length && <Muted style={{ padding: 14 }}>Nessun bonus dato.</Muted>}
+      </View>
+    </>
   );
 }
 
@@ -686,6 +844,7 @@ function CentreRow({
   centre: x,
   plan,
   charges,
+  credit,
   today,
   onChange,
 }: {
@@ -693,6 +852,8 @@ function CentreRow({
   centre: AdminCentre;
   plan: PlanRow | undefined;
   charges: Charge[];
+  /** Bonus che resta da scalare dai prossimi conti. */
+  credit: number;
   today: string;
   onChange: () => void;
 }) {
@@ -703,6 +864,8 @@ function CentreRow({
   const [rent, setRent] = useState(euroField(x.canone_cents));
   const [iban, setIban] = useState(formatIban(x.iban));
   const [bill, setBill] = useState<CentreBilling>(() => cleanCentreBilling(x));
+  const [bonus, setBonus] = useState('');
+  const [bonusNote, setBonusNote] = useState('');
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
   const billing = centreBillingLines(cleanCentreBilling(x));
@@ -767,6 +930,7 @@ function CentreRow({
             <Badge tone={custom ? 'warn' : 'neutral'}>{`${prezzo(canone, quota)}${custom ? ' (apposta)' : ''}`}</Badge>
             {!!x.iban && <Badge>IBAN {x.iban.slice(0, 4)}…{x.iban.slice(-4)}</Badge>}
             {x.stato === 'pronto' && <Badge tone={days !== null && days < 7 ? 'bad' : 'neutral'}>Licenza fino al {data(x.scade)}</Badge>}
+            {credit > 0 && <Badge tone="ok">Bonus da scalare {euro(credit)}</Badge>}
           </Row>
           {billing.length > 0 && <Muted style={{ fontSize: 13 }}>{billing.join('\n')}</Muted>}
           {!!centreBillingError(x) && <ErrorText>Dati per la fattura incompleti: completali da Modifica.</ErrorText>}
@@ -774,7 +938,8 @@ function CentreRow({
           {last && (
             <Muted style={{ fontSize: 13 }}>
               Ultimo mese {meseLabel(last.mese)}: {last.prenotazioni} prenotazioni, {euro(last.importo_cents)}
-              {last.canone_cents ? ` (canone ${euro(last.canone_cents)})` : ''}, {ADDEBITO[last.stato]}
+              {last.canone_cents ? ` (canone ${euro(last.canone_cents)})` : ''}
+              {last.bonus_cents ? ` (bonus scalato ${euro(last.bonus_cents)})` : ''}, {ADDEBITO[last.stato]}
               {last.pagato_il ? ` il ${data(last.pagato_il)}` : ''}
               {last.errore ? ` (${last.errore})` : ''}
             </Muted>
@@ -788,6 +953,21 @@ function CentreRow({
               <Button small kind="ghost" title="Segna pagato" onPress={() => run('pagato', { addebito: a.id })} loading={busy === 'pagato'} />
             </Row>
           ))}
+          <Row>
+            <Field label="Dai un bonus €" value={bonus} onChangeText={setBonus} keyboardType="decimal-pad" style={{ width: 130 }} />
+            <Field label="Perché (lo vedi solo tu)" value={bonusNote} onChangeText={setBonusNote} style={{ flex: 1, minWidth: 180 }} />
+            <Button
+              small
+              title="Dai il bonus"
+              loading={busy === 'bonus_dai'}
+              disabled={!bonus.trim()}
+              onPress={() => {
+                const cents = Math.round(Number(bonus.replace(',', '.')) * 100);
+                if (!Number.isFinite(cents) || cents <= 0) return setErr('Scrivi quanto vale il bonus.');
+                run('bonus_dai', { importo_cents: cents, nota: bonusNote }).then(() => (setBonus(''), setBonusNote('')));
+              }}
+            />
+          </Row>
           <Button small kind="ghost" title={open ? 'Chiudi' : 'Modifica'} onPress={() => setOpen(!open)} />
           {open && (
             <View style={{ gap: 10 }}>

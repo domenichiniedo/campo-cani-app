@@ -44,22 +44,24 @@ Deno.serve(async (req) => {
       case 'dati': {
         const da = new Date();
         da.setUTCMonth(da.getUTCMonth() - 13);
-        const [centri, addebiti, piani, banca, movimenti] = await Promise.all([
+        const [centri, addebiti, piani, banca, movimenti, codici, crediti] = await Promise.all([
           db
             .from('centri')
             .select(`id, codice, campo, email, piano, stato, errore, tariffa_cents, canone_cents, iban, scade, sospeso, creato, ${CAMPI_FATTURA.join(', ')}`)
             .order('creato', { ascending: false }),
           db
             .from('addebiti')
-            .select('id, centro, mese, prenotazioni, canone_cents, importo_cents, stato, fattura, errore, scadenza, causale, pagato_il')
+            .select('id, centro, mese, prenotazioni, canone_cents, importo_cents, bonus_cents, stato, fattura, errore, scadenza, causale, pagato_il')
             .gte('mese', da.toISOString().slice(0, 7))
             .order('mese'),
           db.from('piani').select('*'),
           db.from('banca').select('bonifico_iban, bonifico_intestatario, banca, paese, tipo, conto, iban, valido_fino, ultimo_controllo, errore').eq('id', 1).single(),
           // I bonifici con "K9" o di un centro che non pagano nessun addebito: da abbinare a mano.
           db.from('movimenti').select('id, data, importo_cents, iban, nome, causale, centro').eq('addebiti', '{}').gte('data', piuGiorni(oggi(), -120)).order('data', { ascending: false }),
+          db.from('codici_bonus').select('*').order('creato', { ascending: false }),
+          db.from('crediti').select('id, centro, importo_cents, residuo_cents, codice, nota, creato').order('creato', { ascending: false }),
         ]);
-        const errore = centri.error ?? addebiti.error ?? piani.error ?? banca.error ?? movimenti.error;
+        const errore = centri.error ?? addebiti.error ?? piani.error ?? banca.error ?? movimenti.error ?? codici.error ?? crediti.error;
         if (errore) throw new Error(errore.message);
         const { conto, ...resto } = banca.data!;
         return json({
@@ -69,6 +71,8 @@ Deno.serve(async (req) => {
           piani: piani.data,
           banca: { ...resto, collegata: !!conto, abilitata: !bancaSpenta() },
           movimenti: movimenti.data,
+          codici: codici.data,
+          crediti: crediti.data,
         });
       }
       case 'piano': {
@@ -165,6 +169,32 @@ Deno.serve(async (req) => {
         // Pagato in un altro modo (bonifico non visto, contanti): si segna e si allunga la licenza.
         const { data: a } = await db.from('addebiti').select('centro').eq('id', b.addebito).single();
         if (a) await segnaPagati(a.centro, [b.addebito]);
+        return json({ fatto: true });
+      }
+      case 'bonus_codice_crea': {
+        // Un codice bonus da dare ai centri nuovi: lo scrivono quando si registrano dall'app.
+        const codice = String(b.codice ?? '').trim().toUpperCase();
+        if (!/^[A-Z0-9-]{4,20}$/.test(codice)) throw new Error('Il codice va da 4 a 20 lettere, cifre o trattini.');
+        const usi = b.usi_max === null || b.usi_max === '' || b.usi_max === undefined ? null : Math.round(Number(b.usi_max));
+        if (usi !== null && (!Number.isInteger(usi) || usi < 1)) throw new Error('Il numero di centri deve essere almeno 1 (vuoto = senza limite).');
+        const scade = b.scade ? String(b.scade) : null;
+        if (scade && !/^\d{4}-\d{2}-\d{2}$/.test(scade)) throw new Error('La scadenza va scritta AAAA-MM-GG.');
+        const importo = centesimi(b.importo_cents);
+        if (!importo) throw new Error('Scrivi quanto vale il bonus.');
+        const { error } = await db.from('codici_bonus').insert({ codice, importo_cents: importo, usi_max: usi, scade, nota: String(b.nota ?? '').trim().slice(0, 120) });
+        if (error) throw new Error(error.code === '23505' ? 'Questo codice esiste già.' : error.message);
+        return json({ fatto: true });
+      }
+      case 'bonus_codice':
+        await db.from('codici_bonus').update({ attivo: !!b.attivo }).eq('codice', String(b.codice ?? ''));
+        return json({ fatto: true });
+      case 'bonus_dai': {
+        // Un bonus dato a mano a un centro: si scala dai suoi prossimi conti.
+        const importo = centesimi(b.importo_cents);
+        if (!importo) throw new Error('Scrivi quanto vale il bonus.');
+        await centro(b.id);
+        const { error } = await db.from('crediti').insert({ centro: b.id, importo_cents: importo, residuo_cents: importo, nota: String(b.nota ?? '').trim().slice(0, 120) });
+        if (error) throw new Error(error.message);
         return json({ fatto: true });
       }
       case 'versioni': {

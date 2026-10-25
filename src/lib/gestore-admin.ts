@@ -48,6 +48,8 @@ export type Charge = {
   prenotazioni: number;
   canone_cents: number;
   importo_cents: number;
+  /** Bonus scalato dal conto: importo_cents è già al netto. */
+  bonus_cents: number;
   stato: 'da_fare' | 'zero' | 'inviato' | 'pagato' | 'non_pagato';
   fattura: string | null;
   errore: string;
@@ -86,7 +88,21 @@ export type BuildRun = { id: number; nome: string; stato: string; esito: string 
 /** Le app su GitHub; abilitato = c'è il token di GitHub sul gestore. */
 export type AppVersions = { abilitato: boolean; rilasci: Release[]; build: BuildRun[]; lanci: { id: string; titolo: string }[] };
 
-export type AdminData = { oggi: string; centri: AdminCentre[]; addebiti: Charge[]; piani: PlanRow[]; banca: Bank; movimenti: Movement[] };
+/** Un codice bonus per i centri nuovi: lo scrivono quando si registrano. usi_max null = senza limite. */
+export type BonusCode = { codice: string; importo_cents: number; usi_max: number | null; usati: number; scade: string | null; nota: string; attivo: boolean; creato: string };
+/** Il credito di un centro, dal pannello (codice null) o da un codice bonus: si scala dai conti del mese. */
+export type Credit = { id: string; centro: string; importo_cents: number; residuo_cents: number; codice: string | null; nota: string; creato: string };
+
+export type AdminData = {
+  oggi: string;
+  centri: AdminCentre[];
+  addebiti: Charge[];
+  piani: PlanRow[];
+  banca: Bank;
+  movimenti: Movement[];
+  codici: BonusCode[];
+  crediti: Credit[];
+};
 
 // Accesso: nella demo basta una qualsiasi email e password.
 let demoIn = false;

@@ -24,6 +24,7 @@ async function vedi(c: Centro) {
     .in('stato', ['inviato', 'non_pagato'])
     .gt('importo_cents', 0)
     .order('mese');
+  const { data: crediti } = await db.from('crediti').select('residuo_cents').eq('centro', c.id).gt('residuo_cents', 0);
   return {
     piano: c.piano,
     piani,
@@ -31,6 +32,8 @@ async function vedi(c: Centro) {
     scade: c.scade,
     bonifico: { iban: conto?.bonifico_iban ?? '', intestatario: conto?.bonifico_intestatario ?? '' },
     da_pagare: aperti ?? [],
+    // Il bonus che resta, da scalare dai prossimi conti.
+    credito_cents: (crediti ?? []).reduce((s, x) => s + x.residuo_cents, 0),
   };
 }
 

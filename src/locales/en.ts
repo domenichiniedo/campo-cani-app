@@ -844,6 +844,9 @@ const dict: Record<string, string> = {
   "Messaggio con il link copiato: incollalo dove vuoi.": "Message with the link copied: paste it wherever you like.",
   "Salva l'immagine": "Save image",
   "Su WhatsApp parte il messaggio con il link; per mandare anche l'immagine copiala e incollala nella chat.": "WhatsApp sends the message with the link; to send the image too, copy it and paste it into the chat.",
+  "Bonus di {importo} attivato: si scala dai primi conti del mese.": "Bonus of {importo} activated: it is deducted from your first monthly bills.",
+  "Codice bonus (facoltativo)": "Bonus code (optional)",
+  "Bonus da scalare dai prossimi conti: {importo}": "Bonus to be deducted from your next bills: {importo}",
 };
 
 export default dict;
