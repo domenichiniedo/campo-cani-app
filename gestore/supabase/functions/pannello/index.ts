@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
         const [centri, addebiti, piani, banca, movimenti] = await Promise.all([
           db
             .from('centri')
-            .select('id, codice, campo, email, piano, stato, errore, tariffa_cents, canone_cents, iban, stripe_conto, stripe_attivo, scade, sospeso, creato')
+            .select('id, codice, campo, email, piano, stato, errore, tariffa_cents, canone_cents, iban, scade, sospeso, creato')
             .order('creato', { ascending: false }),
           db
             .from('addebiti')

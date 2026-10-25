@@ -1,18 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Modal, ScrollView, View } from 'react-native';
 
-import type { BookStart } from '@/components/owner-book';
-import { Button, Chips, ErrorText, Field, H1, Muted, Row } from '@/components/ui';
+import { SlotFields, type BookStart } from '@/components/owner-book';
+import { Button, Dialog, ErrorText, Field, H1, Muted, Row } from '@/components/ui';
 import { hm, isDayKey, parseHm, STEP } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
-import { useColors } from '@/lib/theme';
 
 /** Il proprietario mette in calendario una classe di gruppo, anche ripetuta ogni settimana. */
 export function NewClass({ start, onClose, onDone }: { start: BookStart | null; onClose: () => void; onDone: () => void }) {
-  const c = useColors();
-  const { fields, lessonTypes, trainers } = useSession();
+  const { fields, lessonTypes } = useSession();
   const groups = lessonTypes.filter((lt) => lt.group_seats !== null);
   const [type, setType] = useState<string | null>(null);
   const [option, setOption] = useState<string | null>(null);
@@ -72,81 +69,53 @@ export function NewClass({ start, onClose, onDone }: { start: BookStart | null; 
   }
 
   return (
-    <Modal visible={!!start} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-        <View style={{ backgroundColor: c.bg, borderRadius: 14, width: '100%', maxWidth: 620, maxHeight: '92%' }}>
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 14 }} keyboardShouldPersistTaps="handled">
-            <H1>{t('Nuova classe di gruppo')}</H1>
-            {groups.length === 0 ? (
-              <Muted>{t('Prima, in Impostazioni, accendi "Lezione di gruppo" su una lezione.')}</Muted>
-            ) : (
-              <>
-                <Muted style={{ fontSize: 13 }}>{t('Lezione')}</Muted>
-                <Chips
-                  items={groups.map((lt) => ({ value: lt.id, label: lt.label }))}
-                  value={type}
-                  onChange={(v) => {
-                    setType(v);
-                    setOption(null);
-                    setTrainer('');
-                    setSeats(String(groups.find((lt) => lt.id === v)?.group_seats ?? ''));
-                  }}
-                />
-                {!!lesson?.options.length && <Chips items={lesson.options.map((o) => ({ value: o, label: o }))} value={option} onChange={setOption} />}
+    <Dialog open={!!start} onClose={onClose}>
+      <H1>{t('Nuova classe di gruppo')}</H1>
+      {groups.length === 0 ? (
+        <Muted>{t('Prima, in Impostazioni, accendi "Lezione di gruppo" su una lezione.')}</Muted>
+      ) : (
+        <>
+          <SlotFields
+            lessons={groups}
+            type={type}
+            onType={(v) => {
+              setType(v);
+              setSeats(String(groups.find((lt) => lt.id === v)?.group_seats ?? ''));
+            }}
+            option={option}
+            onOption={setOption}
+            field={field}
+            onField={setField}
+            trainer={trainer}
+            onTrainer={setTrainer}
+            day={day}
+            onDay={setDay}
+            time={time}
+            onTime={setTime}
+          />
+          <Row>
+            <Field label={t('Posti')} value={seats} onChangeText={setSeats} keyboardType="number-pad" style={{ flex: 1, minWidth: 100 }} />
+            <Field
+              label={t('Ripeti per settimane')}
+              value={weeks}
+              onChangeText={setWeeks}
+              keyboardType="number-pad"
+              style={{ flex: 1, minWidth: 140 }}
+            />
+          </Row>
+          {lesson && (
+            <Muted style={{ fontSize: 13 }}>
+              {t('Dura {min} minuti e occupa il campo anche se non si iscrive nessuno. Con più settimane si crea una classe uguale ogni settimana, stesso giorno e stessa ora.', { min: lesson.duration_min })}
+            </Muted>
+          )}
+        </>
+      )}
 
-                {fields.length > 1 && (
-                  <>
-                    <Muted style={{ fontSize: 13 }}>{t('Campo')}</Muted>
-                    <Chips items={fields.map((f) => ({ value: f.id, label: f.name }))} value={field} onChange={setField} />
-                  </>
-                )}
-
-                {trainers.length > 0 && (
-                  <>
-                    <Muted style={{ fontSize: 13 }}>{t('Trainer')}</Muted>
-                    <Chips
-                      items={[
-                        { value: '', label: t('Da assegnare') },
-                        ...trainers
-                          .filter((tr) => !tr.lessons.length || (type && tr.lessons.includes(type)))
-                          .map((tr) => ({ value: tr.id, label: tr.name })),
-                      ]}
-                      value={trainer}
-                      onChange={setTrainer}
-                    />
-                  </>
-                )}
-
-                <Row>
-                  <Field label={t('Giorno')} value={day} onChangeText={setDay} placeholder="2026-10-23" style={{ flex: 1, minWidth: 140 }} />
-                  <Field label={t('Ora')} value={time} onChangeText={setTime} placeholder="10:00" style={{ flex: 1, minWidth: 100 }} />
-                </Row>
-                <Row>
-                  <Field label={t('Posti')} value={seats} onChangeText={setSeats} keyboardType="number-pad" style={{ flex: 1, minWidth: 100 }} />
-                  <Field
-                    label={t('Ripeti per settimane')}
-                    value={weeks}
-                    onChangeText={setWeeks}
-                    keyboardType="number-pad"
-                    style={{ flex: 1, minWidth: 140 }}
-                  />
-                </Row>
-                {lesson && (
-                  <Muted style={{ fontSize: 13 }}>
-                    {t('Dura {min} minuti e occupa il campo anche se non si iscrive nessuno. Con più settimane si crea una classe uguale ogni settimana, stesso giorno e stessa ora.', { min: lesson.duration_min })}
-                  </Muted>
-                )}
-              </>
-            )}
-
-            <ErrorText>{err}</ErrorText>
-            <Row style={{ justifyContent: 'flex-end' }}>
-              <Button small kind="ghost" title={t('Annulla')} onPress={onClose} />
-              {groups.length > 0 && <Button small title={t('Crea classe')} onPress={save} loading={busy} />}
-            </Row>
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
+      <ErrorText>{err}</ErrorText>
+      <Row style={{ justifyContent: 'flex-end' }}>
+        <Button small kind="ghost" title={t('Annulla')} onPress={onClose} />
+        {groups.length > 0 && <Button small title={t('Crea classe')} onPress={save} loading={busy} />}
+      </Row>
+    </Dialog>
   );
 }

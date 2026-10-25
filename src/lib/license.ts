@@ -69,10 +69,3 @@ export function longer(a: License, b: License) {
   if (end(a) !== end(b)) return end(a) > end(b) ? a : b;
   return a.emessa >= b.emessa ? a : b;
 }
-
-/** Controlla firma e scadenza. `today` è la data locale AAAA-MM-GG. */
-export function checkLicense(code: string, today: string, publicKey?: string): LicenseCheck {
-  const r = readLicense(code, publicKey);
-  if (r.ok && isExpired(r.license, today)) return { ok: false, reason: expiredText(r.license) };
-  return r;
-}

@@ -2,9 +2,8 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, Text, useWindowDimensions, View } from 'react-native';
 
+import { useAddLesson } from '@/components/add-lesson';
 import { Badge, Button, Card, ErrorText, H1, Muted, Row, Screen, Stat } from '@/components/ui';
-import { NewClass } from '@/components/new-class';
-import { OwnerBook, type BookStart } from '@/components/owner-book';
 import { WeekGrid } from '@/components/week-grid';
 import { addDays, cap, dayKey, hm, longDay, monthShort, today } from '@/lib/format';
 import { t } from '@/lib/i18n';
@@ -17,7 +16,7 @@ import { useColors } from '@/lib/theme';
 
 export default function OwnerWeek() {
   const c = useColors();
-  const { fields, settings } = useSession();
+  const { fields } = useSession();
   const color = useLessonColors();
   const plan = usePlan();
   // Sul PC (finestra larga) la settimana è a colonne; sul telefono resta la lista dei giorni.
@@ -25,8 +24,6 @@ export default function OwnerWeek() {
   const [monday, setMonday] = useState(mondayOf(today()));
   const [rows, setRows] = useState<OwnerBooking[]>([]);
   const [open, setOpen] = useState<Record<string, number[]>>({});
-  const [booking, setBooking] = useState<BookStart | null>(null);
-  const [newClass, setNewClass] = useState<BookStart | null>(null);
   const [classes, setClasses] = useState<OwnerClass[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
@@ -52,6 +49,7 @@ export default function OwnerWeek() {
     }
     setLoading(false);
   }, [from, to, plan.groups]);
+  const add = useAddLesson(load);
 
   useFocusEffect(
     useCallback(() => {
@@ -72,38 +70,13 @@ export default function OwnerWeek() {
         <Button small kind="ghost" title={t('Questa')} onPress={() => setMonday(mondayOf(today()))} />
         <Button small kind="ghost" title={t('Dopo ›')} onPress={() => setMonday(addDays(monday, 7))} />
       </Row>
-      <Button
-        title={t('+ Prenota per un cliente')}
-        onPress={() => setBooking({ day: days.includes(todayKey) ? todayKey : from, start: settings?.open_min ?? 540 })}
-      />
-      {plan.groups && (
-        <Button
-          kind="ghost"
-          title={t('+ Nuova classe di gruppo')}
-          onPress={() => setNewClass({ day: days.includes(todayKey) ? todayKey : from, start: settings?.open_min ?? 540 })}
-        />
-      )}
+      {add.buttons(days.includes(todayKey) ? todayKey : from)}
       <Row>
         <Stat label={t('Lezioni')} value={rows.length} />
       </Row>
       <ErrorText>{err}</ErrorText>
-      {wide && <WeekGrid days={days} rows={rows} classes={classes} open={open} onSlot={(day, fieldId, start) => setBooking({ day, fieldId, start })} />}
-      <NewClass
-        start={newClass}
-        onClose={() => setNewClass(null)}
-        onDone={() => {
-          setNewClass(null);
-          load();
-        }}
-      />
-      <OwnerBook
-        start={booking}
-        onClose={() => setBooking(null)}
-        onDone={() => {
-          setBooking(null);
-          load();
-        }}
-      />
+      {wide && <WeekGrid days={days} rows={rows} classes={classes} open={open} onSlot={(day, fieldId, start) => add.book({ day, fieldId, start })} />}
+      {add.dialogs}
       {!wide && days.map((k) => {
         const list = rows.filter((b) => b.day === k);
         // Una riga per le lezioni singole e una per ogni classe di gruppo.

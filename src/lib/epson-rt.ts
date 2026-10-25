@@ -12,7 +12,7 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').repl
 const amount = (cents: number) => (cents / 100).toFixed(2).replace('.', ',');
 
 /** Documento commerciale di una riga, già pagato con carta (pagamento online). */
-export function epsonReceiptXml(description: string, cents: number, department = 1) {
+function epsonReceiptXml(description: string, cents: number, department = 1) {
   // Il registratore stampa solo caratteri semplici, al massimo 38 per descrizione.
   const plain = description
     .normalize('NFD')
@@ -34,7 +34,7 @@ export function epsonReceiptXml(description: string, cents: number, department =
 }
 
 /** Numero del documento letto dalla risposta del registratore, nel formato zzzz-nnnn. */
-export function parseEpsonResponse(xml: string): { ok: boolean; number: string | null; code: string } {
+function parseEpsonResponse(xml: string): { ok: boolean; number: string | null; code: string } {
   const ok = /<response[^>]*success="true"/i.test(xml);
   const code = /<response[^>]*code="([^"]*)"/i.exec(xml)?.[1] ?? '';
   const n = /<fiscalReceiptNumber>\s*(\d+)\s*<\/fiscalReceiptNumber>/i.exec(xml)?.[1];

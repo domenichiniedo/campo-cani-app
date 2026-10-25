@@ -1,6 +1,6 @@
 // Il primo del mese fa il conto del mese prima di ogni centro: canone del piano (diviso a giorni se il piano è
-// cambiato o il centro si è registrato a metà mese) più la quota per ogni prenotazione non disdetta pagata al campo
-// o con bonifico al centro. Quelle pagate online (quando si accenderanno) avranno la tua parte trattenuta da Stripe.
+// cambiato o il centro si è registrato a metà mese) più la quota per ogni prenotazione non disdetta pagata al campo,
+// con bonifico o con carta al centro (le lezioni scalate da un pacchetto non contano).
 // Il centro vede l'addebito nell'app (Impostazioni → Licenza) con IBAN, causale e codice QR, e lo paga con un
 // bonifico istantaneo sul tuo conto: controlla-bonifici lo trova nei movimenti e rinnova la licenza.
 // Se non arriva entro la scadenza (il giorno GIORNI_PER_PAGARE del mese, 3 di solito) la licenza scade e l'app
@@ -28,7 +28,7 @@ async function addebita(c: Centro, mese: string, listino: Prezzi) {
   if (fatto && fatto.stato !== 'da_fare') return `già fatto (${fatto.stato})`;
 
   const righe = (await managementApi('POST', `/projects/${c.progetto}/database/query`, {
-    query: `select day::text as g, count(*)::int as n from public.bookings where status = 'active' and pay in ('onsite', 'transfer') and day >= '${mese}-01' and day < '${meseDopo(mese)}-01' group by day;`,
+    query: `select day::text as g, count(*)::int as n from public.bookings where status = 'active' and pay in ('onsite', 'transfer', 'online') and day >= '${mese}-01' and day < '${meseDopo(mese)}-01' group by day;`,
   })) as { g: string; n: number }[];
   const conto = contoDelMese({
     mese,

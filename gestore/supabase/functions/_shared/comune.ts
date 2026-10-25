@@ -20,10 +20,6 @@ export type Centro = {
   canone_cents: number | null;
   /** IBAN da cui il centro fa i bonifici, per riconoscerli. */
   iban: string;
-  stripe_cliente: string | null;
-  stripe_metodo: string | null;
-  stripe_conto: string | null;
-  stripe_attivo: boolean;
   progetto: string | null;
   url: string | null;
   chiave: string | null;
@@ -43,7 +39,6 @@ const CORS = {
 export const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
-export const testo = (body: string, status = 200) => new Response(body, { status, headers: { ...CORS, 'Content-Type': 'text/plain; charset=utf-8' } });
 
 export const preflight = (req: Request) => (req.method === 'OPTIONS' ? new Response(null, { headers: CORS }) : null);
 

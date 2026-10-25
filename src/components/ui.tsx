@@ -60,7 +60,7 @@ function AutoRefresh({ onRefresh }: { onRefresh: () => void }) {
   return null;
 }
 
-export function BrandBar() {
+function BrandBar() {
   const c = useColors();
   const { settings, logoUrl } = useSession();
   return (
@@ -101,7 +101,7 @@ export function Step({ n, title, right }: { n?: string; title: string; right?: R
   );
 }
 
-export function Label({ children }: { children: ReactNode }) {
+function Label({ children }: { children: ReactNode }) {
   const c = useColors();
   return <Text style={{ color: c.muted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 }}>{children}</Text>;
 }
@@ -279,6 +279,22 @@ export function Check({ value, onChange, children }: { value: boolean; onChange:
   );
 }
 
+/** Finestra in primo piano sopra lo schermo scurito, con il contenuto che scorre. */
+export function Dialog({ open, onClose, children }: { open: boolean; onClose: () => void; children: ReactNode }) {
+  const c = useColors();
+  return (
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <View style={{ backgroundColor: c.bg, borderRadius: 14, width: '100%', maxWidth: 620, maxHeight: '92%' }}>
+          <ScrollView contentContainerStyle={{ padding: 20, gap: 14 }} keyboardShouldPersistTaps="handled">
+            {children}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export function Toggle({ label, value, onChange, disabled }: { label: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   const c = useColors();
   return (
@@ -338,15 +354,6 @@ export function Expandable({ title, lines }: { title: string; lines: string[] })
           ))}
         </View>
       )}
-    </View>
-  );
-}
-
-export function Loading() {
-  const c = useColors();
-  return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg }}>
-      <ActivityIndicator color={c.accent} />
     </View>
   );
 }

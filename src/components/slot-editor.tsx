@@ -6,7 +6,7 @@ import { addDays, cap, dayKey, fromKey, hm, longDay, monthShort, STEP, today, we
 import { t } from '@/lib/i18n';
 import { useColors } from '@/lib/theme';
 
-export const DAYS_AHEAD = 56;
+const DAYS_AHEAD = 56;
 
 /** Giorni da oggi in avanti che si possono aprire o chiudere. */
 export const editableDays = () => Array.from({ length: DAYS_AHEAD }, (_, i) => dayKey(addDays(today(), i)));

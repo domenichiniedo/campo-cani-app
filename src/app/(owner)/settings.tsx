@@ -5,7 +5,6 @@ import { Text, View } from 'react-native';
 import { EvalFormsEditor } from '@/components/eval-forms-editor';
 import { InvoicesPanel } from '@/components/invoices-panel';
 import { ReportPanel } from '@/components/report-panel';
-import { StripePanel } from '@/components/stripe-panel';
 import { SubscriptionPanel } from '@/components/subscription-panel';
 import { TransferPanel } from '@/components/transfer-panel';
 import { LicensePanel } from '@/components/license-panel';
@@ -392,7 +391,6 @@ export default function OwnerSettings() {
       <Card>
         <NexiPanel />
       </Card>
-      <StripePanel />
 
       <Step title={t('Lezioni')} />
       {types.map((ty, i) => (

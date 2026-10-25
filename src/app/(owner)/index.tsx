@@ -1,10 +1,9 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 
+import { useAddLesson } from '@/components/add-lesson';
 import { OwnerBookingCard } from '@/components/booking-card';
 import { ClassCard } from '@/components/class-card';
-import { NewClass } from '@/components/new-class';
-import { OwnerBook, type BookStart } from '@/components/owner-book';
 import { Button, Chips, ErrorText, H1, Muted, Row, Screen, Stat } from '@/components/ui';
 import { addDays, cap, dayKey, euro, fromKey, isDayKey, longDay, today } from '@/lib/format';
 import { t } from '@/lib/i18n';
@@ -18,10 +17,8 @@ export default function OwnerDay() {
   // Il giorno sta nell'indirizzo, così la Settimana può aprire un giorno preciso.
   const day = params.day && isDayKey(params.day) ? params.day : dayKey(today());
   const setDay = (k: string) => router.setParams({ day: k });
-  const { fields, trainers, settings } = useSession();
+  const { fields, trainers } = useSession();
   const plan = usePlan();
-  const [booking, setBooking] = useState<BookStart | null>(null);
-  const [newClass, setNewClass] = useState<BookStart | null>(null);
   const [classes, setClasses] = useState<OwnerClass[]>([]);
   const [fieldFilter, setFieldFilter] = useState('');
   const [rows, setRows] = useState<OwnerBooking[]>([]);
@@ -40,6 +37,7 @@ export default function OwnerDay() {
     }
     setLoading(false);
   }, [day, plan.groups]);
+  const add = useAddLesson(load);
 
   useFocusEffect(
     useCallback(() => {
@@ -67,17 +65,7 @@ export default function OwnerDay() {
         <Button small kind="ghost" title={t('Oggi')} onPress={() => setDay(dayKey(today()))} />
         <Button small kind="ghost" title={t('Dopo ›')} onPress={() => move(1)} />
       </Row>
-      <Button
-        title={t('+ Prenota per un cliente')}
-        onPress={() => setBooking({ day, start: settings?.open_min ?? 540, fieldId: fieldFilter || undefined })}
-      />
-      {plan.groups && (
-        <Button
-          kind="ghost"
-          title={t('+ Nuova classe di gruppo')}
-          onPress={() => setNewClass({ day, start: settings?.open_min ?? 540, fieldId: fieldFilter || undefined })}
-        />
-      )}
+      {add.buttons(day, fieldFilter || undefined)}
       <Row>
         <Stat label={t('Lezioni')} value={rows.length} />
         <Stat label={t('Entrati')} value={`${arrived}/${rows.length}`} />
@@ -102,29 +90,14 @@ export default function OwnerDay() {
             cls={cl}
             dogs={rows.filter((x) => x.class_id === cl.id)}
             onChange={load}
-            onAdd={() => setBooking({ day, start: cl.start_min, cls: cl })}
+            onAdd={() => add.book({ day, start: cl.start_min, cls: cl })}
             showField={fields.length > 1}
           />
         ) : (
           <OwnerBookingCard key={b!.id} b={b!} onChange={load} showField={fields.length > 1} />
         ),
       )}
-      <NewClass
-        start={newClass}
-        onClose={() => setNewClass(null)}
-        onDone={() => {
-          setNewClass(null);
-          load();
-        }}
-      />
-      <OwnerBook
-        start={booking}
-        onClose={() => setBooking(null)}
-        onDone={() => {
-          setBooking(null);
-          load();
-        }}
-      />
+      {add.dialogs}
     </Screen>
   );
 }

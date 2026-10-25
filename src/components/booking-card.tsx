@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Text, View } from 'react-native';
 
 import { Avatar } from '@/components/photo';
@@ -13,6 +13,60 @@ import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
 import { transferRef } from '@/lib/transfer';
 import { fullName, PENALTY_REASONS } from '@/lib/types';
+
+type HeadBooking = Omit<OwnerBooking, 'trainers' | 'penalties'>;
+
+/**
+ * Ora, campo, cane, lezione e cliente di una prenotazione: la parte uguale per proprietario e trainer.
+ * Dentro una classe di gruppo ora e lezione sono quelle della classe e non si ripetono. Sotto il cliente va `children`.
+ */
+export function BookingHead({ b, inClass, showField, badges, children }: { b: HeadBooking; inClass?: boolean; showField?: boolean; badges?: ReactNode; children?: ReactNode }) {
+  const c = useColors();
+  const dog = (
+    <Body bold>
+      {b.dogs?.name}
+      {b.dogs?.breed ? ` (${b.dogs.breed})` : ''}
+    </Body>
+  );
+  return (
+    <>
+      <Row style={{ justifyContent: 'space-between' }}>
+        {inClass ? (
+          dog
+        ) : (
+          <Text style={{ color: c.text, fontSize: 20, fontWeight: '800' }}>
+            {hm(b.start_min)}
+            <Text style={{ color: c.muted, fontSize: 14, fontWeight: '600' }}> – {hm(b.start_min + b.dur_min)}</Text>
+          </Text>
+        )}
+        <Row>
+          {showField && !inClass && b.fields && <Badge>{b.fields.name}</Badge>}
+          {!!b.checked_in_at && <Badge tone="ok">{t('Entrato {ora}', { ora: timeOf(b.checked_in_at) })}</Badge>}
+          {b.dogs?.blocked && <Badge tone="bad">{t('Sospeso')}</Badge>}
+          {badges}
+        </Row>
+      </Row>
+      <View style={{ gap: 2 }}>
+        {!inClass && (
+          <>
+            {dog}
+            <Muted>
+              {b.lesson_types?.label ?? b.lesson_type}
+              {b.lesson_option ? ` · ${b.lesson_option}` : ''}
+            </Muted>
+          </>
+        )}
+        <Row>
+          <Avatar name={fullName(b.profiles)} path={b.profiles?.photo_path} size={24} />
+          <Muted>
+            {fullName(b.profiles)} · {b.profiles?.phone}
+          </Muted>
+        </Row>
+        {children}
+      </View>
+    </>
+  );
+}
 
 /**
  * Scheda di una prenotazione per il proprietario: ingresso, pagamento, penalità, annullo.
@@ -54,44 +108,7 @@ export function OwnerBookingCard({
 
   return (
     <Card style={arrived ? { borderLeftWidth: 4, borderLeftColor: c.accent } : undefined}>
-      <Row style={{ justifyContent: 'space-between' }}>
-        {inClass ? (
-          <Body bold>
-            {b.dogs?.name}
-            {b.dogs?.breed ? ` (${b.dogs.breed})` : ''}
-          </Body>
-        ) : (
-          <Text style={{ color: c.text, fontSize: 20, fontWeight: '800' }}>
-            {hm(b.start_min)}
-            <Text style={{ color: c.muted, fontSize: 14, fontWeight: '600' }}> – {hm(b.start_min + b.dur_min)}</Text>
-          </Text>
-        )}
-        <Row>
-          {showField && !inClass && b.fields && <Badge>{b.fields.name}</Badge>}
-          {arrived && <Badge tone="ok">{t('Entrato {ora}', { ora: timeOf(b.checked_in_at!) })}</Badge>}
-          {b.dogs?.blocked && <Badge tone="bad">{t('Sospeso')}</Badge>}
-          {penalized && <Badge tone="bad">{t('Penalità')}</Badge>}
-        </Row>
-      </Row>
-      <View style={{ gap: 2 }}>
-        {!inClass && (
-          <>
-            <Body bold>
-              {b.dogs?.name}
-              {b.dogs?.breed ? ` (${b.dogs.breed})` : ''}
-            </Body>
-            <Muted>
-              {b.lesson_types?.label ?? b.lesson_type}
-              {b.lesson_option ? ` · ${b.lesson_option}` : ''}
-            </Muted>
-          </>
-        )}
-        <Row>
-          <Avatar name={fullName(b.profiles)} path={b.profiles?.photo_path} size={24} />
-          <Muted>
-            {fullName(b.profiles)} · {b.profiles?.phone}
-          </Muted>
-        </Row>
+      <BookingHead b={b} inClass={inClass} showField={showField} badges={penalized && <Badge tone="bad">{t('Penalità')}</Badge>}>
         {trainers.length > 0 && !inClass && (
           <Row>
             {b.trainers && <Avatar name={b.trainers.name} path={trainers.find((t) => t.id === b.trainer_id)?.photo_path} size={24} />}
@@ -108,7 +125,7 @@ export function OwnerBookingCard({
               : t('Bonifico istantaneo da controllare: cerca la causale {codice}', { codice: transferRef(b) })}
           </Muted>
         )}
-      </View>
+      </BookingHead>
       <Row>
         <Button
           small
