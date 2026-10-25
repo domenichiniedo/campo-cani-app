@@ -70,6 +70,13 @@ const giorniA = (oggi: string, d: string) => Math.round((Date.parse(d) - Date.pa
 const cents = (s: string) => (s.trim() ? Math.round(Number(s.trim().replace(',', '.')) * 100) : null);
 const euroField = (c: number | null) => (c === null ? '' : String(c / 100).replace('.', ','));
 const prezzo = (canone: number, quota: number) => (canone ? `${euro(canone)} al mese + ${euro(quota)} a prenotazione` : `${euro(quota)} a prenotazione`);
+const FORMULE: { value: AdminCentre['formula']; label: string }[] = [
+  { value: 'consumo', label: 'A consumo' },
+  { value: 'fisso', label: 'Prezzo fisso' },
+];
+/** Quello che il centro paga ogni mese anche senza prenotazioni: il canone, o il fisso. */
+const fixedPart = (x: AdminCentre, plan: PlanRow | undefined) =>
+  x.formula === 'fisso' ? (x.fisso_cents ?? plan?.fisso_cents ?? 0) : (x.canone_cents ?? plan?.canone_cents ?? 0);
 
 type Filter = 'tutti' | 'da_pagare' | 'attivi' | 'preparazione' | 'problemi';
 
@@ -702,7 +709,7 @@ function Stats({ d }: { d: AdminData }) {
   const piani = Object.fromEntries(d.piani.map((p) => [p.piano, p])) as Record<AdminCentre['piano'], PlanRow | undefined>;
   const attivi = d.centri.filter((x) => x.stato === 'pronto' && !x.sospeso);
   // Canoni fissi del mese dei centri attivi: quello che entra anche senza prenotazioni.
-  const canoni = attivi.reduce((s, x) => s + (x.canone_cents ?? piani[x.piano]?.canone_cents ?? 0), 0);
+  const canoni = attivi.reduce((s, x) => s + fixedPart(x, piani[x.piano]), 0);
   const scorsoRows = d.addebiti.filter((a) => a.mese === ultimo && a.importo_cents > 0);
   const media = scorsoRows.length ? Math.round(scorso.addebitato / scorsoRows.length) : 0;
   const nome = (id: string) => d.centri.find((x) => x.id === id)?.campo ?? id;
@@ -862,6 +869,7 @@ function CentreRow({
   const [open, setOpen] = useState(false);
   const [fee, setFee] = useState(euroField(x.tariffa_cents));
   const [rent, setRent] = useState(euroField(x.canone_cents));
+  const [flat, setFlat] = useState(euroField(x.fisso_cents));
   const [iban, setIban] = useState(formatIban(x.iban));
   const [bill, setBill] = useState<CentreBilling>(() => cleanCentreBilling(x));
   const [bonus, setBonus] = useState('');
@@ -874,7 +882,9 @@ function CentreRow({
   const due = unpaid.reduce((s, a) => s + a.importo_cents, 0);
   const canone = x.canone_cents ?? plan?.canone_cents ?? 0;
   const quota = x.tariffa_cents ?? plan?.tariffa_cents ?? 100;
-  const custom = x.canone_cents !== null || x.tariffa_cents !== null;
+  const fisso = x.formula === 'fisso';
+  const custom = fisso ? x.fisso_cents !== null : x.canone_cents !== null || x.tariffa_cents !== null;
+  const priceLabel = fisso ? `Fisso ${euro(fixedPart(x, plan))} al mese` : prezzo(canone, quota);
   const days = x.scade ? giorniA(today, x.scade) : null;
 
   async function run(azione: string, body: object = {}) {
@@ -907,7 +917,7 @@ function CentreRow({
         <View style={{ flex: 1, minWidth: 0 }}>
           <Body bold>{x.campo}</Body>
           <Muted style={{ fontSize: 13 }}>
-            {[x.codice, PIANI.find((p) => p.value === x.piano)?.label, x.comune].filter(Boolean).join(' · ')}
+            {[x.codice, `${PIANI.find((p) => p.value === x.piano)?.label}${fisso ? ' fisso' : ''}`, x.comune].filter(Boolean).join(' · ')}
           </Muted>
         </View>
         {(x.stato !== 'pronto' || x.sospeso) && (
@@ -927,7 +937,7 @@ function CentreRow({
           <Muted style={{ fontSize: 13 }}>{x.email}</Muted>
           <Row>
             <Badge>{PIANI.find((p) => p.value === x.piano)?.label}</Badge>
-            <Badge tone={custom ? 'warn' : 'neutral'}>{`${prezzo(canone, quota)}${custom ? ' (apposta)' : ''}`}</Badge>
+            <Badge tone={custom ? 'warn' : 'neutral'}>{`${priceLabel}${custom ? ' (apposta)' : ''}`}</Badge>
             {!!x.iban && <Badge>IBAN {x.iban.slice(0, 4)}…{x.iban.slice(-4)}</Badge>}
             {x.stato === 'pronto' && <Badge tone={days !== null && days < 7 ? 'bad' : 'neutral'}>Licenza fino al {data(x.scade)}</Badge>}
             {credit > 0 && <Badge tone="ok">Bonus da scalare {euro(credit)}</Badge>}
@@ -938,7 +948,7 @@ function CentreRow({
           {last && (
             <Muted style={{ fontSize: 13 }}>
               Ultimo mese {meseLabel(last.mese)}: {last.prenotazioni} prenotazioni, {euro(last.importo_cents)}
-              {last.canone_cents ? ` (canone ${euro(last.canone_cents)})` : ''}
+              {last.canone_cents ? ` (${fisso ? 'fisso' : 'canone'} ${euro(last.canone_cents)})` : ''}
               {last.bonus_cents ? ` (bonus scalato ${euro(last.bonus_cents)})` : ''}, {ADDEBITO[last.stato]}
               {last.pagato_il ? ` il ${data(last.pagato_il)}` : ''}
               {last.errore ? ` (${last.errore})` : ''}
@@ -974,12 +984,22 @@ function CentreRow({
               <Muted style={{ fontSize: 13 }}>Registrato il {data(x.creato)}.</Muted>
               <Body bold>Piano</Body>
               <Chips items={PIANI} value={x.piano} onChange={(piano) => run('piano', { piano })} disabled={!!busy} />
+              <Body bold>Come paga</Body>
+              <Chips items={FORMULE} value={x.formula} onChange={(formula) => run('piano', { piano: x.piano, formula })} disabled={!!busy} />
+              <Muted style={{ fontSize: 13 }}>Il cambio vale da oggi: il conto del mese divide canone e fisso a giorni.</Muted>
               <Body bold>Prezzi fatti apposta (vuoto = quelli del piano)</Body>
-              <Row>
-                <Field label="Canone al mese €" value={rent} onChangeText={setRent} keyboardType="decimal-pad" placeholder={euroField(plan?.canone_cents ?? 0)} style={{ flex: 1, minWidth: 120 }} />
-                <Field label="Euro a prenotazione" value={fee} onChangeText={setFee} keyboardType="decimal-pad" placeholder={euroField(plan?.tariffa_cents ?? 100)} style={{ flex: 1, minWidth: 120 }} />
-                <Button small title="Salva" onPress={() => run('centro', { canone_cents: cents(rent), tariffa_cents: cents(fee) })} loading={busy === 'centro'} />
-              </Row>
+              {fisso ? (
+                <Row>
+                  <Field label="Fisso al mese €" value={flat} onChangeText={setFlat} keyboardType="decimal-pad" placeholder={euroField(plan?.fisso_cents ?? 0)} style={{ flex: 1, minWidth: 120 }} />
+                  <Button small title="Salva" onPress={() => run('centro', { fisso_cents: cents(flat) })} loading={busy === 'centro'} />
+                </Row>
+              ) : (
+                <Row>
+                  <Field label="Canone al mese €" value={rent} onChangeText={setRent} keyboardType="decimal-pad" placeholder={euroField(plan?.canone_cents ?? 0)} style={{ flex: 1, minWidth: 120 }} />
+                  <Field label="Euro a prenotazione" value={fee} onChangeText={setFee} keyboardType="decimal-pad" placeholder={euroField(plan?.tariffa_cents ?? 100)} style={{ flex: 1, minWidth: 120 }} />
+                  <Button small title="Salva" onPress={() => run('centro', { canone_cents: cents(rent), tariffa_cents: cents(fee) })} loading={busy === 'centro'} />
+                </Row>
+              )}
               <Row>
                 <Field label="IBAN da cui paga" value={iban} onChangeText={setIban} autoCapitalize="characters" style={{ flex: 1, minWidth: 220 }} />
                 <Button
@@ -1239,10 +1259,10 @@ function MovementCard({ m, data: d, onChange }: { m: Movement; data: AdminData; 
   );
 }
 
-/** Canone al mese e quota per prenotazione di ogni piano. */
+/** Canone al mese e quota per prenotazione di ogni piano, e il prezzo fisso al mese. */
 function PricesCard({ rows, onChange }: { rows: PlanRow[]; onChange: () => void }) {
-  const [edit, setEdit] = useState<Record<string, { canone: string; quota: string }>>(() =>
-    Object.fromEntries(rows.map((r) => [r.piano, { canone: euroField(r.canone_cents), quota: euroField(r.tariffa_cents) }])),
+  const [edit, setEdit] = useState<Record<string, { canone: string; quota: string; fisso: string }>>(() =>
+    Object.fromEntries(rows.map((r) => [r.piano, { canone: euroField(r.canone_cents), quota: euroField(r.tariffa_cents), fisso: euroField(r.fisso_cents ?? null) }])),
   );
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
@@ -1251,11 +1271,12 @@ function PricesCard({ rows, onChange }: { rows: PlanRow[]; onChange: () => void 
     const e = edit[piano];
     const canone = cents(e.canone) ?? 0;
     const quota = cents(e.quota) ?? 0;
-    if (!Number.isFinite(canone) || !Number.isFinite(quota) || canone < 0 || quota < 0) return setErr('Prezzo non valido.');
+    const fisso = cents(e.fisso) ?? 0;
+    if ([canone, quota, fisso].some((n) => !Number.isFinite(n) || n < 0)) return setErr('Prezzo non valido.');
     setErr('');
     setBusy(piano);
     try {
-      await adminCall('prezzi', { piano, canone_cents: canone, tariffa_cents: quota });
+      await adminCall('prezzi', { piano, canone_cents: canone, tariffa_cents: quota, fisso_cents: fisso });
       onChange();
     } catch (x) {
       setErr((x as Error).message);
@@ -1266,13 +1287,14 @@ function PricesCard({ rows, onChange }: { rows: PlanRow[]; onChange: () => void 
   return (
     <Card>
       <Muted style={{ fontSize: 13 }}>
-        Valgono per tutti i centri del piano (tranne quelli con prezzi fatti apposta) dal prossimo conto del mese. Il canone si divide a giorni
-        se il centro cambia piano o si registra a metà mese.
+        Valgono per tutti i centri del piano (tranne quelli con prezzi fatti apposta) dal prossimo conto del mese. A consumo il centro paga
+        canone e quota per prenotazione; a prezzo fisso solo il fisso. Si dividono a giorni se il centro cambia piano o formula, o si registra
+        a metà mese.
       </Muted>
       {PIANI.map((p) => {
         const r = rows.find((x) => x.piano === p.value);
-        const e = edit[p.value] ?? { canone: '', quota: '' };
-        const changed = !r || cents(e.canone) !== r.canone_cents || cents(e.quota) !== r.tariffa_cents;
+        const e = edit[p.value] ?? { canone: '', quota: '', fisso: '' };
+        const changed = !r || cents(e.canone) !== r.canone_cents || cents(e.quota) !== r.tariffa_cents || cents(e.fisso) !== (r.fisso_cents ?? null);
         return (
           <Row key={p.value}>
             <Body bold style={{ minWidth: 100 }}>
@@ -1289,6 +1311,13 @@ function PricesCard({ rows, onChange }: { rows: PlanRow[]; onChange: () => void 
               label="Euro a prenotazione"
               value={e.quota}
               onChangeText={(v) => setEdit({ ...edit, [p.value]: { ...e, quota: v } })}
+              keyboardType="decimal-pad"
+              style={{ flex: 1, minWidth: 110 }}
+            />
+            <Field
+              label="Fisso al mese €"
+              value={e.fisso}
+              onChangeText={(v) => setEdit({ ...edit, [p.value]: { ...e, fisso: v } })}
               keyboardType="decimal-pad"
               style={{ flex: 1, minWidth: 110 }}
             />

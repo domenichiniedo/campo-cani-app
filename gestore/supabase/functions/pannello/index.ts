@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
         const [centri, addebiti, piani, banca, movimenti, codici, crediti] = await Promise.all([
           db
             .from('centri')
-            .select(`id, codice, campo, email, piano, stato, errore, tariffa_cents, canone_cents, iban, scade, sospeso, creato, ${CAMPI_FATTURA.join(', ')}`)
+            .select(`id, codice, campo, email, piano, formula, stato, errore, tariffa_cents, canone_cents, fisso_cents, iban, scade, sospeso, creato, ${CAMPI_FATTURA.join(', ')}`)
             .order('creato', { ascending: false }),
           db
             .from('addebiti')
@@ -77,12 +77,15 @@ Deno.serve(async (req) => {
       }
       case 'piano': {
         if (!PIANI.includes(b.piano)) throw new Error('Piano non valido.');
-        await cambiaPiano(await centro(b.id), b.piano, 'pannello');
+        if (b.formula !== undefined && b.formula !== 'consumo' && b.formula !== 'fisso') throw new Error('Scegli a consumo o fisso.');
+        await cambiaPiano(await centro(b.id), b.piano, 'pannello', b.formula);
         return json({ fatto: true });
       }
       case 'prezzi': {
         if (!PIANI.includes(b.piano)) throw new Error('Piano non valido.');
-        await db.from('piani').update({ canone_cents: centesimi(b.canone_cents), tariffa_cents: centesimi(b.tariffa_cents) }).eq('piano', b.piano);
+        const m: Record<string, number | null> = { canone_cents: centesimi(b.canone_cents), tariffa_cents: centesimi(b.tariffa_cents) };
+        if (b.fisso_cents !== undefined) m.fisso_cents = centesimi(b.fisso_cents);
+        await db.from('piani').update(m).eq('piano', b.piano);
         return json({ fatto: true });
       }
       case 'tariffa':
@@ -103,6 +106,7 @@ Deno.serve(async (req) => {
         }
         if (b.canone_cents !== undefined) m.canone_cents = centesimi(b.canone_cents, true);
         if (b.tariffa_cents !== undefined) m.tariffa_cents = centesimi(b.tariffa_cents, true);
+        if (b.fisso_cents !== undefined) m.fisso_cents = centesimi(b.fisso_cents, true);
         await db.from('centri').update(m).eq('id', b.id);
         return json({ fatto: true });
       }

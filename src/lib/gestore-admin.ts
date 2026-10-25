@@ -34,6 +34,10 @@ export type AdminCentre = CentreBilling & {
   /** Prezzi fatti apposta per il centro; null = quelli del piano. */
   tariffa_cents: number | null;
   canone_cents: number | null;
+  /** Come paga il piano: canone + quote (consumo) o una cifra fissa al mese. */
+  formula: 'consumo' | 'fisso';
+  /** Prezzo fisso fatto apposta per il centro; null = quello del piano. */
+  fisso_cents: number | null;
   /** IBAN da cui il centro paga, per riconoscere i suoi bonifici. */
   iban: string;
   scade: string | null;
@@ -59,7 +63,7 @@ export type Charge = {
   pagato_il: string | null;
 };
 
-export type PlanRow = { piano: AdminCentre['piano']; canone_cents: number; tariffa_cents: number };
+export type PlanRow = { piano: AdminCentre['piano']; canone_cents: number; tariffa_cents: number; fisso_cents: number };
 
 /** Il tuo conto: IBAN per i bonifici dei centri e collegamento in sola lettura con Enable Banking. */
 export type Bank = {

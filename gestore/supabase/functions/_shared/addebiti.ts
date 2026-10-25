@@ -3,7 +3,7 @@
 // licenza scade e l'app si blocca, finché il pagamento non arriva.
 // Un centro sospeso dal pannello non si rinnova, se non a mano (forza).
 import { db, env, oggi, type Centro } from './comune.ts';
-import { giorniPerPagare, scadenzaLicenza, type Cambio, type Piano, type Prezzi } from './costi.ts';
+import { giorniPerPagare, scadenzaLicenza, type Cambio, type Formula, type Piano, type Prezzi } from './costi.ts';
 import { rinnova, type Ambiente } from './passi.ts';
 import { managementApi } from './supabase-api.ts';
 
@@ -32,30 +32,32 @@ export async function allungaLicenza(c: Centro, forza = false) {
 
 export async function prezzi(): Promise<Prezzi> {
   const { data } = await db.from('piani').select('*');
-  // I prezzi di partenza (0004_prezzi.sql), se la tabella non li ha.
+  // I prezzi di partenza (0004_prezzi.sql e 0006_fisso.sql), se la tabella non li ha.
   const p: Prezzi = {
-    base: { canone_cents: 590, tariffa_cents: 100 },
-    professional: { canone_cents: 2999, tariffa_cents: 60 },
-    pro: { canone_cents: 8000, tariffa_cents: 30 },
+    base: { canone_cents: 590, tariffa_cents: 100, fisso_cents: 3900 },
+    professional: { canone_cents: 2999, tariffa_cents: 60, fisso_cents: 7900 },
+    pro: { canone_cents: 8000, tariffa_cents: 30, fisso_cents: 14900 },
   };
-  for (const r of data ?? []) p[r.piano as Piano] = { canone_cents: r.canone_cents, tariffa_cents: r.tariffa_cents };
+  for (const r of data ?? [])
+    p[r.piano as Piano] = { canone_cents: r.canone_cents, tariffa_cents: r.tariffa_cents, fisso_cents: r.fisso_cents ?? p[r.piano as Piano].fisso_cents };
   return p;
 }
 
 export async function cambi(centro: string): Promise<Cambio[]> {
-  const { data } = await db.from('cambi_piano').select('piano, dal').eq('centro', centro).order('dal').order('creato');
+  const { data } = await db.from('cambi_piano').select('piano, dal, formula').eq('centro', centro).order('dal').order('creato');
   return (data ?? []) as Cambio[];
 }
 
 /**
- * Cambia il piano del centro da oggi: lo segna per l'addebito (canone e quote si dividono a giorni) e firma
- * una licenza nuova con il piano nuovo e la stessa scadenza, che l'app prende perché è più recente.
+ * Cambia il piano del centro, o come lo paga (a consumo o fisso), da oggi: lo segna per l'addebito (canone e
+ * quote si dividono a giorni). Con un piano nuovo firma anche una licenza nuova con la stessa scadenza, che
+ * l'app prende perché è più recente.
  */
-export async function cambiaPiano(c: Centro, piano: Piano, da: 'app' | 'pannello'): Promise<Centro> {
-  if (c.piano === piano) return c;
-  const nuovo = { ...c, piano };
-  const licenza = c.stato === 'pronto' && c.scade ? await rinnova(nuovo, ambiente(), c.scade) : {};
-  await db.from('centri').update({ piano, ...licenza }).eq('id', c.id);
-  await db.from('cambi_piano').insert({ centro: c.id, piano, dal: oggi(), da });
+export async function cambiaPiano(c: Centro, piano: Piano, da: 'app' | 'pannello', formula: Formula = c.formula): Promise<Centro> {
+  if (c.piano === piano && c.formula === formula) return c;
+  const nuovo = { ...c, piano, formula };
+  const licenza = c.piano !== piano && c.stato === 'pronto' && c.scade ? await rinnova(nuovo, ambiente(), c.scade) : {};
+  await db.from('centri').update({ piano, formula, ...licenza }).eq('id', c.id);
+  await db.from('cambi_piano').insert({ centro: c.id, piano, formula, dal: oggi(), da });
   return { ...nuovo, ...licenza };
 }

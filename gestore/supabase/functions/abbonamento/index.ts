@@ -1,20 +1,30 @@
 // L'abbonamento del centro, dall'app (Impostazioni → Licenza), con l'accesso del proprietario al database del
 // suo centro: il gestore controlla lì che sia davvero un proprietario.
-//   vedi    piano, prezzi dei piani, cosa c'è da pagare (con IBAN e causale per il bonifico istantaneo), scadenza
-//   cambia  cambia piano da oggi: canone e quote si dividono a giorni nell'addebito del mese; torna la licenza nuova
+//   vedi    piano, a consumo o fisso, prezzi dei piani, cosa c'è da pagare (con IBAN e causale per il bonifico
+//           istantaneo), scadenza
+//   cambia  cambia piano o formula (consumo, fisso) da oggi: canone e quote si dividono a giorni nell'addebito
+//           del mese; con un piano nuovo torna la licenza nuova
 //   iban    l'IBAN da cui il centro fa i bonifici, per riconoscerli anche senza causale
 
 import { cambiaPiano, prezzi } from '../_shared/addebiti.ts';
 import { db, json, messaggio, preflight, ruolo, type Centro } from '../_shared/comune.ts';
-import { ibanValido, type Piano } from '../_shared/costi.ts';
+import { ibanValido, type Formula, type Piano } from '../_shared/costi.ts';
 
 const PIANI: Piano[] = ['base', 'professional', 'pro'];
+const FORMULE: Formula[] = ['consumo', 'fisso'];
 
 async function vedi(c: Centro) {
   const listino = await prezzi();
   // I prezzi fatti apposta per il centro valgono per tutti i piani.
   const piani = Object.fromEntries(
-    PIANI.map((p) => [p, { canone_cents: c.canone_cents ?? listino[p].canone_cents, tariffa_cents: c.tariffa_cents ?? listino[p].tariffa_cents }]),
+    PIANI.map((p) => [
+      p,
+      {
+        canone_cents: c.canone_cents ?? listino[p].canone_cents,
+        tariffa_cents: c.tariffa_cents ?? listino[p].tariffa_cents,
+        fisso_cents: c.fisso_cents ?? listino[p].fisso_cents,
+      },
+    ]),
   );
   const { data: conto } = await db.from('banca').select('bonifico_iban, bonifico_intestatario').eq('id', 1).maybeSingle();
   const { data: aperti } = await db
@@ -27,6 +37,7 @@ async function vedi(c: Centro) {
   const { data: crediti } = await db.from('crediti').select('residuo_cents').eq('centro', c.id).gt('residuo_cents', 0);
   return {
     piano: c.piano,
+    formula: c.formula,
     piani,
     iban_centro: c.iban,
     scade: c.scade,
@@ -51,9 +62,12 @@ Deno.serve(async (req) => {
       case 'vedi':
         return json(await vedi(c));
       case 'cambia': {
-        if (!PIANI.includes(body.piano)) return json({ errore: 'Piano non valido.' }, 400);
+        const piano = body.piano ?? c.piano;
+        const formula = body.formula ?? c.formula;
+        if (!PIANI.includes(piano)) return json({ errore: 'Piano non valido.' }, 400);
+        if (!FORMULE.includes(formula)) return json({ errore: 'Scegli a consumo o fisso.' }, 400);
         if (c.sospeso) return json({ errore: 'Il centro è sospeso: scrivi al gestore.' }, 403);
-        c = await cambiaPiano(c, body.piano, 'app');
+        c = await cambiaPiano(c, piano, 'app', formula);
         return json({ ...(await vedi(c)), licenza: c.licenza });
       }
       case 'iban': {

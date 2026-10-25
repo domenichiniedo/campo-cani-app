@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 
 import { CentreBillingFields } from '@/components/centre-billing-fields';
-import { priceText } from '@/components/subscription-panel';
+import { FormulaPick, hasFixed, priceText } from '@/components/subscription-panel';
 import { Badge, Body, Button, Card, Chips, ErrorText, Field, Muted, Row } from '@/components/ui';
 import { centreBillingError, cleanCentreBilling, emptyCentreBilling, type CentreBilling } from '@/lib/billing';
 import { euro } from '@/lib/format';
-import { centreStatus, planPrices, registerCentre, type CentreState, type PlanPrice } from '@/lib/gestore';
+import { centreStatus, planPrices, registerCentre, type CentreState, type Formula, type PlanPrice } from '@/lib/gestore';
 import { t, tKey } from '@/lib/i18n';
 import { useLicense } from '@/lib/license-gate';
 import { PLANS, type PlanId } from '@/lib/plans';
@@ -47,6 +47,7 @@ export function RegisterCentre({ onBack }: { onBack: () => void }) {
   const [campo, setCampo] = useState('');
   const [email, setEmail] = useState('');
   const [piano, setPiano] = useState<PlanId>('professional');
+  const [formula, setFormula] = useState<Formula>('consumo');
   const [iban, setIban] = useState('');
   const [bonus, setBonus] = useState('');
   const [fattura, setFattura] = useState<CentreBilling>(emptyCentreBilling);
@@ -91,7 +92,7 @@ export function RegisterCentre({ onBack }: { onBack: () => void }) {
     if (i && !isValidIban(i)) return setErr(t('IBAN non valido.'));
     setBusy(true);
     try {
-      const r = await registerCentre(campo.trim(), email.trim().toLowerCase(), piano, i, cleanCentreBilling(fattura), bonus.trim().toUpperCase());
+      const r = await registerCentre(campo.trim(), email.trim().toLowerCase(), piano, hasFixed(prices) ? formula : 'consumo', i, cleanCentreBilling(fattura), bonus.trim().toUpperCase());
       const p = { codice: r.codice, email: email.trim().toLowerCase(), bonus: r.bonus_cents || undefined };
       write(p);
       setPending(p);
@@ -142,14 +143,20 @@ export function RegisterCentre({ onBack }: { onBack: () => void }) {
     <Card>
       <Body bold>{t('Registra il tuo centro')}</Body>
       <Muted>
-        {t("Ogni mese paghi il canone del piano e una quota per ogni prenotazione dei tuoi clienti, con un bonifico istantaneo: nell'app trovi importo, IBAN e causale. Se il pagamento non arriva entro il giorno 3 del mese, l'app del centro si blocca finché non arriva.")}
+        {t("Ogni mese paghi il piano con un bonifico istantaneo: nell'app trovi importo, IBAN e causale. Se il pagamento non arriva entro il giorno 3 del mese, l'app del centro si blocca finché non arriva.")}
       </Muted>
       <Field label={t('Nome del centro')} value={campo} onChangeText={setCampo} />
       <Field label={t('Email del titolare')} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" placeholder="nome@email.it" />
       <Body bold>{t('Piano')}</Body>
       <Chips items={(Object.keys(PLANS) as PlanId[]).map((id) => ({ value: id, label: PLANS[id].label }))} value={piano} onChange={setPiano} />
-      {!!prices[piano] && <Muted>{t('Piano {piano}: {prezzo}', { piano: PLANS[piano].label, prezzo: priceText(prices[piano]!) })}</Muted>}
-      <Muted style={{ fontSize: 13 }}>{t('Puoi cambiare piano quando vuoi dalle Impostazioni.')}</Muted>
+      {!!prices[piano] && <Muted>{t('Piano {piano}: {prezzo}', { piano: PLANS[piano].label, prezzo: priceText(prices[piano]!, formula) })}</Muted>}
+      {hasFixed(prices) && (
+        <>
+          <Body bold>{t('Come paghi')}</Body>
+          <FormulaPick value={formula} onChange={setFormula} price={prices[piano]} />
+        </>
+      )}
+      <Muted style={{ fontSize: 13 }}>{t('Puoi cambiare piano e come paghi quando vuoi dalle Impostazioni.')}</Muted>
       <Body bold>{t('Dati per la fattura')}</Body>
       <Muted style={{ fontSize: 13 }}>{t('Servono per la fattura del canone e delle prenotazioni.')}</Muted>
       <CentreBillingFields value={fattura} onChange={setFattura} />

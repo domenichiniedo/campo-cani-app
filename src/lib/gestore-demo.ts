@@ -14,9 +14,9 @@ const monthOf = (d: Date, delta: number) => {
 const dayThree = (d: Date, delta: number) => dayKey(new Date(d.getFullYear(), d.getMonth() + delta, 3));
 
 const PIANI: PlanRow[] = [
-  { piano: 'base', canone_cents: 590, tariffa_cents: 100 },
-  { piano: 'professional', canone_cents: 2999, tariffa_cents: 60 },
-  { piano: 'pro', canone_cents: 8000, tariffa_cents: 30 },
+  { piano: 'base', canone_cents: 590, tariffa_cents: 100, fisso_cents: 3900 },
+  { piano: 'professional', canone_cents: 2999, tariffa_cents: 60, fisso_cents: 7900 },
+  { piano: 'pro', canone_cents: 8000, tariffa_cents: 30, fisso_cents: 14900 },
 ];
 const price = (p: AdminCentre['piano']) => PIANI.find((x) => x.piano === p)!;
 
@@ -89,6 +89,9 @@ function build(): AdminData {
     errore: stato === 'errore' ? 'Supabase 402 su POST /projects: raggiunto il limite dei progetti gratuiti.' : '',
     tariffa_cents: i === 0 ? 50 : null,
     canone_cents: null,
+    // Agility Team Brianza paga il prezzo fisso.
+    formula: i === 3 ? 'fisso' : 'consumo',
+    fisso_cents: null,
     iban: i % 2 === 0 && stato === 'pronto' ? `IT${String(10 + i)}X05428111010000001234${String(50 + i)}` : '',
     scade: stato === 'pronto' ? (i === 4 ? dayThree(now, 0) : dayThree(now, 1)) : null,
     sospeso: false,
@@ -114,8 +117,8 @@ function build(): AdminData {
         centro: `demo-${i}`,
         mese,
         prenotazioni: n,
-        canone_cents: p.canone_cents,
-        importo_cents: p.canone_cents + n * (i === 0 ? 50 : p.tariffa_cents),
+        canone_cents: i === 3 ? p.fisso_cents : p.canone_cents,
+        importo_cents: i === 3 ? p.fisso_cents : p.canone_cents + n * (i === 0 ? 50 : p.tariffa_cents),
         bonus_cents: 0,
         stato: statoAddebito,
         fattura: null,
@@ -217,19 +220,24 @@ export async function demoCall<T>(azione: string, b: Record<string, unknown>): P
     case 'dati':
       return structuredClone(d) as T;
     case 'piano':
-      set({ piano: b.piano as AdminCentre['piano'] });
+      set({ piano: b.piano as AdminCentre['piano'], ...(b.formula ? { formula: b.formula as AdminCentre['formula'] } : {}) });
       break;
     case 'centro': {
       const patch: Partial<AdminCentre> = {};
       if (b.iban !== undefined) patch.iban = String(b.iban);
       if (b.canone_cents !== undefined) patch.canone_cents = b.canone_cents as number | null;
       if (b.tariffa_cents !== undefined) patch.tariffa_cents = b.tariffa_cents as number | null;
+      if (b.fisso_cents !== undefined) patch.fisso_cents = b.fisso_cents as number | null;
       if (b.fattura !== undefined) Object.assign(patch, b.fattura);
       set(patch);
       break;
     }
     case 'prezzi':
-      d.piani = d.piani.map((x) => (x.piano === b.piano ? { ...x, canone_cents: Number(b.canone_cents), tariffa_cents: Number(b.tariffa_cents) } : x));
+      d.piani = d.piani.map((x) =>
+        x.piano === b.piano
+          ? { ...x, canone_cents: Number(b.canone_cents), tariffa_cents: Number(b.tariffa_cents), fisso_cents: b.fisso_cents === undefined ? x.fisso_cents : Number(b.fisso_cents) }
+          : x,
+      );
       break;
     case 'conto':
       d.banca = { ...d.banca, bonifico_iban: String(b.iban), bonifico_intestatario: String(b.intestatario) };

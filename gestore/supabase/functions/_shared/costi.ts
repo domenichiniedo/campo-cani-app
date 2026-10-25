@@ -2,8 +2,10 @@
 // le funzioni passano i dati e le prove li controllano.
 
 export type Piano = 'base' | 'professional' | 'pro';
-export type Prezzi = Record<Piano, { canone_cents: number; tariffa_cents: number }>;
-export type Cambio = { piano: Piano; dal: string };
+/** Come paga il centro: canone + quota per prenotazione, oppure una cifra fissa al mese. */
+export type Formula = 'consumo' | 'fisso';
+export type Prezzi = Record<Piano, { canone_cents: number; tariffa_cents: number; fisso_cents: number }>;
+export type Cambio = { piano: Piano; dal: string; formula?: Formula };
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -14,28 +16,32 @@ export function giorniDelMese(mese: string) {
   return Array.from({ length: n }, (_, i) => `${mese}-${pad(i + 1)}`);
 }
 
-/** Il piano di un giorno: l'ultimo cambio con data non successiva (i cambi vanno in ordine). */
-export function pianoDel(giorno: string, cambi: Cambio[], attuale: Piano): Piano {
-  let p: Piano | null = null;
-  for (const c of cambi) if (c.dal <= giorno) p = c.piano;
-  return p ?? cambi[0]?.piano ?? attuale;
+/** Piano e formula di un giorno: l'ultimo cambio con data non successiva (i cambi vanno in ordine). */
+export function pianoDel(giorno: string, cambi: Cambio[], attuale: Piano, formula: Formula = 'consumo'): { piano: Piano; formula: Formula } {
+  let c: Cambio | null = null;
+  for (const x of cambi) if (x.dal <= giorno) c = x;
+  c ??= cambi[0] ?? null;
+  return c ? { piano: c.piano, formula: c.formula ?? 'consumo' } : { piano: attuale, formula };
 }
 
 export type Conto = { canone_cents: number; prenotazioni: number; quote_cents: number; importo_cents: number };
 
 /**
  * Canone e quote di un mese. Il canone si divide a giorni fra i piani avuti nel mese, contando solo dal giorno
- * di registrazione; ogni prenotazione paga la quota del piano del suo giorno. I prezzi fatti apposta per il
- * centro (non null) valgono al posto di quelli del piano.
+ * di registrazione; ogni prenotazione paga la quota del piano del suo giorno. Nei giorni a prezzo fisso il
+ * canone è il fisso del piano e le prenotazioni non pagano quota. I prezzi fatti apposta per il centro
+ * (non null) valgono al posto di quelli del piano.
  */
 export function contoDelMese(a: {
   mese: string;
   dal: string;
   cambi: Cambio[];
   attuale: Piano;
+  formula?: Formula;
   prezzi: Prezzi;
   canone: number | null;
   tariffa: number | null;
+  fisso?: number | null;
   prenotazioni: Record<string, number>;
 }): Conto {
   const giorni = giorniDelMese(a.mese);
@@ -43,11 +49,13 @@ export function contoDelMese(a: {
   let quote = 0;
   let n = 0;
   for (const g of giorni) {
-    const p = a.prezzi[pianoDel(g, a.cambi, a.attuale)];
-    if (g >= a.dal) canone += (a.canone ?? p.canone_cents) / giorni.length;
+    const d = pianoDel(g, a.cambi, a.attuale, a.formula);
+    const p = a.prezzi[d.piano];
+    const fisso = d.formula === 'fisso';
+    if (g >= a.dal) canone += (fisso ? (a.fisso ?? p.fisso_cents) : (a.canone ?? p.canone_cents)) / giorni.length;
     const k = a.prenotazioni[g] ?? 0;
     n += k;
-    quote += k * (a.tariffa ?? p.tariffa_cents);
+    if (!fisso) quote += k * (a.tariffa ?? p.tariffa_cents);
   }
   const c = Math.round(canone);
   return { canone_cents: c, prenotazioni: n, quote_cents: quote, importo_cents: c + quote };

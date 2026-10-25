@@ -1,6 +1,7 @@
 // Il primo del mese fa il conto del mese prima di ogni centro: canone del piano (diviso a giorni se il piano è
-// cambiato o il centro si è registrato a metà mese) più la quota per ogni prenotazione non disdetta pagata al campo,
-// con bonifico o con carta al centro (le lezioni scalate da un pacchetto non contano).
+// cambiato o il centro si è registrato a metà mese) più la quota per ogni prenotazione pagata al campo, con
+// bonifico o con carta al centro, anche se poi è stata annullata (le lezioni scalate da un pacchetto non
+// contano). Il centro a prezzo fisso paga solo il fisso del piano, senza quote.
 // Il centro vede l'addebito nell'app (Impostazioni → Licenza) con IBAN, causale e codice QR, e lo paga con un
 // bonifico istantaneo sul tuo conto: controlla-bonifici lo trova nei movimenti e rinnova la licenza.
 // Se non arriva entro la scadenza (il giorno GIORNI_PER_PAGARE del mese, 3 di solito) la licenza scade e l'app
@@ -36,9 +37,11 @@ async function addebita(c: Centro, mese: string, listino: Prezzi) {
     dal: oggi(new Date(c.creato)),
     cambi: await cambi(c.id),
     attuale: c.piano,
+    formula: c.formula,
     prezzi: listino,
     canone: c.canone_cents,
     tariffa: c.tariffa_cents,
+    fisso: c.fisso_cents,
     prenotazioni: Object.fromEntries(righe.map((r) => [r.g.slice(0, 10), r.n])),
   });
   // Il bonus del centro (crediti dal pannello o da un codice bonus) si scala dal conto, finché c'è.

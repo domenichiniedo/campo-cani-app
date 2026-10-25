@@ -21,6 +21,10 @@ export type Centro = Fatturazione & {
   /** Quota per prenotazione e canone mensile fatti apposta per il centro; null = quelli del piano. */
   tariffa_cents: number | null;
   canone_cents: number | null;
+  /** Come paga il piano: canone + quote (consumo) o una cifra fissa al mese. */
+  formula: 'consumo' | 'fisso';
+  /** Prezzo fisso fatto apposta per il centro; null = quello del piano. */
+  fisso_cents: number | null;
   /** IBAN da cui il centro fa i bonifici, per riconoscerli. */
   iban: string;
   progetto: string | null;

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { TransferBox } from '@/components/transfer';
 import { Badge, Body, Button, Card, Chips, ErrorText, Field, Muted, Row } from '@/components/ui';
 import { dayKey, euro, today } from '@/lib/format';
-import { changePlan, gestoreEnabled, isCentreCode, setCentreIban, subscription, subscriptionCode, type Due, type PlanPrice, type Subscription } from '@/lib/gestore';
+import { changePlan, gestoreEnabled, isCentreCode, setCentreIban, subscription, subscriptionCode, type Due, type Formula, type PlanPrice, type Subscription } from '@/lib/gestore';
 import { t } from '@/lib/i18n';
 import { useLicense } from '@/lib/license-gate';
 import { PLAN_IDS, PLANS, type PlanId } from '@/lib/plans';
@@ -16,11 +16,38 @@ const date = (d: string) => d.split('-').reverse().join('/');
 const month = (m: string) => m.split('-').reverse().join('/');
 const limit = (n: number | null) => (n === null ? t('senza limite') : String(n));
 
-/** Canone e quota di un piano, in una riga. */
-export const priceText = (p: PlanPrice) =>
-  p.canone_cents > 0
-    ? t('{canone} al mese + {quota} a prenotazione', { canone: euro(p.canone_cents), quota: euro(p.tariffa_cents) })
-    : t('{quota} a prenotazione, senza canone', { quota: euro(p.tariffa_cents) });
+/** Canone e quota di un piano, o il suo prezzo fisso, in una riga. */
+export const priceText = (p: PlanPrice, formula: Formula = 'consumo') =>
+  formula === 'fisso' && p.fisso_cents != null
+    ? t('{fisso} al mese, prenotazioni comprese', { fisso: euro(p.fisso_cents) })
+    : p.canone_cents > 0
+      ? t('{canone} al mese + {quota} a prenotazione', { canone: euro(p.canone_cents), quota: euro(p.tariffa_cents) })
+      : t('{quota} a prenotazione, senza canone', { quota: euro(p.tariffa_cents) });
+
+/** Il gestore ha il prezzo fisso (per i gestori non ancora aggiornati si paga solo a consumo). */
+export const hasFixed = (prices: Partial<Record<string, PlanPrice>>) => Object.values(prices).some((p) => p?.fisso_cents != null);
+
+/** A consumo o fisso: la scelta, con cosa vuol dire. */
+export function FormulaPick({ value, onChange, price }: { value: Formula; onChange: (f: Formula) => void; price?: PlanPrice }) {
+  return (
+    <>
+      <Chips
+        items={[
+          { value: 'consumo' as Formula, label: t('A consumo') },
+          { value: 'fisso' as Formula, label: t('Prezzo fisso') },
+        ]}
+        value={value}
+        onChange={onChange}
+      />
+      <Muted style={{ fontSize: 13 }}>
+        {value === 'fisso'
+          ? t('Paghi sempre la stessa cifra ogni mese, quante che siano le prenotazioni.')
+          : t('Paghi il canone del piano più una quota per ogni prenotazione: conviene se le prenotazioni sono poche.')}
+        {price && price.fisso_cents != null ? ' ' + t('A consumo: {consumo}. Fisso: {fisso}.', { consumo: priceText(price), fisso: priceText(price, 'fisso') }) : ''}
+      </Muted>
+    </>
+  );
+}
 
 /** Un addebito del mese da pagare con il bonifico istantaneo sul conto del gestore. */
 function DueTransfer({ due, to }: { due: Due; to: Subscription['bonifico'] }) {
@@ -62,6 +89,7 @@ export function SubscriptionPanel() {
   const code = license ? subscriptionCode(license.id) : null;
   const [sub, setSub] = useState<Subscription | null>(null);
   const [pick, setPick] = useState<PlanId | null>(null);
+  const [pickFormula, setPickFormula] = useState<Formula | null>(null);
   const [armed, setArmed] = useState(false);
   const [iban, setIban] = useState('');
   const [busy, setBusy] = useState<'plan' | 'iban' | null>(null);
@@ -90,6 +118,9 @@ export function SubscriptionPanel() {
 
   const current = (sub.piano as PlanId) in PLANS ? (sub.piano as PlanId) : 'pro';
   const chosen = pick ?? current;
+  const formula: Formula = sub.formula ?? 'consumo';
+  const chosenFormula = pickFormula ?? formula;
+  const changed = chosen !== current || chosenFormula !== formula;
 
   async function change() {
     if (!armed) {
@@ -102,12 +133,15 @@ export function SubscriptionPanel() {
     setMsg('');
     setBusy('plan');
     try {
-      const r = await changePlan(code!, chosen, await token());
+      const r = await changePlan(code!, chosen, chosenFormula, await token());
       setSub(r);
       setPick(null);
-      const e = await activate(r.licenza);
+      setPickFormula(null);
+      const e = chosen !== current ? await activate(r.licenza) : '';
       if (e) setErr(e);
-      else setMsg(t("Piano {piano} attivo da oggi: i tuoi clienti lo ricevono alla prossima apertura dell'app.", { piano: PLANS[chosen].label }));
+      else if (chosen !== current)
+        setMsg(t("Piano {piano} attivo da oggi: i tuoi clienti lo ricevono alla prossima apertura dell'app.", { piano: PLANS[chosen].label }));
+      else setMsg(chosenFormula === 'fisso' ? t('Da oggi paghi il prezzo fisso.') : t('Da oggi paghi a consumo.'));
     } catch (e) {
       setErr(t((e as Error).message));
     }
@@ -140,7 +174,7 @@ export function SubscriptionPanel() {
           <Body bold>{t('Abbonamento')}</Body>
           {sub.da_pagare.length === 0 && <Badge tone="ok">{t('Tutto pagato')}</Badge>}
         </Row>
-        <Body>{t('Piano {piano}: {prezzo}', { piano: PLANS[current].label, prezzo: priceText(sub.piani[current]) })}</Body>
+        <Body>{t('Piano {piano}: {prezzo}', { piano: PLANS[current].label, prezzo: priceText(sub.piani[current], formula) })}</Body>
         {!!sub.credito_cents && (
           <Badge tone="ok">{t('Bonus da scalare dai prossimi conti: {importo}', { importo: euro(sub.credito_cents) })}</Badge>
         )}
@@ -151,21 +185,37 @@ export function SubscriptionPanel() {
         <Chips items={PLAN_IDS.map((id) => ({ value: id, label: PLANS[id].label }))} value={chosen} onChange={(v) => (setPick(v), setArmed(false))} />
         <Muted style={{ fontSize: 13 }}>
           {[
-            priceText(sub.piani[chosen]),
+            priceText(sub.piani[chosen], chosenFormula),
             t('Clienti: {n}', { n: limit(p.maxClients) }),
             t('Trainer: {n}', { n: limit(p.maxTrainers) }),
             t('Proprietari: {n}', { n: limit(p.maxOwners) }),
             t('Campi: {n}', { n: limit(p.maxFields) }),
           ].join(' · ')}
         </Muted>
-        {chosen !== current && (
+        {hasFixed(sub.piani) && (
+          <>
+            <Body bold>{t('Come paghi')}</Body>
+            <FormulaPick value={chosenFormula} onChange={(v) => (setPickFormula(v), setArmed(false))} price={sub.piani[chosen]} />
+          </>
+        )}
+        {changed && (
           <>
             <Muted style={{ fontSize: 13 }}>
               {t('Il cambio vale da oggi: il canone e le prenotazioni di questo mese si dividono a giorni fra il piano di prima e quello nuovo.')}
             </Muted>
             <Button
               small
-              title={armed ? t('Confermi il piano {piano}?', { piano: p.label }) : t('Passa al piano {piano}', { piano: p.label })}
+              title={
+                chosen === current
+                  ? armed
+                    ? t('Confermi?')
+                    : chosenFormula === 'fisso'
+                      ? t('Passa al prezzo fisso')
+                      : t('Passa a consumo')
+                  : armed
+                    ? t('Confermi il piano {piano}?', { piano: p.label })
+                    : t('Passa al piano {piano}', { piano: p.label })
+              }
               onPress={change}
               loading={busy === 'plan'}
             />

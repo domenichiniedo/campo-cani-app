@@ -453,7 +453,7 @@
   // Il gestore nella demo: registra un centro nuovo e lo "prepara" in pochi secondi invece che in minuti.
   // La licenza arriva dalla pagina della demo (mobile-demo/index.html), che ha quelle firmate per la demo.
   var CENTRO = 'campo-demo-centro-nuovo';
-  var PREZZI = { base: { canone_cents: 590, tariffa_cents: 100 }, professional: { canone_cents: 2999, tariffa_cents: 60 }, pro: { canone_cents: 8000, tariffa_cents: 30 } };
+  var PREZZI = { base: { canone_cents: 590, tariffa_cents: 100, fisso_cents: 3900 }, professional: { canone_cents: 2999, tariffa_cents: 60, fisso_cents: 7900 }, pro: { canone_cents: 8000, tariffa_cents: 30, fisso_cents: 14900 } };
   var PASSI = ['progetto', 'avvio', 'database', 'chiavi', 'licenza'];
   function gestore(fn, a) {
     if (fn === 'centro' && a.prezzi) return json(200, { piani: PREZZI });
@@ -462,6 +462,8 @@
       if (campo.length < 2) return json(400, { errore: 'Scrivi il nome del centro.' });
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(400, { errore: 'Email non valida.' });
       if (!PREZZI[a.piano]) return json(400, { errore: 'Scegli il piano.' });
+      if (a.formula && a.formula !== 'consumo' && a.formula !== 'fisso') return json(400, { errore: 'Scegli a consumo o fisso.' });
+      try { localStorage.setItem('campo-demo-formula', a.formula || 'consumo'); } catch (e) {}
       var f = a.fattura || {};
       if (String(f.ragione_sociale || '').trim().length < 2 || !(f.partita_iva || f.codice_fiscale) || !/^\d{5}$/.test(f.cap || '')) {
         return json(400, { errore: 'Completa i dati per la fattura.' });
@@ -499,14 +501,17 @@
       try { lic = JSON.parse(localStorage.getItem('campo-demo-licenze') || '{}'); } catch (e) {}
       var piano = localStorage.getItem('campo-cani-demo-piano');
       if (!PREZZI[piano]) piano = 'pro';
+      var formula = localStorage.getItem('campo-demo-formula') === 'fisso' ? 'fisso' : 'consumo';
       if (a.azione === 'cambia') {
         if (!PREZZI[a.piano] || !lic[a.piano]) return json(400, { errore: 'Piano non valido.' });
+        if (a.formula && a.formula !== 'consumo' && a.formula !== 'fisso') return json(400, { errore: 'Scegli a consumo o fisso.' });
         piano = a.piano;
-        try { localStorage.setItem('campo-cani-demo-piano', piano); } catch (e) {}
+        formula = a.formula || formula;
+        try { localStorage.setItem('campo-cani-demo-piano', piano); localStorage.setItem('campo-demo-formula', formula); } catch (e) {}
         db.settings[0].license_code = lic[piano]; save();
       }
       if (a.azione === 'iban') try { localStorage.setItem('campo-demo-iban-centro', String(a.iban || '')); } catch (e) {}
-      var out = { piano: piano, piani: PREZZI, iban_centro: localStorage.getItem('campo-demo-iban-centro') || '', scade: null,
+      var out = { piano: piano, formula: formula, piani: PREZZI, iban_centro: localStorage.getItem('campo-demo-iban-centro') || '', scade: null,
         bonifico: { iban: 'IT60X0542811101000000123456', intestatario: 'K9 Manager' }, da_pagare: [],
         credito_cents: Number(localStorage.getItem('campo-demo-bonus') || 0) };
       if (a.azione === 'cambia') out.licenza = lic[piano];
