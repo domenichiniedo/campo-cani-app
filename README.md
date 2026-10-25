@@ -13,7 +13,7 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
    nel progetto apri **SQL Editor**, incolla tutto il file e premi **Run**. Crea in un colpo tabelle, regole di accesso,
    lezioni di partenza e spazi per logo e foto, e segna la tua email come quella del proprietario.
    `setup.sql` è solo per un progetto **nuovo**. Se il database esiste già, esegui solo le migrazioni nuove di
-   `supabase/migrations`, una volta ciascuna e in ordine (l'ultima è `0021_nexi.sql`).
+   `supabase/migrations`, una volta ciascuna e in ordine (l'ultima è `0022_voto_lezioni.sql`).
 3. In **Project Settings → API Keys** copia l'URL del progetto e la **Publishable key** (inizia con `sb_publishable_`).
    Non usare mai la Secret key nell'app.
 4. Copia il file `.env.example` in `.env.local` e incolla i due valori:

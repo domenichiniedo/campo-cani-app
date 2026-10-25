@@ -253,3 +253,14 @@ export function rulesLines(s: Settings, types: LessonType[]): string[] {
 
 /** Conto del proprietario per il bonifico istantaneo; lo leggono solo i clienti con un account. */
 export type TransferSettings = { id: 1; enabled: boolean; holder: string; iban: string };
+
+/** Voto da 1 a 5 che il cliente dà a una lezione fatta, con un commento facoltativo. */
+export type LessonRating = {
+  booking_id: string;
+  user_id: string;
+  day: string;
+  score: number;
+  comment: string;
+  created_at: string;
+  updated_at: string;
+};
