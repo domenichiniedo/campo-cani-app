@@ -808,6 +808,23 @@ const dict: Record<string, string> = {
   'Continua con Google': 'Continue with Google',
   "Questo centro non ha ancora attivato l'accesso con Google.": "This centre hasn't enabled Google sign-in yet.",
   'Accesso con Google non riuscito: {errore}': 'Google sign-in failed: {errore}',
+  'Ragione sociale': 'Company name',
+  'Es. Asd Cinofila Le Querce': 'E.g. Asd Cinofila Le Querce',
+  'Partita IVA': 'VAT number',
+  'Codice fiscale': 'Tax code',
+  "Basta uno dei due se l'altro non c'è (per esempio un'associazione senza partita IVA).": "One of the two is enough if the other doesn't exist (for example an association without a VAT number).",
+  'Sede: via e numero': 'Registered office: street and number',
+  'Codice destinatario (SDI)': 'Recipient code (SDI)',
+  'PEC': 'Certified email (PEC)',
+  'Per la fattura elettronica: il codice destinatario o la PEC. Senza nessuno dei due la fattura arriva nel cassetto fiscale.': 'For the e-invoice: the recipient code or the certified email. Without either, the invoice goes to the tax drawer (cassetto fiscale).',
+  'Servono per la fattura del canone e delle prenotazioni.': "They're needed to invoice the monthly fee and the bookings.",
+  'Scrivi la ragione sociale (o il nome della società o associazione).': 'Enter the company name (or the name of the company or association).',
+  'Scrivi la partita IVA o il codice fiscale.': 'Enter the VAT number or the tax code.',
+  'La partita IVA non è valida: sono 11 cifre.': "The VAT number isn't valid: it has 11 digits.",
+  'Scrivi via e numero civico della sede.': 'Enter the street and number of the registered office.',
+  'Scrivi il comune della sede.': 'Enter the town of the registered office.',
+  'Il codice destinatario ha 7 lettere o cifre.': 'The recipient code has 7 letters or digits.',
+  'La PEC non è un indirizzo email valido.': "The certified email (PEC) isn't a valid email address.",
 };
 
 export default dict;

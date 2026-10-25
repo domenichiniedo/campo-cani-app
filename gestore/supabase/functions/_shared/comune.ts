@@ -1,12 +1,15 @@
 // Parti comuni alle funzioni del gestore.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+import type { Fatturazione } from './fatturazione.ts';
+
 export const env = (k: string) => Deno.env.get(k) ?? '';
 
 /** Il database del gestore, con la chiave di servizio: solo qui dentro, mai nell'app. */
 export const db = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false } });
 
-export type Centro = {
+/** Un centro, con i dati per fatturargli (ragione sociale, partita IVA o codice fiscale, sede, SDI o PEC). */
+export type Centro = Fatturazione & {
   id: string;
   codice: string;
   campo: string;

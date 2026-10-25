@@ -38,6 +38,7 @@ al centro con la carta (Nexi) contano nel conto del mese come quelle pagate al c
 |---|---|
 | `supabase/migrations/0001_centri.sql` | tabelle `centri` e `addebiti` del gestore |
 | `supabase/migrations/0002_bonifici_piani.sql` | prezzi dei piani, cambi di piano, il tuo conto e i bonifici visti |
+| `supabase/migrations/0003_fatturazione.sql` | i dati per fatturare a ogni centro (ragione sociale, P.IVA o CF, sede, SDI o PEC) |
 | `registra-centro` | registrazione dall'app |
 | `centro` | stato di un centro dal codice e prezzi dei piani |
 | `prepara-centri` | crea e aggiorna i database dei centri, un passo alla volta (pg_cron ogni minuto) |
@@ -53,7 +54,7 @@ Tutti i comandi si lanciano **sul tuo computer**, nella cartella del progetto. N
 in chat, nell'app o su GitHub.
 
 1. **Progetto del gestore.** Su supabase.com crea un progetto nuovo, per esempio "K9 Gestore". Nel SQL
-   Editor esegui `gestore/supabase/migrations/0001_centri.sql` e poi `0002_bonifici_piani.sql`. In Authentication → Users → Add user crea
+   Editor esegui `gestore/supabase/migrations/0001_centri.sql`, poi `0002_bonifici_piani.sql` e `0003_fatturazione.sql`. In Authentication → Users → Add user crea
    il tuo utente (email e password): con quello entri nel pannello.
 
 2. **Chiave del server per le licenze.**
@@ -129,7 +130,7 @@ in chat, nell'app o su GitHub.
 
    Se hai già il gestore acceso con la versione di prima: esegui `0002_bonifici_piani.sql`, aggiungi il terzo
    orario, togli il webhook di Stripe e cancella le funzioni `stripe-webhook` e `stripe-collega` (non ci sono più),
-   poi ripeti il passo 4.
+   poi ripeti il passo 4. Se hai già `0002` ma non `0003_fatturazione.sql`, esegui quella e ripeti il passo 4.
 
 7. **L'app.** Nelle build per gli store e per i centri imposta `EXPO_PUBLIC_GESTORE_URL` =
    `https://<ref>.supabase.co/functions/v1` (senza `EXPO_PUBLIC_SUPABASE_URL`: ogni centro ha il suo

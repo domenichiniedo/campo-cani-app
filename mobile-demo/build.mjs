@@ -20,8 +20,12 @@ const DEMO_KEY = 'JU1ijvUYPu042LzTpfFZ21ntUwzxiy3KN8_Xycw6Uf0';
 const keyFile = join(root, 'src/lib/license-key.ts');
 const appJson = join(root, 'app.json');
 const real = process.env.APP_VERA === '1';
-// Nella demo anche il gestore è finto (demo-backend.js): così si prova la registrazione di un centro nuovo.
+// DEMO_PROVA_GIORNI=3: la prova del piano Pro, che si blocca 3 giorni dopo la prima apertura.
+const days = Number(process.env.DEMO_PROVA_GIORNI || 0);
+// Nella demo anche il gestore è finto (demo-backend.js): così si prova la registrazione di un centro nuovo e, tranne
+// nella prova del piano Pro, il cambio di piano dalle Impostazioni.
 if (!real) process.env.EXPO_PUBLIC_GESTORE_URL = 'https://demo.supabase.co/functions/v1/gestore';
+if (!real && !days) process.env.EXPO_PUBLIC_DEMO_CENTRE = 'K9-DEMO00';
 const saved = { key: readFileSync(keyFile, 'utf8'), app: readFileSync(appJson, 'utf8') };
 try {
   if (!real) writeFileSync(keyFile, saved.key.replace(/LICENSE_PUBLIC_KEY = '[^']*'/, `LICENSE_PUBLIC_KEY = '${DEMO_KEY}'`));
@@ -55,8 +59,6 @@ if (real) {
 }
 cpSync(join(root, 'desktop/demo/demo-backend.js'), join(www, 'demo-backend.js'));
 cpSync(join(import.meta.dirname, 'app.html'), join(www, 'app.html'));
-// DEMO_PROVA_GIORNI=3: la prova del piano Pro, che si blocca 3 giorni dopo la prima apertura.
-const days = Number(process.env.DEMO_PROVA_GIORNI || 0);
 let page = readFileSync(join(import.meta.dirname, 'index.html'), 'utf8');
 if (days) page = page.replace('var TRIAL_DAYS = 0;', `var TRIAL_DAYS = ${days};`).replace('<title>K9 Manager Demo</title>', '<title>K9 Manager Prova</title>');
 writeFileSync(join(www, 'index.html'), page);

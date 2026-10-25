@@ -11,6 +11,22 @@ const even = (ch: string) => (/\d/.test(ch) ? Number(ch) : ch.charCodeAt(0) - 65
 
 const normalizeTaxCode = (s: string) => s.replace(/\s/g, '').toUpperCase();
 
+/** Partita IVA italiana: 11 cifre con la cifra di controllo (anche con IT davanti). */
+function isValidVat(raw: string): boolean {
+  const s = normalizeTaxCode(raw).replace(/^IT/, '');
+  if (!/^\d{11}$/.test(s)) return false;
+  let sum = 0;
+  for (let i = 0; i < 10; i++) {
+    let n = Number(s[i]);
+    if (i % 2 === 1) {
+      n *= 2;
+      if (n > 9) n -= 9;
+    }
+    sum += n;
+  }
+  return (10 - (sum % 10)) % 10 === Number(s[10]);
+}
+
 /** Codice fiscale di persona (16 caratteri, con carattere di controllo) o partita IVA (11 cifre). */
 function isValidTaxCode(raw: string): boolean {
   const s = normalizeTaxCode(raw);
@@ -20,19 +36,7 @@ function isValidTaxCode(raw: string): boolean {
     for (let i = 0; i < 15; i++) sum += i % 2 === 0 ? ODD[s[i]] : even(s[i]);
     return String.fromCharCode(65 + (sum % 26)) === s[15];
   }
-  if (/^\d{11}$/.test(s)) {
-    let sum = 0;
-    for (let i = 0; i < 10; i++) {
-      let n = Number(s[i]);
-      if (i % 2 === 1) {
-        n *= 2;
-        if (n > 9) n -= 9;
-      }
-      sum += n;
-    }
-    return (10 - (sum % 10)) % 10 === Number(s[10]);
-  }
-  return false;
+  return isValidVat(s);
 }
 
 export type BillingDraft = { taxCode: string; street: string; zip: string; city: string; province: string };
@@ -76,3 +80,70 @@ export const billingLine = (p: Pick<Profile, 'billing_street' | 'billing_zip' | 
   [p.billing_street, [p.billing_zip, p.billing_city, p.billing_province && `(${p.billing_province})`].filter(Boolean).join(' ')]
     .filter(Boolean)
     .join(', ');
+
+/** Dati per fatturare al centro il canone e le prenotazioni: come li vuole la fattura elettronica. */
+export type CentreBilling = {
+  ragione_sociale: string;
+  partita_iva: string;
+  codice_fiscale: string;
+  indirizzo: string;
+  cap: string;
+  comune: string;
+  provincia: string;
+  /** Codice destinatario del Sistema di Interscambio (7 caratteri); vuoto se usa la PEC o nessuno dei due. */
+  codice_sdi: string;
+  pec: string;
+};
+
+export const emptyCentreBilling: CentreBilling = {
+  ragione_sociale: '',
+  partita_iva: '',
+  codice_fiscale: '',
+  indirizzo: '',
+  cap: '',
+  comune: '',
+  provincia: '',
+  codice_sdi: '',
+  pec: '',
+};
+
+/** I dati puliti come li salva il gestore: maiuscole dove servono, senza spazi nei codici. */
+export const cleanCentreBilling = (raw: CentreBilling): CentreBilling => {
+  const b = { ...emptyCentreBilling, ...raw };
+  return {
+    ragione_sociale: b.ragione_sociale.trim(),
+    partita_iva: normalizeTaxCode(b.partita_iva).replace(/^IT/, ''),
+    codice_fiscale: normalizeTaxCode(b.codice_fiscale),
+    indirizzo: b.indirizzo.trim(),
+    cap: b.cap.trim(),
+    comune: b.comune.trim(),
+    provincia: b.provincia.trim().toUpperCase(),
+    codice_sdi: normalizeTaxCode(b.codice_sdi),
+    pec: b.pec.trim().toLowerCase(),
+  };
+};
+
+/** Il primo dato per la fattura del centro mancante o sbagliato, oppure null (come il gestore, fatturazione.ts). */
+export function centreBillingError(raw: CentreBilling): string | null {
+  const b = cleanCentreBilling(raw);
+  if (b.ragione_sociale.length < 2) return t('Scrivi la ragione sociale (o il nome della società o associazione).');
+  if (!b.partita_iva && !b.codice_fiscale) return t('Scrivi la partita IVA o il codice fiscale.');
+  if (b.partita_iva && !isValidVat(b.partita_iva)) return t('La partita IVA non è valida: sono 11 cifre.');
+  if (b.codice_fiscale && !isValidTaxCode(b.codice_fiscale)) return t('Il codice fiscale non è valido. Controlla le lettere e i numeri.');
+  if (!b.indirizzo) return t('Scrivi via e numero civico della sede.');
+  if (!/^\d{5}$/.test(b.cap)) return t('Il CAP deve avere 5 cifre.');
+  if (!b.comune) return t('Scrivi il comune della sede.');
+  if (!/^[A-Z]{2}$/.test(b.provincia)) return t('La provincia va scritta con la sigla, per esempio BO.');
+  if (b.codice_sdi && !/^[A-Z0-9]{7}$/.test(b.codice_sdi)) return t('Il codice destinatario ha 7 lettere o cifre.');
+  if (b.pec && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.pec)) return t('La PEC non è un indirizzo email valido.');
+  return null;
+}
+
+/** I dati per la fattura del centro in poche righe, per il pannello del gestore. */
+export const centreBillingLines = (b: CentreBilling) =>
+  [
+    b.ragione_sociale,
+    [b.partita_iva && `P.IVA ${b.partita_iva}`, b.codice_fiscale && b.codice_fiscale !== b.partita_iva && `CF ${b.codice_fiscale}`].filter(Boolean).join(' · '),
+    [b.indirizzo, [b.cap, b.comune, b.provincia && `(${b.provincia})`].filter(Boolean).join(' ')].filter(Boolean).join(', '),
+    [b.codice_sdi && `SDI ${b.codice_sdi}`, b.pec && `PEC ${b.pec}`].filter(Boolean).join(' · '),
+  ].filter(Boolean);

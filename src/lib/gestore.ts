@@ -1,3 +1,4 @@
+import type { CentreBilling } from '@/lib/billing';
 import { t } from '@/lib/i18n';
 
 // Il server gestore (cartella gestore/): registra i centri nuovi e prepara il loro database.
@@ -11,6 +12,13 @@ export const gestoreEnabled = BASE.length > 0;
 /** Codice del centro, quello corto da dare a clienti e trainer (K9-XXXXXX). */
 export const isCentreCode = (s: string) => /^K9-?[A-Z0-9]{6}$/i.test(s.trim());
 const centreCode = (s: string) => s.trim().toUpperCase().replace(/^K9-?/, 'K9-');
+
+// Nella demo (mobile-demo/build.mjs) le licenze di prova non sono di un centro registrato: l'abbonamento usa questo
+// codice e lo gestisce il finto gestore (demo-backend.js), così dalle Impostazioni si prova anche il cambio di piano.
+const DEMO_CENTRE = process.env.EXPO_PUBLIC_DEMO_CENTRE ?? '';
+
+/** Il codice del centro di una licenza, per vedere e cambiare l'abbonamento; null se il centro non è del gestore. */
+export const subscriptionCode = (licenseId: string) => (!gestoreEnabled ? null : isCentreCode(licenseId) ? licenseId : DEMO_CENTRE || null);
 
 export type CentreState = 'mandato' | 'progetto' | 'avvio' | 'database' | 'chiavi' | 'licenza' | 'pronto' | 'errore';
 
@@ -30,9 +38,9 @@ async function call<T>(fn: string, body: object, token?: string): Promise<T> {
   return data as T;
 }
 
-/** Registra un centro nuovo (con l'IBAN da cui pagherà, se lo dà): torna il suo codice. */
-export const registerCentre = (campo: string, email: string, piano: string, iban: string) =>
-  call<{ codice: string }>('registra-centro', { campo, email, piano, iban });
+/** Registra un centro nuovo, con i dati per fatturargli (e l'IBAN da cui pagherà, se lo dà): torna il suo codice. */
+export const registerCentre = (campo: string, email: string, piano: string, iban: string, fattura: CentreBilling) =>
+  call<{ codice: string }>('registra-centro', { campo, email, piano, iban, fattura });
 
 export type PlanPrice = { canone_cents: number; tariffa_cents: number };
 

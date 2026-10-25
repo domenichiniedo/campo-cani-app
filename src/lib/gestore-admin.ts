@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
+import type { CentreBilling } from '@/lib/billing';
 import { demoCall } from '@/lib/gestore-demo';
 
 // Il pannello "K9 Gestore" entra nel progetto Supabase del gestore con un tuo utente (email e password)
@@ -21,7 +22,8 @@ export const admin = createClient(adminUrl || 'http://localhost', KEY || 'missin
   auth: { storage: localStorage, storageKey: 'k9-gestore-accesso', autoRefreshToken: true, persistSession: true, detectSessionInUrl: false },
 });
 
-export type AdminCentre = {
+/** Un centro, con i dati per fatturargli (vuoti nei centri registrati prima che l'app li chiedesse). */
+export type AdminCentre = CentreBilling & {
   id: string;
   codice: string;
   campo: string;

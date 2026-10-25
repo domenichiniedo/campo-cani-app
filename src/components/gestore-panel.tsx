@@ -3,6 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
+import { CentreBillingFields } from '@/components/centre-billing-fields';
 import { GoogleButton } from '@/components/google-button';
 import { Badge, Body, Button, Card, Chips, ErrorText, Field, H1, Muted, Row, Screen, Stat, Step } from '@/components/ui';
 import {
@@ -23,6 +24,7 @@ import {
   type Movement,
   type PlanRow,
 } from '@/lib/gestore-admin';
+import { centreBillingError, centreBillingLines, cleanCentreBilling, type CentreBilling } from '@/lib/billing';
 import { sameOr, useWhenActive } from '@/lib/refresh';
 import { useColors } from '@/lib/theme';
 import { formatIban, isValidIban, normalizeIban } from '@/lib/transfer';
@@ -316,8 +318,10 @@ function CentreCard({
   const [fee, setFee] = useState(euroField(x.tariffa_cents));
   const [rent, setRent] = useState(euroField(x.canone_cents));
   const [iban, setIban] = useState(formatIban(x.iban));
+  const [bill, setBill] = useState<CentreBilling>(() => cleanCentreBilling(x));
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
+  const billing = centreBillingLines(cleanCentreBilling(x));
   const last = charges[charges.length - 1];
   const unpaid = charges.filter((a) => a.stato === 'inviato' || a.stato === 'non_pagato' || (a.stato === 'da_fare' && !!a.errore));
   const canone = x.canone_cents ?? plan?.canone_cents ?? 0;
@@ -354,6 +358,8 @@ function CentreCard({
         {!!x.iban && <Badge>IBAN {x.iban.slice(0, 4)}…{x.iban.slice(-4)}</Badge>}
         {x.stato === 'pronto' && <Badge tone={days !== null && days < 7 ? 'bad' : 'neutral'}>Licenza fino al {data(x.scade)}</Badge>}
       </Row>
+      {billing.length > 0 && <Muted style={{ fontSize: 13 }}>{billing.join('\n')}</Muted>}
+      {!!centreBillingError(x) && <ErrorText>Dati per la fattura incompleti: completali da Modifica.</ErrorText>}
       {!!x.errore && <ErrorText>{x.errore}</ErrorText>}
       {last && (
         <Muted style={{ fontSize: 13 }}>
@@ -393,6 +399,18 @@ function CentreCard({
               loading={busy === 'centro'}
             />
           </Row>
+          <Body bold>Dati per la fattura</Body>
+          <CentreBillingFields value={bill} onChange={setBill} />
+          <Button
+            small
+            title="Salva i dati per la fattura"
+            onPress={() => {
+              const e = centreBillingError(bill);
+              if (e) setErr(e);
+              else run('centro', { fattura: cleanCentreBilling(bill) });
+            }}
+            loading={busy === 'centro'}
+          />
           <Row>
             {x.stato === 'pronto' && <Button small kind="ghost" title="Rinnova la licenza di un mese" onPress={() => run('rinnova')} loading={busy === 'rinnova'} />}
             {x.stato === 'pronto' && (

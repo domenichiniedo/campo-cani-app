@@ -462,8 +462,12 @@
       if (campo.length < 2) return json(400, { errore: 'Scrivi il nome del centro.' });
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(400, { errore: 'Email non valida.' });
       if (!PREZZI[a.piano]) return json(400, { errore: 'Scegli il piano.' });
+      var f = a.fattura || {};
+      if (String(f.ragione_sociale || '').trim().length < 2 || !(f.partita_iva || f.codice_fiscale) || !/^\d{5}$/.test(f.cap || '')) {
+        return json(400, { errore: 'Completa i dati per la fattura.' });
+      }
       var codice = 'K9-' + Array.from({ length: 6 }, function () { return 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.random() * 31 | 0]; }).join('');
-      try { localStorage.setItem(CENTRO, JSON.stringify({ codice: codice, campo: campo, email: email, piano: a.piano, inizio: Date.now() })); } catch (e) {}
+      try { localStorage.setItem(CENTRO, JSON.stringify({ codice: codice, campo: campo, email: email, piano: a.piano, fattura: f, inizio: Date.now() })); } catch (e) {}
       // Come il gestore vero: nome del campo e titolare (chi si iscrive con questa email è il proprietario).
       db.settings[0].field_name = campo;
       if (!db.owner_emails.some(function (x) { return x.email === email; })) db.owner_emails.push({ email: email });
@@ -484,6 +488,24 @@
       // Come fa la pagina della demo quando cambi piano: anche il database tiene la licenza nuova.
       if (licenze[c.piano] && db.settings[0].license_code !== licenze[c.piano]) { db.settings[0].license_code = licenze[c.piano]; save(); }
       return json(200, { stato: 'pronto', campo: c.campo, licenza: licenze[c.piano] || null });
+    }
+    // L'abbonamento dalle Impostazioni del proprietario: il cambio di piano dà la licenza di prova del piano nuovo.
+    if (fn === 'abbonamento') {
+      var lic = {};
+      try { lic = JSON.parse(localStorage.getItem('campo-demo-licenze') || '{}'); } catch (e) {}
+      var piano = localStorage.getItem('campo-cani-demo-piano');
+      if (!PREZZI[piano]) piano = 'pro';
+      if (a.azione === 'cambia') {
+        if (!PREZZI[a.piano] || !lic[a.piano]) return json(400, { errore: 'Piano non valido.' });
+        piano = a.piano;
+        try { localStorage.setItem('campo-cani-demo-piano', piano); } catch (e) {}
+        db.settings[0].license_code = lic[piano]; save();
+      }
+      if (a.azione === 'iban') try { localStorage.setItem('campo-demo-iban-centro', String(a.iban || '')); } catch (e) {}
+      var out = { piano: piano, piani: PREZZI, iban_centro: localStorage.getItem('campo-demo-iban-centro') || '', scade: null,
+        bonifico: { iban: 'IT60X0542811101000000123456', intestatario: 'K9 Manager' }, da_pagare: [] };
+      if (a.azione === 'cambia') out.licenza = lic[piano];
+      return json(200, out);
     }
     return json(404, { errore: 'Funzione sconosciuta.' });
   }
