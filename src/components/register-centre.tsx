@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 
+import { CentreBillingFields } from '@/components/centre-billing-fields';
 import { priceText } from '@/components/subscription-panel';
 import { Badge, Body, Button, Card, Chips, ErrorText, Field, Muted, Row } from '@/components/ui';
+import { centreBillingError, cleanCentreBilling, emptyCentreBilling, type CentreBilling } from '@/lib/billing';
 import { centreStatus, planPrices, registerCentre, type CentreState, type PlanPrice } from '@/lib/gestore';
 import { t, tKey } from '@/lib/i18n';
 import { useLicense } from '@/lib/license-gate';
@@ -44,6 +46,7 @@ export function RegisterCentre({ onBack }: { onBack: () => void }) {
   const [email, setEmail] = useState('');
   const [piano, setPiano] = useState<PlanId>('professional');
   const [iban, setIban] = useState('');
+  const [fattura, setFattura] = useState<CentreBilling>(emptyCentreBilling);
   const [prices, setPrices] = useState<Partial<Record<string, PlanPrice>>>({});
   const [state, setState] = useState<CentreState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -80,10 +83,12 @@ export function RegisterCentre({ onBack }: { onBack: () => void }) {
   async function submit() {
     setErr('');
     const i = normalizeIban(iban);
+    const fErr = centreBillingError(fattura);
+    if (fErr) return setErr(fErr);
     if (i && !isValidIban(i)) return setErr(t('IBAN non valido.'));
     setBusy(true);
     try {
-      const r = await registerCentre(campo.trim(), email.trim().toLowerCase(), piano, i);
+      const r = await registerCentre(campo.trim(), email.trim().toLowerCase(), piano, i, cleanCentreBilling(fattura));
       const p = { codice: r.codice, email: email.trim().toLowerCase() };
       write(p);
       setPending(p);
@@ -139,6 +144,9 @@ export function RegisterCentre({ onBack }: { onBack: () => void }) {
       <Chips items={(Object.keys(PLANS) as PlanId[]).map((id) => ({ value: id, label: PLANS[id].label }))} value={piano} onChange={setPiano} />
       {!!prices[piano] && <Muted>{t('Piano {piano}: {prezzo}', { piano: PLANS[piano].label, prezzo: priceText(prices[piano]!) })}</Muted>}
       <Muted style={{ fontSize: 13 }}>{t('Puoi cambiare piano quando vuoi dalle Impostazioni.')}</Muted>
+      <Body bold>{t('Dati per la fattura')}</Body>
+      <Muted style={{ fontSize: 13 }}>{t('Servono per la fattura del canone e delle prenotazioni.')}</Muted>
+      <CentreBillingFields value={fattura} onChange={setFattura} />
       <Field
         label={t('IBAN da cui paghi (facoltativo)')}
         value={iban}

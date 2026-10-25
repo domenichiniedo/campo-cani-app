@@ -808,6 +808,23 @@ const dict: Record<string, string> = {
   'Continua con Google': 'Continuar con Google',
   "Questo centro non ha ancora attivato l'accesso con Google.": 'Este centro aún no ha activado el acceso con Google.',
   'Accesso con Google non riuscito: {errore}': 'No se pudo acceder con Google: {errore}',
+  'Ragione sociale': 'Razón social',
+  'Es. Asd Cinofila Le Querce': 'Ej. Asd Cinofila Le Querce',
+  'Partita IVA': 'Número de IVA',
+  'Codice fiscale': 'Código fiscal',
+  "Basta uno dei due se l'altro non c'è (per esempio un'associazione senza partita IVA).": 'Basta uno de los dos si el otro no existe (por ejemplo, una asociación sin número de IVA).',
+  'Sede: via e numero': 'Sede: calle y número',
+  'Codice destinatario (SDI)': 'Código de destinatario (SDI)',
+  'PEC': 'Correo certificado (PEC)',
+  'Per la fattura elettronica: il codice destinatario o la PEC. Senza nessuno dei due la fattura arriva nel cassetto fiscale.': 'Para la factura electrónica: el código de destinatario o la PEC. Sin ninguno de los dos, la factura llega al buzón fiscal (cassetto fiscale).',
+  'Servono per la fattura del canone e delle prenotazioni.': 'Sirven para facturar la cuota mensual y las reservas.',
+  'Scrivi la ragione sociale (o il nome della società o associazione).': 'Escribe la razón social (o el nombre de la sociedad o asociación).',
+  'Scrivi la partita IVA o il codice fiscale.': 'Escribe el número de IVA o el código fiscal.',
+  'La partita IVA non è valida: sono 11 cifre.': 'El número de IVA no es válido: tiene 11 cifras.',
+  'Scrivi via e numero civico della sede.': 'Escribe la calle y el número de la sede.',
+  'Scrivi il comune della sede.': 'Escribe el municipio de la sede.',
+  'Il codice destinatario ha 7 lettere o cifre.': 'El código de destinatario tiene 7 letras o cifras.',
+  'La PEC non è un indirizzo email valido.': 'La PEC no es una dirección de correo válida.',
 };
 
 export default dict;

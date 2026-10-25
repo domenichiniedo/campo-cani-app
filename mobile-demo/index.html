@@ -128,7 +128,8 @@ code { font-family: ui-monospace, monospace; color: var(--text); }
   }
   people.forEach(function (b) { b.addEventListener('click', function () { enter(b); }); });
   planButtons.forEach(function (b) { b.addEventListener('click', function () { usePlan(b.getAttribute('data-plan')); reload(); }); });
-  document.getElementById('open').addEventListener('click', function () { sheet.classList.add('on'); });
+  // Il piano può essere cambiato anche dalle Impostazioni dell'app: il pannello mostra quello di adesso.
+  document.getElementById('open').addEventListener('click', function () { markPlan(currentPlan()); sheet.classList.add('on'); });
   document.getElementById('close').addEventListener('click', function () { sheet.classList.remove('on'); });
   sheet.addEventListener('click', function (e) { if (e.target === sheet) sheet.classList.remove('on'); });
   document.getElementById('reset').addEventListener('click', function () {

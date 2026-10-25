@@ -1,3 +1,4 @@
+import type { CentreBilling } from '@/lib/billing';
 import type { AdminCentre, AdminData, Charge, PlanRow } from '@/lib/gestore-admin';
 
 // Demo del pannello K9 Gestore: centri e addebiti finti, tutto nel dispositivo, senza server.
@@ -34,6 +35,48 @@ const SEEDS: Seed[] = [
   ['Educazione Cinofila Sole', 'sole', 'professional', 'mandato', 0, 0],
 ];
 
+// Sedi finte per i dati di fatturazione. L'ultimo centro non li ha: si vede l'avviso nel pannello.
+const SEDI: [comune: string, provincia: string, cap: string][] = [
+  ['Bologna', 'BO', '40128'],
+  ['Milano', 'MI', '20141'],
+  ['Firenze', 'FI', '50127'],
+  ['Monza', 'MB', '20900'],
+  ['Pesaro', 'PU', '61121'],
+  ['Torino', 'TO', '10137'],
+  ['Verona', 'VR', '37135'],
+  ['Biella', 'BI', '13900'],
+  ['Rimini', 'RN', '47921'],
+];
+
+/** Partita IVA finta ma valida (cifra di controllo giusta), diversa per ogni centro. */
+function vat(i: number) {
+  const s = String(1234567000 + i * 7919).padStart(10, '0');
+  let sum = 0;
+  for (let k = 0; k < 10; k++) {
+    let n = Number(s[k]);
+    if (k % 2 === 1) n = n * 2 > 9 ? n * 2 - 9 : n * 2;
+    sum += n;
+  }
+  return s + ((10 - (sum % 10)) % 10);
+}
+
+function billing(campo: string, i: number): CentreBilling {
+  const sede = SEDI[i];
+  if (!sede) return { ragione_sociale: '', partita_iva: '', codice_fiscale: '', indirizzo: '', cap: '', comune: '', provincia: '', codice_sdi: '', pec: '' };
+  const asd = i % 3 === 2;
+  return {
+    ragione_sociale: asd ? `Asd ${campo}` : `${campo} Srl`,
+    partita_iva: asd ? '' : vat(i),
+    codice_fiscale: vat(i),
+    indirizzo: `Via dei Campi ${12 + i}`,
+    cap: sede[2],
+    comune: sede[0],
+    provincia: sede[1],
+    codice_sdi: asd ? '' : 'M5UXCR1',
+    pec: asd ? `${campo.toLowerCase().replace(/[^a-z]+/g, '')}@pec.it` : '',
+  };
+}
+
 function build(): AdminData {
   const now = new Date();
   const centri: AdminCentre[] = SEEDS.map(([campo, mail, piano, stato, mesiFa], i) => ({
@@ -50,6 +93,7 @@ function build(): AdminData {
     scade: stato === 'pronto' ? (i === 4 ? dayThree(now, 0) : dayThree(now, 1)) : null,
     sospeso: false,
     creato: `${monthOf(now, -Math.max(mesiFa, 0))}-0${(i % 8) + 1}T10:00:00Z`,
+    ...billing(campo, i),
   }));
   const addebiti: Charge[] = [];
   SEEDS.forEach(([, , piano, stato, mesiFa, base], i) => {
@@ -125,6 +169,7 @@ export async function demoCall<T>(azione: string, b: Record<string, unknown>): P
       if (b.iban !== undefined) patch.iban = String(b.iban);
       if (b.canone_cents !== undefined) patch.canone_cents = b.canone_cents as number | null;
       if (b.tariffa_cents !== undefined) patch.tariffa_cents = b.tariffa_cents as number | null;
+      if (b.fattura !== undefined) Object.assign(patch, b.fattura);
       set(patch);
       break;
     }

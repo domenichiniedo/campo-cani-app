@@ -7,6 +7,7 @@ import { bancaSpenta, enableBanking } from '../_shared/banca.ts';
 import { controllaBonifici, segnaPagati } from '../_shared/bonifici.ts';
 import { db, env, funzione, json, messaggio, oggi, preflight, type Centro } from '../_shared/comune.ts';
 import { ibanValido, piuGiorni, type Piano } from '../_shared/costi.ts';
+import { CAMPI_FATTURA, leggiFatturazione } from '../_shared/fatturazione.ts';
 
 const PIANI: Piano[] = ['base', 'professional', 'pro'];
 
@@ -45,7 +46,7 @@ Deno.serve(async (req) => {
         const [centri, addebiti, piani, banca, movimenti] = await Promise.all([
           db
             .from('centri')
-            .select('id, codice, campo, email, piano, stato, errore, tariffa_cents, canone_cents, iban, scade, sospeso, creato')
+            .select(`id, codice, campo, email, piano, stato, errore, tariffa_cents, canone_cents, iban, scade, sospeso, creato, ${CAMPI_FATTURA.join(', ')}`)
             .order('creato', { ascending: false }),
           db
             .from('addebiti')
@@ -83,8 +84,13 @@ Deno.serve(async (req) => {
         await db.from('centri').update({ tariffa_cents: centesimi(b.cents, true) }).eq('id', b.id);
         return json({ fatto: true });
       case 'centro': {
-        // L'IBAN da cui paga un centro e i prezzi fatti apposta (null = quelli del piano).
+        // L'IBAN da cui paga un centro, i prezzi fatti apposta (null = quelli del piano) e i dati per la fattura.
         const m: Record<string, unknown> = {};
+        if (b.fattura !== undefined) {
+          const f = leggiFatturazione(b.fattura);
+          if ('errore' in f) throw new Error(f.errore);
+          Object.assign(m, f.dati);
+        }
         if (b.iban !== undefined) {
           const iban = String(b.iban).toUpperCase().replace(/\s/g, '');
           if (iban && !ibanValido(iban)) throw new Error('IBAN non valido.');

@@ -1,10 +1,11 @@
-// Un centro si registra dall'app: nome, email del titolare, piano e (se vuole) l'IBAN da cui pagherà. Riceve il suo
+// Un centro si registra dall'app: nome, email del titolare, piano, dati per la fattura e (se vuole) l'IBAN da cui pagherà. Riceve il suo
 // codice (K9-XXXXXX) e il gestore prepara subito il database. Ogni mese il centro ti paga con un bonifico istantaneo
 // sul tuo conto e il gestore lo trova da solo; l'IBAN del centro aiuta a riconoscerlo anche senza causale.
 // Si chiama senza accesso (chi si registra non ha ancora un account): per questo i limiti qui sotto.
 
 import { db, env, json, oggi, preflight, sveglia } from '../_shared/comune.ts';
 import { ibanValido } from '../_shared/costi.ts';
+import { leggiFatturazione } from '../_shared/fatturazione.ts';
 
 const PIANI = ['base', 'professional', 'pro'];
 // Senza lettere e cifre che si confondono (0/O, 1/I/L).
@@ -28,6 +29,9 @@ Deno.serve(async (req) => {
   if (!PIANI.includes(piano)) return json({ errore: 'Scegli il piano.' }, 400);
   const iban = String(body.iban ?? '').toUpperCase().replace(/\s/g, '');
   if (iban && !ibanValido(iban)) return json({ errore: 'IBAN non valido.' }, 400);
+  // Ragione sociale, partita IVA o codice fiscale, sede e SDI o PEC: per fatturargli canone e prenotazioni.
+  const fattura = leggiFatturazione(body.fattura);
+  if ('errore' in fattura) return json({ errore: fattura.errore }, 400);
 
   // Ogni centro costa un progetto Supabase: si limita chi prova a registrarne tanti.
   const giorno = new Date(Date.now() - 24 * 3600_000).toISOString();
@@ -41,7 +45,7 @@ Deno.serve(async (req) => {
     // Canone e quota per prenotazione: quelli del piano (tabella piani), finché non ne fai di apposta dal pannello.
     const { data, error } = await db
       .from('centri')
-      .insert({ codice: nuovoCodice(), campo, email, piano, iban, stato: 'progetto' })
+      .insert({ codice: nuovoCodice(), campo, email, piano, iban, ...fattura.dati, stato: 'progetto' })
       .select('id, codice')
       .single();
     if (data) centro = data;

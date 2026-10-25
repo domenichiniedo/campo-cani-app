@@ -808,6 +808,23 @@ const dict: Record<string, string> = {
   'Continua con Google': 'Weiter mit Google',
   "Questo centro non ha ancora attivato l'accesso con Google.": 'Dieses Zentrum hat die Anmeldung mit Google noch nicht aktiviert.',
   'Accesso con Google non riuscito: {errore}': 'Anmeldung mit Google fehlgeschlagen: {errore}',
+  'Ragione sociale': 'Firmenname',
+  'Es. Asd Cinofila Le Querce': 'Z. B. Asd Cinofila Le Querce',
+  'Partita IVA': 'USt-IdNr. (Partita IVA)',
+  'Codice fiscale': 'Steuernummer (Codice fiscale)',
+  "Basta uno dei due se l'altro non c'è (per esempio un'associazione senza partita IVA).": 'Eines von beiden genügt, wenn es das andere nicht gibt (zum Beispiel ein Verein ohne USt-IdNr.).',
+  'Sede: via e numero': 'Sitz: Straße und Hausnummer',
+  'Codice destinatario (SDI)': 'Empfängercode (SDI)',
+  'PEC': 'Zertifizierte E-Mail (PEC)',
+  'Per la fattura elettronica: il codice destinatario o la PEC. Senza nessuno dei due la fattura arriva nel cassetto fiscale.': 'Für die elektronische Rechnung: der Empfängercode oder die PEC. Ohne beides landet die Rechnung im Steuerfach (cassetto fiscale).',
+  'Servono per la fattura del canone e delle prenotazioni.': 'Sie werden für die Rechnung über Monatsgebühr und Buchungen benötigt.',
+  'Scrivi la ragione sociale (o il nome della società o associazione).': 'Gib den Firmennamen ein (oder den Namen der Gesellschaft oder des Vereins).',
+  'Scrivi la partita IVA o il codice fiscale.': 'Gib die USt-IdNr. oder die Steuernummer ein.',
+  'La partita IVA non è valida: sono 11 cifre.': 'Die USt-IdNr. ist ungültig: Sie hat 11 Ziffern.',
+  'Scrivi via e numero civico della sede.': 'Gib Straße und Hausnummer des Sitzes ein.',
+  'Scrivi il comune della sede.': 'Gib den Ort des Sitzes ein.',
+  'Il codice destinatario ha 7 lettere o cifre.': 'Der Empfängercode hat 7 Buchstaben oder Ziffern.',
+  'La PEC non è un indirizzo email valido.': 'Die PEC ist keine gültige E-Mail-Adresse.',
 };
 
 export default dict;

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { TransferBox } from '@/components/transfer';
 import { Badge, Body, Button, Card, Chips, ErrorText, Field, Muted, Row } from '@/components/ui';
 import { dayKey, euro, today } from '@/lib/format';
-import { changePlan, gestoreEnabled, isCentreCode, setCentreIban, subscription, type Due, type PlanPrice, type Subscription } from '@/lib/gestore';
+import { changePlan, gestoreEnabled, isCentreCode, setCentreIban, subscription, subscriptionCode, type Due, type PlanPrice, type Subscription } from '@/lib/gestore';
 import { t } from '@/lib/i18n';
 import { useLicense } from '@/lib/license-gate';
 import { PLAN_IDS, PLANS, type PlanId } from '@/lib/plans';
@@ -59,7 +59,7 @@ function DueTransfer({ due, to }: { due: Due; to: Subscription['bonifico'] }) {
 /** Abbonamento del centro registrato dall'app: piano (anche da cambiare), cosa pagare e IBAN da cui paga. */
 export function SubscriptionPanel() {
   const { license, activate } = useLicense();
-  const code = license && gestoreEnabled && isCentreCode(license.id) ? license.id : null;
+  const code = license ? subscriptionCode(license.id) : null;
   const [sub, setSub] = useState<Subscription | null>(null);
   const [pick, setPick] = useState<PlanId | null>(null);
   const [armed, setArmed] = useState(false);

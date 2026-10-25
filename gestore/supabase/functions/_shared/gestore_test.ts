@@ -2,6 +2,7 @@
 import nacl from 'npm:tweetnacl@1.0.3';
 
 import type { Centro } from './comune.ts';
+import { leggiFatturazione } from './fatturazione.ts';
 import { fineMese, firmaLicenza } from './licenza.ts';
 import { MIGRAZIONI } from './migrazioni.ts';
 import { passo, type Ambiente } from './passi.ts';
@@ -219,4 +220,36 @@ Deno.test('Enable Banking: JWT RS256 e movimenti in entrata', async () => {
   );
   uguale(accredito({ credit_debit_indicator: 'DBIT', transaction_amount: { amount: '5', currency: 'EUR' } }), null);
   uguale(accredito({ credit_debit_indicator: 'CRDT', status: 'PDNG', transaction_amount: { amount: '5', currency: 'EUR' } }), null);
+});
+
+Deno.test('dati per la fattura del centro', () => {
+  const buoni = {
+    ragione_sociale: ' Asd Le Querce ',
+    partita_iva: 'IT 0123456789 7',
+    codice_fiscale: '',
+    indirizzo: 'Via dei Campi 12',
+    cap: '40100',
+    comune: 'Bologna',
+    provincia: 'bo',
+    codice_sdi: 'm5uxcr1',
+    pec: '',
+  };
+  const r = leggiFatturazione(buoni);
+  if (!('dati' in r)) throw new Error(r.errore);
+  uguale([r.dati.ragione_sociale, r.dati.partita_iva, r.dati.provincia, r.dati.codice_sdi], ['Asd Le Querce', '01234567897', 'BO', 'M5UXCR1']);
+  // Un'associazione con solo il codice fiscale numerico, e una ditta con quello di persona.
+  uguale('dati' in leggiFatturazione({ ...buoni, partita_iva: '', codice_fiscale: '01234567897' }), true);
+  uguale('dati' in leggiFatturazione({ ...buoni, partita_iva: '', codice_fiscale: 'RSSMRA80A01H501U' }), true);
+  const errore = (v: object) => {
+    const x = leggiFatturazione(v);
+    return 'errore' in x ? x.errore : '';
+  };
+  uguale(errore({ ...buoni, partita_iva: '', codice_fiscale: '' }), 'Scrivi la partita IVA o il codice fiscale.');
+  uguale(errore({ ...buoni, partita_iva: '01234567890' }), 'La partita IVA non è valida: sono 11 cifre.');
+  uguale(errore({ ...buoni, codice_fiscale: 'RSSMRA80A01H501X' }), 'Il codice fiscale non è valido. Controlla le lettere e i numeri.');
+  uguale(errore({ ...buoni, cap: '401' }), 'Il CAP deve avere 5 cifre.');
+  uguale(errore({ ...buoni, provincia: '' }), 'La provincia va scritta con la sigla, per esempio BO.');
+  uguale(errore({ ...buoni, codice_sdi: 'ABC' }), 'Il codice destinatario ha 7 lettere o cifre.');
+  uguale(errore({ ...buoni, pec: 'non-una-pec' }), 'La PEC non è un indirizzo email valido.');
+  uguale(errore(undefined as unknown as object), 'Scrivi la ragione sociale (o il nome della società o associazione).');
 });
