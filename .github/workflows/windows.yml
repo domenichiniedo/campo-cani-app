@@ -114,11 +114,11 @@ jobs:
         if: ${{ !env.EXPO_PUBLIC_PROVA_FINO && !env.EXPO_PUBLIC_GESTORE_URL }}
         working-directory: desktop
       # La prova è un programma a parte: si installa accanto alla demo e all'app vera.
-      - run: npm run dist -- -c.appId=it.campocani.provavera -c.productName="K9 Manager Prova" -c.nsis.shortcutName="K9 Manager Prova"
+      - run: npm run dist -- -c.appId=it.campocani.provavera -c.productName="K9 Manager Prova" -c.extraMetadata.productName="K9 Manager Prova" -c.nsis.shortcutName="K9 Manager Prova"
         if: ${{ env.EXPO_PUBLIC_PROVA_FINO && !env.EXPO_PUBLIC_GESTORE_URL }}
         shell: bash
         working-directory: desktop
-      - run: npm run dist -- -c.appId=it.campocani.provagenerale -c.productName="K9 Prova generale" -c.nsis.shortcutName="K9 Prova generale"
+      - run: npm run dist -- -c.appId=it.campocani.provagenerale -c.productName="K9 Prova generale" -c.extraMetadata.productName="K9 Prova generale" -c.nsis.shortcutName="K9 Prova generale"
         if: ${{ env.EXPO_PUBLIC_GESTORE_URL }}
         shell: bash
         working-directory: desktop
