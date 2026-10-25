@@ -4,6 +4,8 @@
 #   - l'app collegata al database della prova: prima aggiunge al database le migrazioni nuove (i dati restano),
 #     poi costruisce APK e programma per Windows: Releases → "Prova di K9 Manager – <progetto>" (K9Manager-Prova.apk e
 #     K9Manager-Prova-Windows.exe).
+# Se la prova vecchia è in pausa (la mette in pausa "Prova generale") la salta. Se la prova generale è accesa,
+# aggiorna anche quella: le funzioni del gestore, l'APK, il programma per Windows e il pannello K9 Gestore.
 # Si lancia anche dal pannello K9 Gestore (App e versioni).
 # Il progetto della prova è PROVA_PROGETTO qui sotto (il codice in xxxx.supabase.co): per collegare un'altra prova
 # cambialo qui. Usa il secret SUPABASE_ACCESS_TOKEN, lo stesso di "Prova con database".
@@ -45,10 +47,11 @@ jobs:
       - id: prova
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: node tools/nuova-prova.mjs --ref "$PROVA_PROGETTO"
+        run: node tools/nuova-prova.mjs --ref "$PROVA_PROGETTO" --se-attivo si
 
   app:
     needs: database
+    if: ${{ needs.database.outputs.url != '' }}
     uses: ./.github/workflows/android.yml
     secrets: inherit
     with:
@@ -64,8 +67,13 @@ jobs:
 
   app-windows:
     needs: database
+    if: ${{ needs.database.outputs.url != '' }}
     uses: ./.github/workflows/windows.yml
     with:
       supabase_url: ${{ needs.database.outputs.url }}
       supabase_key: ${{ needs.database.outputs.chiave }}
       giorni: '30'
+
+  generale:
+    uses: ./.github/workflows/prova-generale.yml
+    secrets: inherit

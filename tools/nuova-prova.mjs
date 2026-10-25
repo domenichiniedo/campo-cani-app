@@ -7,6 +7,7 @@
 //   node tools/nuova-prova.mjs --campo "Prova Le Querce" --email titolare@lequerce.it [--regione eu-central-1] [--org <id>]
 //   node tools/nuova-prova.mjs --ref abcdefghijklmnopqrst --campo ... --email ...   (progetto già creato su supabase.com)
 //   node tools/nuova-prova.mjs --ref abcdefghijklmnopqrst   (prova già preparata: aggiunge solo le migrazioni nuove)
+//   ... --se-attivo si   (se il progetto è in pausa, per esempio per la prova generale, non fa niente e non stampa l'URL)
 //
 // Stampa l'URL del progetto e la publishable key (mai la secret key); in GitHub Actions li scrive anche
 // nelle uscite del passo (url, chiave) per costruire l'APK.
@@ -66,6 +67,13 @@ if (!ref) {
   });
   ref = project.id ?? project.ref;
 } else step(`Uso il progetto ${ref}…`);
+if (o.ref && o['se-attivo'] === 'si') {
+  const p = await api('GET', `/projects/${ref}`);
+  if (!['ACTIVE_HEALTHY', 'COMING_UP', 'RESTORING'].includes(p.status)) {
+    console.log(`::notice::La prova ${ref} è in pausa (${p.status}): non la aggiorno. Si riaccende da supabase.com.`);
+    process.exit(0);
+  }
+}
 const url = `https://${ref}.supabase.co`;
 
 step('Aspetto che il database sia pronto (di solito un paio di minuti)…');

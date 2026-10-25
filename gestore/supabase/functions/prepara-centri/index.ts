@@ -31,6 +31,7 @@ Deno.serve(async (req) => {
     google: env('GOOGLE_CLIENT_ID')
       ? { id: env('GOOGLE_CLIENT_ID'), segreto: env('GOOGLE_CLIENT_SECRET'), altri: env('GOOGLE_ALTRI_CLIENT_ID') }
       : null,
+    prova: env('PROVA') === '1',
   };
   const { data, error } = await db.rpc('prendi_centri', { p_quanti: 3, p_migrazioni: MIGRAZIONI.length });
   if (error) return json({ errore: error.message }, 500);

@@ -1,0 +1,119 @@
+# Prova generale di K9 Manager: tutto il giro come sarà davvero, acceso da GitHub con un pulsante solo.
+# Un centro si registra dall'app ("Registra il tuo centro"), il gestore gli prepara il database da solo e il centro dà
+# il suo codice a clienti e trainer; poi prenotazioni, pagamenti al centro e il conto del mese del gestore.
+#
+# Una volta sola serve il secret SUPABASE_ACCESS_TOKEN, lo stesso di "Prova con database" (supabase.com → Account →
+# Access Tokens, poi qui in Settings → Secrets and variables → Actions).
+#
+# Actions → Prova generale → Run workflow, con la tua email. In una ventina di minuti:
+#   - il gestore acceso su Supabase (progetto "K9 Gestore"), con le funzioni, gli orari e il tuo utente: la password è
+#     nel riepilogo di questa esecuzione (Summary), mai nei log;
+#   - Releases → "Prova generale di K9 Manager": K9Manager-ProvaGenerale.apk (Android, "K9 Prova generale") e
+#     K9Manager-ProvaGenerale-Windows.exe (il programma del proprietario);
+#   - Releases → "K9 Gestore": il pannello per Windows e Mac, con cui vedi i centri, fai il conto del mese
+#     ("Addebita adesso") e segni i pagamenti.
+# È una prova: i centri si preparano senza email di conferma né SMS (chi si iscrive entra subito) e i bonifici si
+# segnano a mano dal pannello. Il piano gratuito di Supabase tiene due progetti attivi, il gestore e un centro: per
+# questo la prova vecchia (PROVA_PROGETTO) va in pausa. Si riaccende da supabase.com, con i suoi dati.
+# Dopo ogni PR unita "Aggiorna le app" aggiorna da sola anche la prova generale, se è accesa.
+name: Prova generale
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: La tua email (entri nel pannello K9 Gestore con questa)
+        required: true
+      giorni:
+        description: Giorni di prova delle app (0 = senza scadenza; le licenze dei centri scadono comunque se non pagano)
+        default: '0'
+      pausa_prova_vecchia:
+        description: Metti in pausa la prova vecchia, per fare posto al centro nel piano gratuito
+        type: boolean
+        default: true
+      nuova_password:
+        description: Nuova password per il pannello (se l'hai persa)
+        type: boolean
+        default: false
+  # "Aggiorna le app", dopo ogni PR unita: solo se il gestore c'è già, con le funzioni e le app nuove.
+  workflow_call:
+    inputs:
+      giorni:
+        type: string
+        default: '0'
+
+permissions:
+  contents: write
+
+env:
+  # La prova vecchia, la stessa di "Aggiorna le app".
+  PROVA_PROGETTO: jnysclqgutqetrxitlez
+
+jobs:
+  gestore:
+    runs-on: ubuntu-latest
+    outputs:
+      ref: ${{ steps.g.outputs.ref }}
+      gestore_url: ${{ steps.g.outputs.gestore_url }}
+      gestore_key: ${{ steps.g.outputs.gestore_key }}
+      chiave_server: ${{ steps.g.outputs.chiave_server }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: g
+        name: Accendi il gestore
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          EMAIL: ${{ inputs.email }}
+          PAUSA: ${{ github.event_name == 'workflow_dispatch' && inputs.pausa_prova_vecchia && env.PROVA_PROGETTO || '' }}
+          NUOVA: ${{ inputs.nuova_password && 'si' || '' }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            node tools/prova-generale.mjs --email "$EMAIL" ${PAUSA:+--pausa "$PAUSA"} ${NUOVA:+--nuova-password si}
+          else
+            node tools/prova-generale.mjs --solo-se-esiste si
+          fi
+      - name: Carica le funzioni del gestore
+        if: ${{ steps.g.outputs.ref != '' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          REF: ${{ steps.g.outputs.ref }}
+        run: npx --yes supabase@2 functions deploy --project-ref "$REF" --workdir gestore --use-api
+      # Prima la release, poi Android e Windows ci caricano i loro file.
+      - name: Prepara la release
+        if: ${{ steps.g.outputs.ref != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view prova-generale >/dev/null 2>&1 || gh release create prova-generale --prerelease --title "Prova generale di K9 Manager" \
+            --notes "La prova di tutto il giro: un centro si registra dall'app e il gestore gli prepara il database da solo."
+
+  app:
+    needs: gestore
+    if: ${{ needs.gestore.outputs.ref != '' }}
+    uses: ./.github/workflows/android.yml
+    secrets: inherit
+    with:
+      gestore_url: ${{ needs.gestore.outputs.gestore_url }}
+      chiave_server: ${{ needs.gestore.outputs.chiave_server }}
+      giorni: ${{ inputs.giorni }}
+
+  app-windows:
+    needs: gestore
+    if: ${{ needs.gestore.outputs.ref != '' }}
+    uses: ./.github/workflows/windows.yml
+    with:
+      gestore_url: ${{ needs.gestore.outputs.gestore_url }}
+      chiave_server: ${{ needs.gestore.outputs.chiave_server }}
+      giorni: ${{ inputs.giorni }}
+
+  pannello:
+    needs: gestore
+    if: ${{ needs.gestore.outputs.ref != '' }}
+    uses: ./.github/workflows/pannello.yml
+    secrets: inherit
+    with:
+      gestore_url: ${{ needs.gestore.outputs.gestore_url }}
+      gestore_key: ${{ needs.gestore.outputs.gestore_key }}

@@ -23,6 +23,18 @@ on:
       gestore_key:
         description: Publishable key del progetto gestore (sb_publishable_...)
         required: false
+  # La usa "Prova generale", dopo aver acceso il gestore.
+  workflow_call:
+    inputs:
+      demo:
+        type: boolean
+        default: false
+      gestore_url:
+        type: string
+        default: ''
+      gestore_key:
+        type: string
+        default: ''
 
 permissions:
   contents: write

@@ -27,6 +27,11 @@ export type Ambiente = {
    * (quello "App desktop" del programma per computer). Senza, nei centri si entra solo con email e password.
    */
   google?: { id: string; segreto: string; altri: string } | null;
+  /**
+   * Gestore di prova (PROVA=1, lo accende "Prova generale"): senza SMTP e Twilio il centro si prepara lo stesso, chi
+   * si iscrive entra subito senza codice per email e il cellulare non si conferma.
+   */
+  prova?: boolean;
 };
 
 // deno-lint-ignore no-explicit-any
@@ -66,11 +71,12 @@ export async function passo(c: Centro, a: Ambiente): Promise<Partial<Centro>> {
       await query(sql);
       const migrazioni = MIGRAZIONI.length;
       // Chi si iscrive con email e password conferma l'email con un codice (un link nell'app non si aprirebbe), e
-      // tutti, anche chi entra con Google, confermano il cellulare con un SMS: senza SMTP e Twilio non si parte.
+      // tutti, anche chi entra con Google, confermano il cellulare con un SMS: senza SMTP e Twilio non si parte
+      // (tranne nel gestore di prova).
       const manca = [!a.smtp && 'SMTP (SMTP_HOST...)', !a.sms && 'Twilio (TWILIO_ACCOUNT_SID...)'].filter(Boolean);
-      if (manca.length) throw new Error(`Per confermare email e cellulare dei clienti servono ${manca.join(' e ')} nei segreti del gestore.`);
+      if (manca.length && !a.prova) throw new Error(`Per confermare email e cellulare dei clienti servono ${manca.join(' e ')} nei segreti del gestore.`);
       await a.api('PATCH', `/projects/${c.progetto}/config/auth`, {
-        mailer_autoconfirm: false,
+        mailer_autoconfirm: !a.smtp,
         ...(a.smtp
           ? {
               smtp_host: a.smtp.host,
