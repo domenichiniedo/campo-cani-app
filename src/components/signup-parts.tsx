@@ -9,12 +9,73 @@ import { rulesLines } from '@/lib/types';
 
 // Pezzi del modulo di iscrizione, uguali per chi si iscrive con email e password e per chi entra con Google.
 
-export type DogDraft = { name: string; breed: string; birth: string; chip: string };
-export const newDog = (): DogDraft => ({ name: '', breed: '', birth: '', chip: '' });
+export type DogDraft = { name: string; breed: string; birth: string; chip: string; goals: string; sex: '' | 'M' | 'F'; neutered: '' | 'si' | 'no' };
+export const newDog = (): DogDraft => ({ name: '', breed: '', birth: '', chip: '', goals: '', sex: '', neutered: '' });
+
+/** Le colonne del cane da salvare (o da mandare all'iscrizione). */
+export const dogColumns = (d: DogDraft) => ({
+  name: d.name.trim(),
+  breed: d.breed.trim(),
+  birth: d.birth || null,
+  chip: cleanChip(d.chip),
+  goals: d.goals.trim(),
+  sex: d.sex,
+  neutered: d.neutered === '' ? null : d.neutered === 'si',
+});
+
+/** Maschio o femmina, sterilizzato o no: due scelte veloci, facoltative. */
+export function DogFacts({ sex, neutered, onChange }: { sex: DogDraft['sex']; neutered: DogDraft['neutered']; onChange: (p: Partial<DogDraft>) => void }) {
+  return (
+    <>
+      <Chips
+        items={[
+          { value: 'M' as const, label: t('Maschio') },
+          { value: 'F' as const, label: t('Femmina') },
+        ]}
+        value={sex || null}
+        onChange={(v) => onChange({ sex: v === sex ? '' : v })}
+      />
+      <Chips
+        items={[
+          { value: 'si' as const, label: t('Sterilizzato') },
+          { value: 'no' as const, label: t('Non sterilizzato') },
+        ]}
+        value={neutered || null}
+        onChange={(v) => onChange({ neutered: v === neutered ? '' : v })}
+      />
+    </>
+  );
+}
+
+/** Una riga con quello che si sa del cane: razza, sesso, sterilizzazione, nascita e microchip. */
+export const dogLine = (d: { breed: string; birth: string | null; chip: string; sex: string; neutered: boolean | null }, born: (day: string) => string) =>
+  [
+    d.breed,
+    d.sex === 'M' ? t('maschio') : d.sex === 'F' ? t('femmina') : '',
+    d.neutered === true ? t('sterilizzato') : d.neutered === false ? t('non sterilizzato') : '',
+    d.birth && born(d.birth),
+    d.chip && t('microchip {n}', { n: d.chip }),
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
 /** Il microchip senza spazi: 15 cifre, o vuoto. */
 export const cleanChip = (s: string) => s.replace(/\s/g, '');
 export const chipOk = (s: string) => !cleanChip(s) || /^\d{15}$/.test(cleanChip(s));
+
+/** La nota sul cane per il centro e i trainer: obiettivi e situazione di adesso, in poche righe. */
+export function GoalsField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <Field
+      label={t('Obiettivi e situazione attuale (facoltativo)')}
+      value={value}
+      onChangeText={onChange}
+      maxLength={500}
+      multiline
+      placeholder={t('Es. tira al guinzaglio e abbaia agli altri cani; vorrei una passeggiata tranquilla e il richiamo.')}
+    />
+  );
+}
 
 /** Il campo del microchip: facoltativo, ma consigliato (serve al centro se il cane si perde o per l'assicurazione). */
 export function ChipField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -82,7 +143,13 @@ export function DogCards({ dogs, onChange, extraOnly }: { dogs: DogDraft[]; onCh
             <Field label={t('Nome del cane')} value={d.name} onChangeText={(v) => setDog(i, { name: v })} />
           )}
           {/* Il microchip del primo cane è già nel modulo principale. */}
-          {!(extraOnly && i === 0) && <ChipField value={d.chip} onChange={(v) => setDog(i, { chip: v })} />}
+          {!(extraOnly && i === 0) && (
+            <>
+              <DogFacts sex={d.sex} neutered={d.neutered} onChange={(p) => setDog(i, p)} />
+              <ChipField value={d.chip} onChange={(v) => setDog(i, { chip: v })} />
+              <GoalsField value={d.goals} onChange={(v) => setDog(i, { goals: v })} />
+            </>
+          )}
           <Field label={t('Razza')} value={d.breed} onChangeText={(v) => setDog(i, { breed: v })} />
           <Field label={t('Nato il (AAAA-MM-GG)')} value={d.birth} onChangeText={(v) => setDog(i, { birth: v })} placeholder="2024-03-15" keyboardType="numbers-and-punctuation" />
           {dogs.length > 1 && i > 0 && <Button title={t('Togli questo cane')} kind="danger" small onPress={() => onChange(dogs.filter((_, j) => j !== i))} />}

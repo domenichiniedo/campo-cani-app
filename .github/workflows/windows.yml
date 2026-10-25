@@ -40,7 +40,7 @@ on:
       chiave_server:
         description: Prova generale - chiave pubblica del server per le licenze
         required: false
-  # La usano "Prova con database" (la prova) e "Aggiorna le app" (demo e prova, a ogni PR unita).
+  # La usano "Prova con database" (la prova) e "Aggiorna le app" (demo e prova, quando la lanci).
   workflow_call:
     inputs:
       demo:
@@ -63,8 +63,6 @@ on:
         default: ''
   push:
     tags: ['v*']
-  pull_request:
-    paths: ['desktop/**', 'app.config.js', '.github/workflows/windows.yml']
 
 permissions:
   contents: write

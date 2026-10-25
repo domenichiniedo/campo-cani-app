@@ -51,9 +51,6 @@ on:
       chiave_server:
         type: string
         default: ''
-  # Nelle PR che lo cambiano si costruisce solo per provarlo, con un database finto, e non si pubblica.
-  pull_request:
-    paths: ['.github/workflows/android.yml', 'mobile-demo/build.mjs']
 
 permissions:
   contents: write

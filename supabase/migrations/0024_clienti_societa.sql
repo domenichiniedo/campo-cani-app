@@ -1,6 +1,6 @@
 -- Campo Cani: il cliente sceglie se è una persona o un'associazione/società.
 -- Una persona riceve solo lo scontrino; un'associazione o società sceglie scontrino o fattura, con i suoi dati.
--- Da eseguire nel SQL Editor di Supabase dopo 0023_microchip.sql.
+-- Da eseguire nel SQL Editor di Supabase dopo 0023_cani.sql.
 
 alter table public.profiles
   add column client_kind text not null default 'persona' check (client_kind in ('persona', 'societa')),
@@ -82,9 +82,11 @@ begin
     if length(trim(coalesce(d->>'name',''))) > 0 then
       -- Un microchip scritto male non blocca l'iscrizione: si lascia vuoto e si corregge dal Profilo.
       ch := regexp_replace(coalesce(d->>'chip',''), '\s', '', 'g');
-      insert into public.dogs (owner_id, name, breed, birth, chip)
+      insert into public.dogs (owner_id, name, breed, birth, chip, goals, sex, neutered)
       values (new.id, trim(d->>'name'), coalesce(d->>'breed',''), nullif(d->>'birth','')::date,
-              case when ch ~ '^[0-9]{15}$' then ch else '' end);
+              case when ch ~ '^[0-9]{15}$' then ch else '' end, left(trim(coalesce(d->>'goals','')), 500),
+              case when d->>'sex' in ('M', 'F') then d->>'sex' else '' end,
+              case when d->>'neutered' in ('true', 'false') then (d->>'neutered')::boolean end);
     end if;
   end loop;
   return new;

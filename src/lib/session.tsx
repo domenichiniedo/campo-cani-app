@@ -49,6 +49,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [loadedFor, setLoadedFor] = useState<string | null | undefined>(undefined);
 
   const refresh = useCallback(async () => {
+    // Le assenze: a lezione finita, il cane che nessuno ha fatto entrare in campo prende la penalità (0023_cani.sql).
+    // La fa chiunque abbia l'app aperta; con un database di prima la funzione non c'è e non succede niente.
+    supabase.rpc('penalize_no_shows').then(
+      () => {},
+      () => {},
+    );
     const [s, t, f, tr] = await Promise.all([
       supabase.from('settings').select('*').eq('id', 1).single(),
       supabase.from('lesson_types').select('*').eq('active', true).order('sort'),

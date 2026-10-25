@@ -9,6 +9,8 @@ export type Settings = {
   close_min: number;
   cancel_hours: number;
   penalty_limit: number;
+  /** Penalità automatica se nessuno fa entrare il cane in campo (da 0023_cani.sql). */
+  noshow_penalty?: boolean;
   online_payments: boolean;
   /** Chi si iscrive conferma il cellulare con un codice SMS (serve un servizio SMS su Supabase). */
   sms_check: boolean;
@@ -92,6 +94,12 @@ export type Dog = {
   birth: string | null;
   /** Numero di microchip, 15 cifre; vuoto se non c'è. */
   chip: string;
+  /** La nota del cliente: obiettivi e situazione attuale del cane. */
+  goals: string;
+  /** M o F; vuoto se il cliente non l'ha detto. */
+  sex: '' | 'M' | 'F';
+  /** Sterilizzato; null se non detto. */
+  neutered: boolean | null;
   blocked: boolean;
   archived: boolean;
 };

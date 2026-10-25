@@ -23,7 +23,7 @@
 # È una prova: i centri si preparano senza email di conferma né SMS (chi si iscrive entra subito) e i bonifici si
 # segnano a mano dal pannello. Il piano gratuito di Supabase tiene due progetti attivi, il gestore e un centro: per
 # questo la prova vecchia (PROVA_PROGETTO) va in pausa. Si riaccende da supabase.com, con i suoi dati.
-# Dopo ogni PR unita "Aggiorna le app" aggiorna da sola anche la prova generale, se è accesa.
+# "Aggiorna le app" (la lanci tu dopo aver unito una PR) aggiorna anche la prova generale, se è accesa.
 name: Prova generale
 
 on:
@@ -43,7 +43,7 @@ on:
         description: Nuova password per il pannello (se l'hai persa)
         type: boolean
         default: false
-  # "Aggiorna le app", dopo ogni PR unita: solo se il gestore c'è già, con le funzioni e le app nuove.
+  # "Aggiorna le app", quando la lanci: solo se il gestore c'è già, con le funzioni e le app nuove.
   workflow_call:
     inputs:
       giorni:

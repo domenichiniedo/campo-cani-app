@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
 import { PhotoEditor } from '@/components/photo';
-import { ChipField, chipOk, ClientKindCard, cleanChip } from '@/components/signup-parts';
+import { ChipField, chipOk, ClientKindCard, DogFacts, dogColumns, dogLine, GoalsField, newDog as emptyDog, type DogDraft } from '@/components/signup-parts';
 import { Badge, Body, Button, Card, Check, ConfirmButton, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingFromProfile, docColumns, docError, type ClientKind } from '@/lib/billing';
 import { euro, isDayKey, shortDate } from '@/lib/format';
@@ -21,9 +21,9 @@ export default function Profile() {
   const [wantsInvoice, setWantsInvoice] = useState(profile?.client_kind === 'societa' && profile.doc_pref === 'invoice');
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [penalties, setPenalties] = useState<Penalty[]>([]);
-  const [newDog, setNewDog] = useState({ name: '', breed: '', birth: '', chip: '' });
-  // Il microchip da aggiungere a un cane che non ce l'ha, per cane.
-  const [chips, setChips] = useState<Record<string, string>>({});
+  const [newDog, setNewDog] = useState<DogDraft>(emptyDog);
+  // I dettagli di un cane già iscritto che il cliente sta cambiando, per cane.
+  const [edits, setEdits] = useState<Record<string, DogDraft>>({});
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [deleteErr, setDeleteErr] = useState('');
   const [socialErr, setSocialErr] = useState('');
@@ -83,18 +83,31 @@ export default function Profile() {
     setErr('');
     const { error } = await supabase
       .from('dogs')
-      .insert({ owner_id: profile.id, name: newDog.name.trim(), breed: newDog.breed.trim(), birth: newDog.birth || null, chip: cleanChip(newDog.chip) });
+      .insert({ owner_id: profile.id, ...dogColumns(newDog) });
     if (error) return setErr(errorText(error));
-    setNewDog({ name: '', breed: '', birth: '', chip: '' });
+    setNewDog(emptyDog());
     load();
   }
 
-  async function saveChip(id: string) {
-    const chip = cleanChip(chips[id] ?? '');
-    if (!chip || !chipOk(chip)) return setErr(t('Il microchip ha 15 cifre: controllalo o lascialo vuoto.'));
+  const draftOf = (d: Dog): DogDraft => ({
+    name: d.name,
+    breed: d.breed,
+    birth: d.birth ?? '',
+    chip: d.chip,
+    goals: d.goals,
+    sex: d.sex,
+    neutered: d.neutered === null ? '' : d.neutered ? 'si' : 'no',
+  });
+
+  async function saveDog(id: string) {
+    const x = edits[id];
+    if (!x) return;
+    if (!chipOk(x.chip)) return setErr(t('Il microchip ha 15 cifre: controllalo o lascialo vuoto.'));
     setErr('');
-    const { error } = await supabase.from('dogs').update({ chip }).eq('id', id);
+    const { chip, goals, sex, neutered } = dogColumns(x);
+    const { error } = await supabase.from('dogs').update({ chip, goals, sex, neutered }).eq('id', id);
     if (error) return setErr(errorText(error));
+    setEdits(({ [id]: _, ...rest }) => rest);
     load();
   }
 
@@ -144,15 +157,25 @@ export default function Profile() {
               <Body bold>{d.name}</Body>
               {d.blocked ? <Badge tone="bad">{t('Sospeso')}</Badge> : own.length > 0 && <Badge tone="warn">{t('{n} penalità', { n: own.length })}</Badge>}
             </Row>
-            <Muted>
-              {[d.breed, d.birth && t('nato il {data}', { data: shortDate(d.birth) }), d.chip && t('microchip {n}', { n: d.chip })].filter(Boolean).join(' · ') ||
-                t('Nessun dettaglio')}
-            </Muted>
-            {!d.chip && (
+            <Muted>{dogLine(d, (day) => t('nato il {data}', { data: shortDate(day) })) || t('Nessun dettaglio')}</Muted>
+            {!!d.goals && <Muted style={{ fontSize: 13 }}>{d.goals}</Muted>}
+            {edits[d.id] ? (
               <>
-                <ChipField value={chips[d.id] ?? ''} onChange={(v) => setChips({ ...chips, [d.id]: v })} />
-                <Button title={t('Salva il microchip')} small kind="ghost" onPress={() => saveChip(d.id)} disabled={!chips[d.id]?.trim()} />
+                <DogFacts sex={edits[d.id].sex} neutered={edits[d.id].neutered} onChange={(p) => setEdits({ ...edits, [d.id]: { ...edits[d.id], ...p } })} />
+                <ChipField value={edits[d.id].chip} onChange={(chip) => setEdits({ ...edits, [d.id]: { ...edits[d.id], chip } })} />
+                <GoalsField value={edits[d.id].goals} onChange={(goals) => setEdits({ ...edits, [d.id]: { ...edits[d.id], goals } })} />
+                <Row>
+                  <Button title={t('Salva')} small onPress={() => saveDog(d.id)} />
+                  <Button title={t('Annulla')} small kind="ghost" onPress={() => setEdits(({ [d.id]: _, ...rest }) => rest)} />
+                </Row>
               </>
+            ) : (
+              <Button
+                title={d.chip ? t('Cambia i dettagli') : t('Aggiungi microchip e dettagli')}
+                small
+                kind="ghost"
+                onPress={() => setEdits({ ...edits, [d.id]: draftOf(d) })}
+              />
             )}
             {own.map((p) => (
               <Muted key={p.id} style={{ fontSize: 13 }}>
@@ -168,7 +191,9 @@ export default function Profile() {
         <Field label={t('Nome')} value={newDog.name} onChangeText={(v) => setNewDog({ ...newDog, name: v })} />
         <Field label={t('Razza')} value={newDog.breed} onChangeText={(v) => setNewDog({ ...newDog, breed: v })} />
         <Field label={t('Nato il (AAAA-MM-GG)')} value={newDog.birth} onChangeText={(v) => setNewDog({ ...newDog, birth: v })} placeholder="2024-03-15" />
+        <DogFacts sex={newDog.sex} neutered={newDog.neutered} onChange={(p) => setNewDog({ ...newDog, ...p })} />
         <ChipField value={newDog.chip} onChange={(v) => setNewDog({ ...newDog, chip: v })} />
+        <GoalsField value={newDog.goals} onChange={(v) => setNewDog({ ...newDog, goals: v })} />
         <Button title={t('Aggiungi')} small kind="ghost" onPress={addDog} disabled={!newDog.name.trim()} />
       </Card>
       <ErrorText>{err}</ErrorText>

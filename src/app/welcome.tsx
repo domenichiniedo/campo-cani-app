@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { ChipField, chipOk, ClientKindCard, cleanChip, ConsentCard, DogCards, newDog, OptionalSection, SocialCheck, type DogDraft } from '@/components/signup-parts';
+import { ChipField, chipOk, ClientKindCard, DogFacts, dogColumns, GoalsField, ConsentCard, DogCards, newDog, OptionalSection, SocialCheck, type DogDraft } from '@/components/signup-parts';
 import { Body, Button, Card, ErrorText, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { docColumns, docError, emptyBilling, type BillingDraft, type ClientKind } from '@/lib/billing';
 import { isDayKey } from '@/lib/format';
@@ -91,7 +91,7 @@ export default function Welcome() {
     if (askDogs) {
       const d = await supabase
         .from('dogs')
-        .insert(cleanDogs.map((x) => ({ owner_id: profile!.id, name: x.name.trim(), breed: x.breed.trim(), birth: x.birth || null, chip: cleanChip(x.chip) })));
+        .insert(cleanDogs.map((x) => ({ owner_id: profile!.id, ...dogColumns(x) })));
       if (d.error) return fail(d.error);
     }
     // Per ultimi i consensi: da qui in poi l'iscrizione è completa e il layout porta avanti.
@@ -117,7 +117,9 @@ export default function Welcome() {
         {askDogs && (
           <>
             <Field label={t('Nome del cane')} value={dogs[0].name} onChangeText={setDogName} />
+            <DogFacts sex={dogs[0].sex} neutered={dogs[0].neutered} onChange={(p) => setDogs(dogs.map((d, i) => (i === 0 ? { ...d, ...p } : d)))} />
             <ChipField value={dogs[0].chip} onChange={(chip) => setDogs(dogs.map((d, i) => (i === 0 ? { ...d, chip } : d)))} />
+            <GoalsField value={dogs[0].goals} onChange={(goals) => setDogs(dogs.map((d, i) => (i === 0 ? { ...d, goals } : d)))} />
           </>
         )}
         <Muted style={{ fontSize: 13 }}>{t('Email: {email}', { email: profile.email })}</Muted>

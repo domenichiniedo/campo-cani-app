@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { EmailCode } from '@/components/email-code';
 import { GoogleButton } from '@/components/google-button';
 import { PhotoPicker, saveSignupPhoto } from '@/components/photo';
-import { ChipField, chipOk, ClientKindCard, cleanChip, ConsentCard, DogCards, newDog, OptionalSection, SocialCheck, type DogDraft } from '@/components/signup-parts';
+import { ChipField, chipOk, ClientKindCard, DogFacts, dogColumns, GoalsField, ConsentCard, DogCards, newDog, OptionalSection, SocialCheck, type DogDraft } from '@/components/signup-parts';
 import { Button, Card, Chips, ErrorText, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { docColumns, docError, emptyBilling, type BillingDraft, type ClientKind } from '@/lib/billing';
 import { isDayKey } from '@/lib/format';
@@ -71,7 +71,7 @@ export default function Register() {
           rules_ver: settings.rules_ver,
           privacy_ver: settings.privacy_ver,
           social_consent: !asTrainer && socialOk,
-          dogs: asTrainer ? [] : cleanDogs.map((d) => ({ name: d.name.trim(), breed: d.breed.trim(), birth: d.birth || null, chip: cleanChip(d.chip) })),
+          dogs: asTrainer ? [] : cleanDogs.map(dogColumns),
         },
       },
     });
@@ -140,7 +140,9 @@ export default function Register() {
         {!asTrainer && (
           <>
             <Field label={t('Nome del cane')} value={dogs[0].name} onChangeText={setDogName} />
+            <DogFacts sex={dogs[0].sex} neutered={dogs[0].neutered} onChange={(p) => setDogs(dogs.map((d, i) => (i === 0 ? { ...d, ...p } : d)))} />
             <ChipField value={dogs[0].chip} onChange={setDogChip} />
+            <GoalsField value={dogs[0].goals} onChange={(goals) => setDogs(dogs.map((d, i) => (i === 0 ? { ...d, goals } : d)))} />
           </>
         )}
       </Card>

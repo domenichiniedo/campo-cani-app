@@ -1,4 +1,4 @@
-# A ogni PR unita (push su main) rifà le app per Android e per Windows con le novità e le ripubblica nelle Releases:
+# Si lancia a mano dopo aver unito una PR (Actions → Aggiorna le app → Run workflow, o dal pannello K9 Gestore): rifà le app per Android e per Windows con le novità e le ripubblica nelle Releases:
 #   - la demo con i dati di esempio, i 3 piani e le 5 entrate (proprietario, cliente, trainer, nuovo cliente, nuovo centro):
 #     Releases → "Demo per Android" (K9Manager-Demo.apk) e "Demo per Windows" (K9Manager-Windows-Demo.exe);
 #   - l'app collegata al database della prova: prima aggiunge al database le migrazioni nuove (i dati restano),
@@ -9,12 +9,9 @@
 # Si lancia anche dal pannello K9 Gestore (App e versioni).
 # Il progetto della prova è PROVA_PROGETTO qui sotto (il codice in xxxx.supabase.co): per collegare un'altra prova
 # cambialo qui. Usa il secret SUPABASE_ACCESS_TOKEN, lo stesso di "Prova con database".
-# Si può lanciare anche a mano: Actions → Aggiorna le app → Run workflow.
 name: Aggiorna le app
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

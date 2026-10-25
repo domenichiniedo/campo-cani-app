@@ -20,8 +20,6 @@ on:
         default: false
   push:
     tags: ['v*']
-  pull_request:
-    paths: ['desktop/**', 'app.config.js', '.github/workflows/mac.yml']
 
 permissions:
   contents: write

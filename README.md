@@ -513,8 +513,9 @@ link che nell'app non funziona. Con Gmail: attiva la verifica in due passaggi, c
 <https://myaccount.google.com/apppasswords> e salva nei secrets del repository `SMTP_USER` (il tuo indirizzo Gmail) e
 `SMTP_PASS` (la password per le app, 16 lettere). Per un altro servizio aggiungi `SMTP_HOST` (e `SMTP_PORT` se non è 587).
 Poi rilancia la prova generale: mette l'SMTP nel gestore e nei centri già pronti. Da allora chi si iscrive con email e
-password conferma l'email con un codice. Dopo ogni PR unita la
-prova generale si aggiorna da sola. Il gestore vero, per i centri veri, si accende come dice `gestore/README.md`.
+password conferma l'email con un codice. Dopo aver unito una PR lancia **Actions → Aggiorna le app → Run workflow**:
+aggiorna anche la prova generale. Nessuna action parte da sola a ogni commit, tranne i due controlli veloci delle PR
+(lingue e `setup.sql`). Il gestore vero, per i centri veri, si accende come dice `gestore/README.md`.
 
 ## Cosa fa l'app
 
