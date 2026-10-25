@@ -50,6 +50,8 @@ const STATO: Record<AdminCentre['stato'], string> = {
   pronto: 'Attivo',
   errore: 'Preparazione non riuscita',
 };
+const RUOLO: Record<string, string> = { owner: 'titolare', trainer: 'trainer', client: 'cliente' };
+
 const ADDEBITO: Record<Charge['stato'], string> = {
   da_fare: 'da fare',
   zero: 'niente da pagare',
@@ -875,6 +877,9 @@ function CentreRow({
   const [bill, setBill] = useState<CentreBilling>(() => cleanCentreBilling(x));
   const [bonus, setBonus] = useState('');
   const [bonusNote, setBonusNote] = useState('');
+  const [pwEmail, setPwEmail] = useState('');
+  const [pw, setPw] = useState('');
+  const [pwDone, setPwDone] = useState('');
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
   const billing = centreBillingLines(cleanCentreBilling(x));
@@ -894,6 +899,21 @@ function CentreRow({
     try {
       await adminCall(azione, { id: x.id, ...body });
       onChange();
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+    setBusy('');
+  }
+
+  async function changePassword() {
+    setErr('');
+    setPwDone('');
+    if (pw && pw.length < 8) return setErr('La password deve avere almeno 8 caratteri.');
+    setBusy('password');
+    try {
+      const r = await adminCall<{ password: string; ruolo: string }>('password', { id: x.id, email: pwEmail.trim(), password: pw });
+      setPwDone(`Nuova password di ${pwEmail.trim()} (${RUOLO[r.ruolo] ?? r.ruolo}): ${r.password}`);
+      setPw('');
     } catch (e) {
       setErr((e as Error).message);
     }
@@ -1055,6 +1075,21 @@ function CentreRow({
                   <Button small title={x.stato === 'errore' ? 'Riprova la preparazione' : 'Prepara il centro'} onPress={() => run('riprova')} loading={busy === 'riprova'} />
                 )}
               </Row>
+              {x.stato === 'pronto' && (
+                <>
+                  <Body bold>Cambia una password</Body>
+                  <Muted style={{ fontSize: 13 }}>
+                    Del titolare, di un trainer o di un cliente del centro. Lascia vuota la password per farne inventare una. Chi era dentro
+                    con la vecchia viene fatto uscire. La password nuova la vedi solo adesso: comunicala tu.
+                  </Muted>
+                  <Row>
+                    <Field label="Email" value={pwEmail} onChangeText={setPwEmail} keyboardType="email-address" autoCapitalize="none" style={{ flex: 1, minWidth: 200 }} />
+                    <Field label="Password nuova (facoltativa)" value={pw} onChangeText={setPw} autoCapitalize="none" style={{ flex: 1, minWidth: 180 }} />
+                    <Button small title="Cambia la password" onPress={changePassword} loading={busy === 'password'} disabled={!pwEmail.includes('@')} />
+                  </Row>
+                  {!!pwDone && <Text selectable style={{ color: c.text, fontSize: 15, fontWeight: '700' }}>{pwDone}</Text>}
+                </>
+              )}
               {x.stato === 'pronto' && (
                 <Muted style={{ fontSize: 13 }}>
                   Sospendendo i rinnovi la licenza non si allunga più quando arriva il bonifico e il centro si blocca alla scadenza ({data(x.scade)}).

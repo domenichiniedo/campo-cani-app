@@ -9,6 +9,8 @@ import { db, env, funzione, json, messaggio, oggi, preflight, type Centro } from
 import { ibanValido, piuGiorni, type Piano } from '../_shared/costi.ts';
 import { CAMPI_FATTURA, leggiFatturazione } from '../_shared/fatturazione.ts';
 import { githubSpento, lancia, LANCI, versioni, type Lancio } from '../_shared/github.ts';
+import { cambiaPassword, passwordNuova } from '../_shared/password.ts';
+import { managementApi } from '../_shared/supabase-api.ts';
 
 const PIANI: Piano[] = ['base', 'professional', 'pro'];
 
@@ -20,12 +22,14 @@ function centesimi(v: unknown, nullo = false) {
   return n;
 }
 
+/** L'email dell'amministratore che chiama, o null se non è fra gli AMMINISTRATORI. */
 async function amministratore(req: Request) {
   const token = req.headers.get('Authorization')?.replace(/^Bearer /, '') ?? '';
-  if (!token) return false;
+  if (!token) return null;
   const { data } = await db.auth.getUser(token);
   const ammessi = env('AMMINISTRATORI').toLowerCase().split(',').map((e) => e.trim()).filter(Boolean);
-  return !!data.user?.email && ammessi.includes(data.user.email.toLowerCase());
+  const email = data.user?.email?.toLowerCase();
+  return email && ammessi.includes(email) ? email : null;
 }
 
 async function centro(id: string) {
@@ -37,7 +41,8 @@ async function centro(id: string) {
 Deno.serve(async (req) => {
   const pre = preflight(req);
   if (pre) return pre;
-  if (!(await amministratore(req))) return json({ errore: 'Non sei un amministratore del gestore.' }, 403);
+  const chi = await amministratore(req);
+  if (!chi) return json({ errore: 'Non sei un amministratore del gestore.' }, 403);
   const b = await req.json().catch(() => ({}));
   try {
     switch (b.azione) {
@@ -168,6 +173,16 @@ Deno.serve(async (req) => {
       case 'sospendi':
         await db.from('centri').update({ sospeso: !!b.sospeso }).eq('id', b.id);
         return json({ fatto: true });
+      case 'password': {
+        // La password nuova di chi entra nel centro (titolare, trainer o cliente): scritta da te o inventata qui.
+        // Torna una volta sola, da comunicare tu; nel gestore resta solo chi l'ha cambiata e quando, nei log.
+        const c = await centro(b.id);
+        if (c.stato !== 'pronto' || !c.progetto) throw new Error('Il centro non è ancora pronto.');
+        const password = String(b.password ?? '') || passwordNuova();
+        const ruolo = await cambiaPassword(managementApi, c.progetto, String(b.email ?? ''), password);
+        console.log(`Password cambiata da ${chi}: ${String(b.email).trim().toLowerCase()} (${ruolo}) nel centro ${c.codice}`);
+        return json({ fatto: true, password, ruolo });
+      }
       case 'riprova': {
         const c = await centro(b.id);
         // Anche i centri registrati quando serviva il mandato SEPA e rimasti ad aspettarlo.

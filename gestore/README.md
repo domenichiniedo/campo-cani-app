@@ -33,7 +33,9 @@ Il pannello **K9 Gestore** (workflow "Pannello del gestore") ti mostra tutti i c
 statistiche, e ti lascia scrivere e cambiare il tuo IBAN per i bonifici, i prezzi dei piani (canone, quota, fisso e
 percentuale sui pacchetti), dare bonus ai centri e creare codici bonus per la registrazione,
 collegare il conto in banca, cambiare piano e prezzi di un centro, abbinare a mano un bonifico non riconosciuto,
-rinnovare a mano, sospendere i rinnovi, segnare un addebito come pagato e riprovare una preparazione non riuscita.
+rinnovare a mano, sospendere i rinnovi, segnare un addebito come pagato, riprovare una preparazione non riuscita e
+cambiare la password di chi entra in un centro (titolare, trainer o cliente): scrivi la nuova o la fa inventare, chi era
+dentro con la vecchia esce, e la vecchia non si vede mai.
 
 Dai centri arrivano solo bonifici: nessun addebito diretto, nessuna carta. Le prenotazioni che i clienti pagano
 al centro con la carta (Nexi) contano nel conto del mese come quelle pagate al campo o con bonifico.
