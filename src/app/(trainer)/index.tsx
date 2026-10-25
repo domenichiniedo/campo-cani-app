@@ -2,15 +2,15 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Text, View } from 'react-native';
 
+import { BookingHead } from '@/components/booking-card';
 import { NoteEditor, type NoteTarget } from '@/components/dog-diary';
-import { Avatar } from '@/components/photo';
 import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, H1, Muted, Row, Screen, Stat } from '@/components/ui';
-import { addDays, cap, dayKey, fromKey, hm, longDay, timeOf, today } from '@/lib/format';
+import { addDays, cap, dayKey, fromKey, hm, longDay, today } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
-import { fullName, PENALTY_REASONS, type Booking, type GroupClass } from '@/lib/types';
+import { PENALTY_REASONS, type Booking, type GroupClass } from '@/lib/types';
 
 type Lesson = Booking & {
   profiles: { first_name: string; last_name: string; phone: string; photo_path: string | null } | null;
@@ -164,42 +164,9 @@ export default function TrainerLessons() {
     const lesson = `${b.lesson_types?.label ?? b.lesson_type}${b.lesson_option ? ` · ${b.lesson_option}` : ''}`;
     return (
       <Card key={b.id} style={b.checked_in_at ? { borderLeftWidth: 4, borderLeftColor: c.accent } : undefined}>
-        <Row style={{ justifyContent: 'space-between' }}>
-          {inClass ? (
-            <Body bold>
-              {b.dogs?.name}
-              {b.dogs?.breed ? ` (${b.dogs.breed})` : ''}
-            </Body>
-          ) : (
-            <Text style={{ color: c.text, fontSize: 20, fontWeight: '800' }}>
-              {hm(b.start_min)}
-              <Text style={{ color: c.muted, fontSize: 14, fontWeight: '600' }}> – {hm(b.start_min + b.dur_min)}</Text>
-            </Text>
-          )}
-          <Row>
-            {fields.length > 1 && !inClass && b.fields && <Badge>{b.fields.name}</Badge>}
-            {b.checked_in_at && <Badge tone="ok">{t('Entrato {ora}', { ora: timeOf(b.checked_in_at) })}</Badge>}
-            {b.dogs?.blocked && <Badge tone="bad">{t('Sospeso')}</Badge>}
-          </Row>
-        </Row>
-        <View style={{ gap: 2 }}>
-          {!inClass && (
-            <>
-              <Body bold>
-                {b.dogs?.name}
-                {b.dogs?.breed ? ` (${b.dogs.breed})` : ''}
-              </Body>
-              <Muted>{lesson}</Muted>
-            </>
-          )}
-          <Row>
-            <Avatar name={fullName(b.profiles)} path={b.profiles?.photo_path} size={24} />
-            <Muted>
-              {fullName(b.profiles)} · {b.profiles?.phone}
-            </Muted>
-          </Row>
+        <BookingHead b={b} inClass={inClass} showField={fields.length > 1}>
           {!!b.note && <Body style={{ fontSize: 14 }}>{t('Nota del cliente: {nota}', { nota: b.note })}</Body>}
-        </View>
+        </BookingHead>
         {(b.penalties ?? []).map((p) => (
           <Row key={p.id}>
             <Badge tone="bad">{t('Penalità: {motivo}', { motivo: t(p.reason) })}</Badge>

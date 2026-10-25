@@ -18,9 +18,7 @@ oggi fai a mano con `tools/nuovo-centro.mjs`:
    licenza scade e l'app del centro si blocca; appena arriva, la licenza si rinnova e l'app si sblocca;
 5. il proprietario può **cambiare piano dall'app**: la licenza nuova arriva subito e canone e quote del mese
    si dividono a giorni fra il piano vecchio e quello nuovo;
-6. quando esce una migrazione nuova dell'app, il gestore la aggiunge da solo al database di ogni centro;
-7. il proprietario del centro collega da Impostazioni il conto Stripe dove riceverà i pagamenti online dei
-   clienti (Stripe Connect). Per legge i dati del centro (documento, partita IVA, IBAN) li chiede Stripe.
+6. quando esce una migrazione nuova dell'app, il gestore la aggiunge da solo al database di ogni centro.
 
 Ogni centro ha il suo database: i clienti di un centro non stanno mai nello stesso posto di quelli di un
 altro, e i proprietari di un centro non vedono niente degli altri. Il gestore conserva solo nome, email del
@@ -31,10 +29,8 @@ statistiche, e ti lascia scrivere e cambiare il tuo IBAN per i bonifici, i prezz
 collegare il conto in banca, cambiare piano e prezzi di un centro, abbinare a mano un bonifico non riconosciuto,
 rinnovare a mano, sospendere i rinnovi, segnare un addebito come pagato e riprovare una preparazione non riuscita.
 
-Ai centri arrivano solo bonifici: nessun addebito diretto, nessuna carta.
-
-**Stripe resta in modalità test** finché non decidi tu: il gestore rifiuta le chiavi `sk_live_` se non
-imposti anche `STRIPE_LIVE=si`.
+Dai centri arrivano solo bonifici: nessun addebito diretto, nessuna carta. Le prenotazioni che i clienti pagano
+al centro con la carta (Nexi) contano nel conto del mese come quelle pagate al campo o con bonifico.
 
 ## Cosa contiene
 
@@ -43,13 +39,12 @@ imposti anche `STRIPE_LIVE=si`.
 | `supabase/migrations/0001_centri.sql` | tabelle `centri` e `addebiti` del gestore |
 | `supabase/migrations/0002_bonifici_piani.sql` | prezzi dei piani, cambi di piano, il tuo conto e i bonifici visti |
 | `registra-centro` | registrazione dall'app |
-| `centro` | stato di un centro dal codice (e pagina di ritorno da Stripe Connect) |
+| `centro` | stato di un centro dal codice e prezzi dei piani |
 | `prepara-centri` | crea e aggiorna i database dei centri, un passo alla volta (pg_cron ogni minuto) |
 | `addebito-mensile` | il conto del mese di ogni centro (pg_cron il primo del mese) |
 | `controlla-bonifici` | legge i bonifici sul tuo conto e rinnova le licenze (pg_cron ogni 6 ore) |
 | `banca` | pagina di ritorno dalla tua banca quando colleghi il conto |
 | `abbonamento` | piano, prezzi e cosa pagare, dall'app del proprietario; cambio di piano |
-| `stripe-collega` | conto Stripe Connect del centro, dalle Impostazioni del proprietario |
 | `pannello` | i dati e le azioni del pannello K9 Gestore |
 
 ## Come si accende (una volta sola)
@@ -79,7 +74,6 @@ in chat, nell'app o su GitHub.
    AMMINISTRATORI=tua@email.it         # chi entra nel pannello (separati da virgola)
    ENABLE_BANKING_APP_ID=...           # dal passo 5: l'id dell'applicazione Enable Banking
    ENABLE_BANKING_CHIAVE="-----BEGIN PRIVATE KEY-----\n..."   # dal passo 5: la chiave .pem, su una riga con \n
-   STRIPE_SECRET_KEY=sk_test_...       # facoltativo, solo per i pagamenti online dei clienti (modalità test)
    ```
 
    Servono anche, sempre: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` (le email con il codice che
@@ -116,9 +110,6 @@ in chat, nell'app o su GitHub.
    banca e premi **Collega**: entri nella tua banca e dai il permesso di sola lettura. Il permesso dura di solito
    90 o 180 giorni: quando scade il pannello te lo dice e lo ricolleghi con lo stesso bottone.
 
-   **Stripe (modalità test, facoltativo)** serve solo per i pagamenti online dei clienti ai centri: in Connect
-   attiva gli account Express.
-
 6. **Orari automatici.** Nel SQL Editor del gestore (Database → Extensions: attiva `pg_cron` e `pg_net`):
 
    ```sql
@@ -137,7 +128,8 @@ in chat, nell'app o su GitHub.
    ```
 
    Se hai già il gestore acceso con la versione di prima: esegui `0002_bonifici_piani.sql`, aggiungi il terzo
-   orario, togli il webhook di Stripe (la funzione `stripe-webhook` non c'è più) e ripeti il passo 4.
+   orario, togli il webhook di Stripe e cancella le funzioni `stripe-webhook` e `stripe-collega` (non ci sono più),
+   poi ripeti il passo 4.
 
 7. **L'app.** Nelle build per gli store e per i centri imposta `EXPO_PUBLIC_GESTORE_URL` =
    `https://<ref>.supabase.co/functions/v1` (senza `EXPO_PUBLIC_SUPABASE_URL`: ogni centro ha il suo
@@ -161,7 +153,7 @@ in chat, nell'app o su GitHub.
 deno test gestore/supabase/functions/_shared/
 ```
 
-Provano la firma delle licenze (lette come le legge l'app), la firma degli eventi Stripe, tutti i passi
+Provano la firma delle licenze (lette come le legge l'app), tutti i passi
 della preparazione di un centro con un Supabase finto, il conto del mese con i cambi di piano, il
 riconoscimento dei bonifici e la firma delle chiamate a Enable Banking.
 

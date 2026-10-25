@@ -10,7 +10,7 @@ import type { EvalForm, EvalItem } from '@/lib/types';
 type DraftItem = EvalItem & { optionsText: string };
 type Draft = { id?: string; name: string; items: DraftItem[]; active: boolean };
 
-export const EVAL_KINDS: { value: EvalItem['kind']; label: string }[] = [
+const EVAL_KINDS: { value: EvalItem['kind']; label: string }[] = [
   { value: 'score', label: tKey('Voto da 1 a 5') },
   { value: 'yesno', label: tKey('Sì o no') },
   { value: 'choice', label: tKey('Scelta tra risposte') },

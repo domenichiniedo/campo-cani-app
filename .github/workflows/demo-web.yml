@@ -38,7 +38,9 @@ jobs:
       - run: node mobile-demo/build.mjs
         env:
           DEMO_BASE_URL: /campo-cani-app
+      # In una PR la demo si costruisce soltanto: niente artifact, che occuperebbe lo spazio limitato di GitHub.
       - uses: actions/upload-pages-artifact@v3
+        if: ${{ github.event_name != 'pull_request' }}
         with:
           path: mobile-demo/www
 

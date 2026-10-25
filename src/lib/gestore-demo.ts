@@ -47,8 +47,6 @@ function build(): AdminData {
     tariffa_cents: i === 0 ? 50 : null,
     canone_cents: null,
     iban: i % 2 === 0 && stato === 'pronto' ? `IT${String(10 + i)}X05428111010000001234${String(50 + i)}` : '',
-    stripe_conto: stato === 'pronto' && i % 3 !== 2 ? `acct_demo_${i}` : null,
-    stripe_attivo: stato === 'pronto' && i % 3 === 0,
     scade: stato === 'pronto' ? (i === 4 ? dayThree(now, 0) : dayThree(now, 1)) : null,
     sospeso: false,
     creato: `${monthOf(now, -Math.max(mesiFa, 0))}-0${(i % 8) + 1}T10:00:00Z`,

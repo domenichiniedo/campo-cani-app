@@ -121,7 +121,7 @@ export function PhotoPicker({ name, value, onChange }: { name: string; value: Pi
 }
 
 /** Dove sta la foto di chi è connesso: il trainer nella sua scheda, il cliente nel profilo. */
-export function myPhoto(profile: Profile, myTrainer: Pick<Trainer, 'id' | 'name' | 'photo_path'> | null) {
+function myPhoto(profile: Profile, myTrainer: Pick<Trainer, 'id' | 'name' | 'photo_path'> | null) {
   return myTrainer
     ? {
         name: myTrainer.name,

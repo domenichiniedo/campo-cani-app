@@ -1,8 +1,8 @@
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
-import { Modal, ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { Avatar } from '@/components/photo';
-import { Button, Chips, ErrorText, Field, H1, Muted, Row } from '@/components/ui';
+import { Button, Chips, Dialog, ErrorText, Field, H1, Muted, Row } from '@/components/ui';
 import { cap, longDay } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { usePlan } from '@/lib/plans';
@@ -12,7 +12,7 @@ import { useColors } from '@/lib/theme';
 import type { DogNote, EvalForm, Evaluation } from '@/lib/types';
 
 /** Pagine del diario di un cane, dalla più recente. */
-export function useDogNotes(dogId: string | null) {
+function useDogNotes(dogId: string | null) {
   const [notes, setNotes] = useState<DogNote[]>([]);
   const load = useCallback(async () => {
     if (!dogId) return setNotes([]);
@@ -26,7 +26,7 @@ export function useDogNotes(dogId: string | null) {
 }
 
 /** Una pagina del diario: giorno, lezione, chi l'ha scritta, cosa si è fatto e il commento. */
-export function NoteItem({ n }: { n: DogNote }) {
+function NoteItem({ n }: { n: DogNote }) {
   const c = useColors();
   const { trainers } = useSession();
   const trainer = trainers.find((t) => t.id === n.trainer_id);
@@ -197,23 +197,17 @@ function EvalFields({
 function DiaryModal({ open, onClose, children, older }: { open: boolean; onClose: () => void; children: ReactNode; older: DogNote[] }) {
   const c = useColors();
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-        <View style={{ backgroundColor: c.bg, borderRadius: 14, width: '100%', maxWidth: 620, maxHeight: '92%' }}>
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 14 }} keyboardShouldPersistTaps="handled">
-            {children}
-            {older.length > 0 && (
-              <View style={{ gap: 14, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 14 }}>
-                <Text style={{ color: c.muted, fontWeight: '800', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>{t('Pagine precedenti')}</Text>
-                {older.slice(0, 8).map((n) => (
-                  <NoteItem key={n.id} n={n} />
-                ))}
-              </View>
-            )}
-          </ScrollView>
+    <Dialog open={open} onClose={onClose}>
+      {children}
+      {older.length > 0 && (
+        <View style={{ gap: 14, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 14 }}>
+          <Text style={{ color: c.muted, fontWeight: '800', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>{t('Pagine precedenti')}</Text>
+          {older.slice(0, 8).map((n) => (
+            <NoteItem key={n.id} n={n} />
+          ))}
         </View>
-      </View>
-    </Modal>
+      )}
+    </Dialog>
   );
 }
 

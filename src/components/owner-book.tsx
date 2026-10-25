@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Modal, ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 
-import { Body, Button, Chips, ErrorText, Field, H1, Muted, Row } from '@/components/ui';
+import { Body, Button, Chips, Dialog, ErrorText, Field, H1, Muted, Row } from '@/components/ui';
 import { hm, isDayKey, longDay, parseHm, STEP } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import type { OwnerClass } from '@/lib/owner';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
-import { fullName, type Dog, type Profile } from '@/lib/types';
+import { fullName, type Dog, type LessonType, type Profile } from '@/lib/types';
 
 /** Da dove parte la prenotazione; con `cls` il cane si iscrive a quella classe di gruppo. */
 export type BookStart = { day: string; start: number; fieldId?: string; cls?: OwnerClass };
@@ -18,7 +18,7 @@ type Client = Profile & { dogs: Dog[] };
 /** Il proprietario prenota una lezione per un cliente già iscritto, o lo iscrive a una classe. */
 export function OwnerBook({ start, onClose, onDone }: { start: BookStart | null; onClose: () => void; onDone: () => void }) {
   const c = useColors();
-  const { fields, lessonTypes, trainers } = useSession();
+  const { fields, lessonTypes } = useSession();
   const [clients, setClients] = useState<Client[]>([]);
   const [q, setQ] = useState('');
   const [client, setClient] = useState<Client | null>(null);
@@ -121,115 +121,146 @@ export function OwnerBook({ start, onClose, onDone }: { start: BookStart | null;
   }
 
   return (
-    <Modal visible={!!start} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-        <View style={{ backgroundColor: c.bg, borderRadius: 14, width: '100%', maxWidth: 620, maxHeight: '92%' }}>
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 14 }} keyboardShouldPersistTaps="handled">
-            <H1>{cls ? t('Iscrivi alla classe') : t('Prenota per un cliente')}</H1>
-            {cls && (
-              <Muted>
-                {`${cls.lesson_types?.label ?? cls.lesson_type}${cls.lesson_option ? ` · ${cls.lesson_option}` : ''} · ${longDay(cls.day)} · ${hm(cls.start_min)}`}
-              </Muted>
-            )}
+    <Dialog open={!!start} onClose={onClose}>
+      <H1>{cls ? t('Iscrivi alla classe') : t('Prenota per un cliente')}</H1>
+      {cls && (
+        <Muted>
+          {`${cls.lesson_types?.label ?? cls.lesson_type}${cls.lesson_option ? ` · ${cls.lesson_option}` : ''} · ${longDay(cls.day)} · ${hm(cls.start_min)}`}
+        </Muted>
+      )}
 
-            {client ? (
-              <Row style={{ justifyContent: 'space-between' }}>
-                <Body bold>{fullName(client)}</Body>
-                <Button small kind="ghost" title={t('Cambia cliente')} onPress={() => setClient(null)} />
-              </Row>
-            ) : (
-              <>
-                <Field label={t('Cliente')} value={q} onChangeText={setQ} placeholder={t('Nome, telefono o nome del cane')} autoFocus />
-                <View style={{ gap: 6 }}>
-                  {matches.slice(0, 8).map((p) => (
-                    <Button
-                      key={p.id}
-                      small
-                      kind="ghost"
-                      title={`${fullName(p)}${p.dogs.length ? ` · ${p.dogs.map((d) => d.name).join(', ')}` : ''}`}
-                      onPress={() => pickClient(p)}
-                    />
-                  ))}
-                  {matches.length === 0 && <Muted>{t("Nessun cliente trovato. I clienti nuovi si iscrivono dall'app.")}</Muted>}
-                </View>
-              </>
-            )}
+      {client ? (
+        <Row style={{ justifyContent: 'space-between' }}>
+          <Body bold>{fullName(client)}</Body>
+          <Button small kind="ghost" title={t('Cambia cliente')} onPress={() => setClient(null)} />
+        </Row>
+      ) : (
+        <>
+          <Field label={t('Cliente')} value={q} onChangeText={setQ} placeholder={t('Nome, telefono o nome del cane')} autoFocus />
+          <View style={{ gap: 6 }}>
+            {matches.slice(0, 8).map((p) => (
+              <Button
+                key={p.id}
+                small
+                kind="ghost"
+                title={`${fullName(p)}${p.dogs.length ? ` · ${p.dogs.map((d) => d.name).join(', ')}` : ''}`}
+                onPress={() => pickClient(p)}
+              />
+            ))}
+            {matches.length === 0 && <Muted>{t("Nessun cliente trovato. I clienti nuovi si iscrivono dall'app.")}</Muted>}
+          </View>
+        </>
+      )}
 
-            {client && (
-              <>
-                <Muted style={{ fontSize: 13 }}>{t('Cane')}</Muted>
-                {dogs.length ? (
-                  <Chips items={dogs.map((d) => ({ value: d.id, label: d.blocked ? `${d.name} (${t('sospeso')})` : d.name }))} value={dog} onChange={setDog} />
-                ) : (
-                  <Muted>{t('Questo cliente non ha cani registrati.')}</Muted>
-                )}
-              </>
-            )}
+      {client && (
+        <>
+          <Muted style={{ fontSize: 13 }}>{t('Cane')}</Muted>
+          {dogs.length ? (
+            <Chips items={dogs.map((d) => ({ value: d.id, label: d.blocked ? `${d.name} (${t('sospeso')})` : d.name }))} value={dog} onChange={setDog} />
+          ) : (
+            <Muted>{t('Questo cliente non ha cani registrati.')}</Muted>
+          )}
+        </>
+      )}
 
-            {!cls && (
-              <>
-                <Muted style={{ fontSize: 13 }}>{t('Lezione')}</Muted>
-                <Chips
-                  items={single.map((lt) => ({ value: lt.id, label: lt.label }))}
-                  value={type}
-                  onChange={(v) => {
-                    setType(v);
-                    setOption(null);
-                    setTrainer('');
-                  }}
-                />
-                {!!lesson?.options.length && <Chips items={lesson.options.map((o) => ({ value: o, label: o }))} value={option} onChange={setOption} />}
+      {!cls && (
+        <>
+          <SlotFields
+            lessons={single}
+            type={type}
+            onType={setType}
+            option={option}
+            onOption={setOption}
+            field={field}
+            onField={setField}
+            trainer={trainer}
+            onTrainer={setTrainer}
+            day={day}
+            onDay={setDay}
+            time={time}
+            onTime={setTime}
+          />
+          {closed && <Body style={{ color: c.brassText }}>{t("A quell'ora il campo risulta chiuso: puoi prenotare lo stesso.")}</Body>}
+          {lesson && (
+            <Muted style={{ fontSize: 13 }}>
+              {t('Dura {min} minuti. Se il cliente ha un pacchetto valido si scala da lì, altrimenti paga al campo.', { min: lesson.duration_min })}
+            </Muted>
+          )}
+        </>
+      )}
+      {cls && (
+        <Muted style={{ fontSize: 13 }}>
+          {t('Se il cliente ha un pacchetto valido si scala da lì, altrimenti paga al campo.')}
+        </Muted>
+      )}
 
-                {fields.length > 1 && (
-                  <>
-                    <Muted style={{ fontSize: 13 }}>{t('Campo')}</Muted>
-                    <Chips items={fields.map((f) => ({ value: f.id, label: f.name }))} value={field} onChange={setField} />
-                  </>
-                )}
+      <ErrorText>{err}</ErrorText>
+      <Row style={{ justifyContent: 'flex-end' }}>
+        <Button small kind="ghost" title={t('Annulla')} onPress={onClose} />
+        <Button small title={cls ? t('Iscrivi') : t('Prenota')} onPress={save} loading={busy} />
+      </Row>
+    </Dialog>
+  );
+}
 
-                {trainers.length > 0 && (
-                  <>
-                    <Muted style={{ fontSize: 13 }}>{t('Trainer')}</Muted>
-                    <Chips
-                      items={[
-                        { value: '', label: t('Da assegnare') },
-                        // Solo i trainer che seguono questa lezione (lista vuota = tutte).
-                        ...trainers
-                          .filter((tr) => !tr.lessons.length || (type && tr.lessons.includes(type)))
-                          .map((tr) => ({ value: tr.id, label: tr.name })),
-                      ]}
-                      value={trainer}
-                      onChange={setTrainer}
-                    />
-                  </>
-                )}
+/** Lezione, specialità, campo, trainer, giorno e ora: uguali per la prenotazione e per la classe di gruppo. */
+export function SlotFields(p: {
+  lessons: LessonType[];
+  type: string | null;
+  onType: (v: string) => void;
+  option: string | null;
+  onOption: (v: string | null) => void;
+  field: string | null;
+  onField: (v: string) => void;
+  trainer: string;
+  onTrainer: (v: string) => void;
+  day: string;
+  onDay: (v: string) => void;
+  time: string;
+  onTime: (v: string) => void;
+}) {
+  const { fields, trainers } = useSession();
+  const lesson = p.lessons.find((lt) => lt.id === p.type);
+  return (
+    <>
+      <Muted style={{ fontSize: 13 }}>{t('Lezione')}</Muted>
+      <Chips
+        items={p.lessons.map((lt) => ({ value: lt.id, label: lt.label }))}
+        value={p.type}
+        onChange={(v) => {
+          p.onType(v);
+          p.onOption(null);
+          p.onTrainer('');
+        }}
+      />
+      {!!lesson?.options.length && <Chips items={lesson.options.map((o) => ({ value: o, label: o }))} value={p.option} onChange={p.onOption} />}
 
-                <Row>
-                  <Field label={t('Giorno')} value={day} onChangeText={setDay} placeholder="2026-10-23" style={{ flex: 1, minWidth: 140 }} />
-                  <Field label={t('Ora')} value={time} onChangeText={setTime} placeholder="10:00" style={{ flex: 1, minWidth: 100 }} />
-                </Row>
-                {closed && <Body style={{ color: c.brassText }}>{t("A quell'ora il campo risulta chiuso: puoi prenotare lo stesso.")}</Body>}
-                {lesson && (
-                  <Muted style={{ fontSize: 13 }}>
-                    {t('Dura {min} minuti. Se il cliente ha un pacchetto valido si scala da lì, altrimenti paga al campo.', { min: lesson.duration_min })}
-                  </Muted>
-                )}
-              </>
-            )}
-            {cls && (
-              <Muted style={{ fontSize: 13 }}>
-                {t('Se il cliente ha un pacchetto valido si scala da lì, altrimenti paga al campo.')}
-              </Muted>
-            )}
+      {fields.length > 1 && (
+        <>
+          <Muted style={{ fontSize: 13 }}>{t('Campo')}</Muted>
+          <Chips items={fields.map((f) => ({ value: f.id, label: f.name }))} value={p.field} onChange={p.onField} />
+        </>
+      )}
 
-            <ErrorText>{err}</ErrorText>
-            <Row style={{ justifyContent: 'flex-end' }}>
-              <Button small kind="ghost" title={t('Annulla')} onPress={onClose} />
-              <Button small title={cls ? t('Iscrivi') : t('Prenota')} onPress={save} loading={busy} />
-            </Row>
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
+      {trainers.length > 0 && (
+        <>
+          <Muted style={{ fontSize: 13 }}>{t('Trainer')}</Muted>
+          <Chips
+            items={[
+              { value: '', label: t('Da assegnare') },
+              // Solo i trainer che seguono questa lezione (lista vuota = tutte).
+              ...trainers.filter((tr) => !tr.lessons.length || (p.type && tr.lessons.includes(p.type))).map((tr) => ({ value: tr.id, label: tr.name })),
+            ]}
+            value={p.trainer}
+            onChange={p.onTrainer}
+          />
+        </>
+      )}
+
+      <Row>
+        <Field label={t('Giorno')} value={p.day} onChangeText={p.onDay} placeholder="2026-10-23" style={{ flex: 1, minWidth: 140 }} />
+        <Field label={t('Ora')} value={p.time} onChangeText={p.onTime} placeholder="10:00" style={{ flex: 1, minWidth: 100 }} />
+      </Row>
+    </>
   );
 }

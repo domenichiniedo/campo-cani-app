@@ -352,7 +352,6 @@ function CentreCard({
         <Badge>{PIANI.find((p) => p.value === x.piano)?.label}</Badge>
         <Badge tone={custom ? 'warn' : 'neutral'}>{`${prezzo(canone, quota)}${custom ? ' (apposta)' : ''}`}</Badge>
         {!!x.iban && <Badge>IBAN {x.iban.slice(0, 4)}…{x.iban.slice(-4)}</Badge>}
-        {!!x.stripe_conto && <Badge tone={x.stripe_attivo ? 'ok' : 'warn'}>{x.stripe_attivo ? 'Stripe Connect attivo' : 'Stripe Connect da completare'}</Badge>}
         {x.stato === 'pronto' && <Badge tone={days !== null && days < 7 ? 'bad' : 'neutral'}>Licenza fino al {data(x.scade)}</Badge>}
       </Row>
       {!!x.errore && <ErrorText>{x.errore}</ErrorText>}

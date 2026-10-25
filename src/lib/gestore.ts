@@ -1,6 +1,6 @@
 import { t } from '@/lib/i18n';
 
-// Il server gestore (cartella gestore/): registra i centri nuovi, prepara il loro database e collega Stripe.
+// Il server gestore (cartella gestore/): registra i centri nuovi e prepara il loro database.
 // L'indirizzo è quello delle sue funzioni, per esempio https://xxxx.supabase.co/functions/v1.
 // Vuoto: niente registrazione dall'app, i centri si attivano solo con il codice di licenza.
 
@@ -10,7 +10,7 @@ export const gestoreEnabled = BASE.length > 0;
 
 /** Codice del centro, quello corto da dare a clienti e trainer (K9-XXXXXX). */
 export const isCentreCode = (s: string) => /^K9-?[A-Z0-9]{6}$/i.test(s.trim());
-export const centreCode = (s: string) => s.trim().toUpperCase().replace(/^K9-?/, 'K9-');
+const centreCode = (s: string) => s.trim().toUpperCase().replace(/^K9-?/, 'K9-');
 
 export type CentreState = 'mandato' | 'progetto' | 'avvio' | 'database' | 'chiavi' | 'licenza' | 'pronto' | 'errore';
 
@@ -63,6 +63,3 @@ export const setCentreIban = (codice: string, iban: string, token: string) => ca
 
 export const centreStatus = (codice: string) => call<{ stato: CentreState; campo: string; licenza: string | null }>('centro', { codice: centreCode(codice) });
 
-/** Il conto Stripe del centro per i pagamenti online; solo il proprietario, con il suo accesso. */
-export const connectStripe = (codice: string, token: string) =>
-  call<{ stato: 'attivo' | 'in_verifica' | 'da_completare'; link?: string }>('stripe-collega', { codice }, token);

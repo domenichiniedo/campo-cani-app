@@ -34,8 +34,6 @@ export type AdminCentre = {
   canone_cents: number | null;
   /** IBAN da cui il centro paga, per riconoscere i suoi bonifici. */
   iban: string;
-  stripe_conto: string | null;
-  stripe_attivo: boolean;
   scade: string | null;
   sospeso: boolean;
   creato: string;
