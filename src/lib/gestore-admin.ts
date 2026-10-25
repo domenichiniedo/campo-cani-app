@@ -180,6 +180,43 @@ export async function adminSignIn(email: string, password: string) {
   return error ? (/Invalid login/i.test(error.message) ? 'Email o password non corretti.' : error.message) : null;
 }
 
+// Password dimenticata: Supabase manda all'email un codice (il modello "recovery" con {{ .Token }}, che prepara
+// "Prova generale"), poi con il codice si entra e si sceglie la password nuova. Niente action da rilanciare.
+
+/** Manda il codice per la password nuova. Errore da mostrare, o null. */
+export async function adminSendReset(email: string) {
+  if (adminDemo) return null;
+  const { error } = await admin.auth.resetPasswordForEmail(email);
+  return error ? error.message : null;
+}
+
+/** Con il codice ricevuto entra e mette la password nuova. Errore da mostrare, o null. */
+export async function adminResetPassword(email: string, code: string, password: string) {
+  if (adminDemo) {
+    demoSet(true);
+    return null;
+  }
+  const v = await admin.auth.verifyOtp({ email, token: code, type: 'recovery' });
+  if (v.error) return /expired|invalid/i.test(v.error.message) ? 'Codice sbagliato o scaduto: fattene mandare un altro.' : v.error.message;
+  return adminChangePassword(password);
+}
+
+/** Cambia la password di chi è dentro il pannello. Errore da mostrare, o null. */
+export async function adminChangePassword(password: string) {
+  if (password.length < 8) return 'La password deve avere almeno 8 caratteri.';
+  if (adminDemo) return null;
+  const { error } = await admin.auth.updateUser({ password });
+  if (!error) return null;
+  return /different from the old/i.test(error.message) ? 'È uguale a quella di adesso: scegline un’altra.' : error.message;
+}
+
+/** L'email di chi è dentro il pannello. */
+export async function adminEmail() {
+  if (adminDemo) return 'demo@k9gestore.it';
+  const { data } = await admin.auth.getSession();
+  return data.session?.user.email ?? '';
+}
+
 export function adminSignOut() {
   if (adminDemo) return demoSet(false);
   admin.auth.signOut();

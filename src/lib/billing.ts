@@ -83,6 +83,10 @@ export const billingLine = (p: Pick<Profile, 'billing_street' | 'billing_zip' | 
 
 /** Dati per fatturare al centro il canone e le prenotazioni: come li vuole la fattura elettronica. */
 export type CentreBilling = {
+  /** Persona (nome e cognome, telefono, codice fiscale) o associazione e società (tutti i dati). */
+  tipo: 'persona' | 'associazione';
+  /** Il telefono del titolare. */
+  telefono: string;
   ragione_sociale: string;
   partita_iva: string;
   codice_fiscale: string;
@@ -96,6 +100,8 @@ export type CentreBilling = {
 };
 
 export const emptyCentreBilling: CentreBilling = {
+  tipo: 'persona',
+  telefono: '',
   ragione_sociale: '',
   partita_iva: '',
   codice_fiscale: '',
@@ -111,6 +117,8 @@ export const emptyCentreBilling: CentreBilling = {
 export const cleanCentreBilling = (raw: CentreBilling): CentreBilling => {
   const b = { ...emptyCentreBilling, ...raw };
   return {
+    tipo: b.tipo === 'persona' ? 'persona' : 'associazione',
+    telefono: b.telefono.trim(),
     ragione_sociale: b.ragione_sociale.trim(),
     partita_iva: normalizeTaxCode(b.partita_iva).replace(/^IT/, ''),
     codice_fiscale: normalizeTaxCode(b.codice_fiscale),
@@ -123,13 +131,25 @@ export const cleanCentreBilling = (raw: CentreBilling): CentreBilling => {
   };
 };
 
-/** Il primo dato per la fattura del centro mancante o sbagliato, oppure null (come il gestore, fatturazione.ts). */
-export function centreBillingError(raw: CentreBilling): string | null {
+/**
+ * Il primo dato per la fattura del centro mancante o sbagliato, oppure null (come il gestore, fatturazione.ts).
+ * Con `nuovo` (la registrazione) servono anche i dati obbligatori del tipo; nel pannello solo che siano giusti.
+ */
+export function centreBillingError(raw: CentreBilling, nuovo = false): string | null {
   const b = cleanCentreBilling(raw);
-  // Basta il nome: anche un privato che organizza le lezioni apre un centro. Il resto, se c'è, dev'essere giusto.
-  if (b.ragione_sociale.length < 2) return t('Scrivi nome e cognome o la ragione sociale.');
+  const persona = b.tipo === 'persona';
+  if (b.ragione_sociale.length < 2) return persona ? t('Scrivi nome e cognome.') : t('Scrivi nome e cognome o la ragione sociale.');
+  if (nuovo) {
+    if (persona && b.ragione_sociale.split(/\s+/).length < 2) return t('Scrivi nome e cognome.');
+    if (!persona && b.ragione_sociale.length < 3) return t("Scrivi la ragione sociale dell'associazione o della società.");
+    if (b.telefono.replace(/\D/g, '').length < 6) return t('Scrivi il numero di telefono.');
+    if (!b.codice_fiscale) return t('Scrivi il codice fiscale.');
+    if (!persona && (!b.indirizzo || !b.cap || !b.comune || !b.provincia)) return t('Scrivi la sede: via e numero, CAP, comune e provincia.');
+  }
+  if (b.telefono && b.telefono.replace(/\D/g, '').length < 6) return t('Scrivi il numero di telefono.');
   if (b.partita_iva && !isValidVat(b.partita_iva)) return t('La partita IVA non è valida: sono 11 cifre.');
   if (b.codice_fiscale && !isValidTaxCode(b.codice_fiscale)) return t('Il codice fiscale non è valido. Controlla le lettere e i numeri.');
+  if (persona && /^\d{11}$/.test(b.codice_fiscale)) return t('Il codice fiscale di una persona ha 16 lettere e cifre.');
   if (b.cap && !/^\d{5}$/.test(b.cap)) return t('Il CAP deve avere 5 cifre.');
   if (b.provincia && !/^[A-Z]{2}$/.test(b.provincia)) return t('La provincia va scritta con la sigla, per esempio BO.');
   if (b.codice_sdi && !/^[A-Z0-9]{7}$/.test(b.codice_sdi)) return t('Il codice destinatario ha 7 lettere o cifre.');
@@ -140,7 +160,8 @@ export function centreBillingError(raw: CentreBilling): string | null {
 /** I dati per la fattura del centro in poche righe, per il pannello del gestore. */
 export const centreBillingLines = (b: CentreBilling) =>
   [
-    b.ragione_sociale,
+    b.tipo === 'persona' ? `${b.ragione_sociale} (persona)` : b.ragione_sociale,
+    b.telefono && `Tel. ${b.telefono}`,
     [b.partita_iva && `P.IVA ${b.partita_iva}`, b.codice_fiscale && b.codice_fiscale !== b.partita_iva && `CF ${b.codice_fiscale}`].filter(Boolean).join(' · '),
     [b.indirizzo, [b.cap, b.comune, b.provincia && `(${b.provincia})`].filter(Boolean).join(' ')].filter(Boolean).join(', '),
     [b.codice_sdi && `SDI ${b.codice_sdi}`, b.pec && `PEC ${b.pec}`].filter(Boolean).join(' · '),
