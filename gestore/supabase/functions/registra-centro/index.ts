@@ -1,4 +1,4 @@
-// Un centro si registra dall'app: nome, email del titolare, piano, dati per la fattura e (se vuole) l'IBAN da cui pagherà. Riceve il suo
+// Un centro si registra dall'app: nome, email del titolare, piano, dati per la fattura e l'IBAN da cui pagherà (obbligatorio). Riceve il suo
 // codice (K9-XXXXXX) e il gestore prepara subito il database. Ogni mese il centro ti paga con un bonifico istantaneo
 // sul tuo conto e il gestore lo trova da solo; l'IBAN del centro aiuta a riconoscerlo anche senza causale.
 // Si chiama senza accesso (chi si registra non ha ancora un account): per questo i limiti qui sotto.
@@ -31,7 +31,8 @@ Deno.serve(async (req) => {
   const formula = String(body.formula ?? 'consumo');
   if (formula !== 'consumo' && formula !== 'fisso') return json({ errore: 'Scegli a consumo o fisso.' }, 400);
   const iban = String(body.iban ?? '').toUpperCase().replace(/\s/g, '');
-  if (iban && !ibanValido(iban)) return json({ errore: 'IBAN non valido.' }, 400);
+  if (!iban) return json({ errore: "Scrivi l'IBAN da cui paghi il piano." }, 400);
+  if (!ibanValido(iban)) return json({ errore: 'IBAN non valido.' }, 400);
   // Ragione sociale, partita IVA o codice fiscale, sede e SDI o PEC: per fatturargli canone e prenotazioni.
   const fattura = leggiFatturazione(body.fattura);
   if ('errore' in fattura) return json({ errore: fattura.errore }, 400);

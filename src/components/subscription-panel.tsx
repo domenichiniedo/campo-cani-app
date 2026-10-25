@@ -211,11 +211,12 @@ export function SubscriptionPanel() {
     setErr('');
     setMsg('');
     const v = normalizeIban(iban);
-    if (v && !isValidIban(v)) return setErr(t('IBAN non valido.'));
+    if (!v) return setErr(t("Scrivi l'IBAN da cui paghi il piano."));
+    if (!isValidIban(v)) return setErr(t('IBAN non valido.'));
     setBusy('iban');
     try {
       setSub(await setCentreIban(code!, v, await token()));
-      setMsg(v ? t('IBAN salvato: i tuoi bonifici vengono riconosciuti anche senza causale.') : t('IBAN tolto.'));
+      setMsg(t('IBAN salvato: i tuoi bonifici vengono riconosciuti anche senza causale.'));
     } catch (e) {
       setErr(t((e as Error).message));
     }
@@ -295,7 +296,7 @@ export function SubscriptionPanel() {
           </>
         )}
         <Field
-          label={t('IBAN da cui paghi (facoltativo)')}
+          label={t('IBAN da cui paghi')}
           value={iban}
           onChangeText={setIban}
           placeholder="IT60 X054 2811 1010 0000 0123 456"

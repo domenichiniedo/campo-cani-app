@@ -2,6 +2,7 @@ import qrcode from 'qrcode-generator';
 import { type ReactNode, useMemo, useState } from 'react';
 import { Image, Platform, Text, View } from 'react-native';
 
+import { PayLesson } from '@/components/pay-now';
 import { Body, Button, Card, Muted, Row } from '@/components/ui';
 import { euro } from '@/lib/format';
 import { t } from '@/lib/i18n';
@@ -81,8 +82,21 @@ export function TransferBox({
   );
 }
 
-/** Dati del bonifico istantaneo per una lezione. */
-export function TransferDetails({ booking, dog, cfg }: { booking: Pick<Booking, 'id' | 'day' | 'start_min' | 'price_cents'>; dog: string; cfg: TransferSettings }) {
+/**
+ * Dati del bonifico istantaneo per una lezione. Se il gestore ha il pagamento dalla banca, sopra c'è "Paga dalla tua
+ * banca": il cliente lo fa dall'app e la lezione si segna pagata da sola (onPaid ricarica l'elenco).
+ */
+export function TransferDetails({
+  booking,
+  dog,
+  cfg,
+  onPaid,
+}: {
+  booking: Pick<Booking, 'id' | 'day' | 'start_min' | 'price_cents'>;
+  dog: string;
+  cfg: TransferSettings;
+  onPaid?: () => void;
+}) {
   return (
     <TransferBox
       title={t('Paga con bonifico istantaneo')}
@@ -91,6 +105,8 @@ export function TransferDetails({ booking, dog, cfg }: { booking: Pick<Booking, 
       iban={cfg.iban}
       cents={booking.price_cents}
       reason={transferReason(booking, dog)}
-    />
+    >
+      <PayLesson booking={booking.id} cents={booking.price_cents} onDone={onPaid} />
+    </TransferBox>
   );
 }

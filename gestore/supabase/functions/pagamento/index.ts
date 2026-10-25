@@ -1,10 +1,14 @@
 // La banca del centro torna qui dopo "Paga ora" (state = la parola casuale del pagamento). Si legge com'è andato
 // il bonifico e, se è partito, si controllano subito i movimenti del tuo conto: così la licenza si rinnova senza
 // aspettare il controllo delle 6 ore.
+// Qui torna anche la banca del cliente che paga una lezione dall'app (funzione lezione): se il bonifico è partito,
+// la lezione si segna pagata subito nel database del centro.
 
 import { enableBanking } from '../_shared/banca.ts';
 import { controllaBonifici } from '../_shared/bonifici.ts';
 import { db, messaggio } from '../_shared/comune.ts';
+import { aggiornaLezione, type PagamentoLezione } from '../_shared/lezioni.ts';
+import { PARTITO, RIFIUTATO } from '../_shared/paga.ts';
 
 const pagina = (titolo: string, testo: string, status = 200) =>
   new Response(
@@ -13,11 +17,28 @@ const pagina = (titolo: string, testo: string, status = 200) =>
     { status, headers: { 'Content-Type': 'text/html; charset=utf-8' } },
   );
 
-const RIFIUTATO = ['RJCT', 'CANC'];
+/** Il ritorno dalla banca del cliente dopo il bonifico di una lezione. */
+async function lezione(p: PagamentoLezione, u: URL) {
+  if (u.searchParams.get('error')) {
+    await db.from('pagamenti_lezioni').update({ stato: 'CANC', errore: String(u.searchParams.get('error_description') ?? u.searchParams.get('error')).slice(0, 300) }).eq('id', p.id);
+    return pagina('Pagamento annullato', 'Il bonifico non è partito. Torna all\'app: puoi riprovare o usare i dati del bonifico.', 400);
+  }
+  try {
+    const stato = await aggiornaLezione(p);
+    if (RIFIUTATO.includes(stato)) return pagina('Pagamento rifiutato', 'La banca non ha fatto partire il bonifico. Torna all\'app e riprova, o usa i dati del bonifico.', 400);
+    if (PARTITO.includes(stato)) return pagina('Lezione pagata', 'Grazie! Il bonifico è partito e la lezione è segnata come pagata. Puoi chiudere questa pagina e tornare all\'app.');
+    return pagina('Bonifico in corso', 'La banca sta ancora lavorando il bonifico: appena parte la lezione si segna pagata da sola. Puoi tornare all\'app.');
+  } catch (e) {
+    console.error(messaggio(e));
+    return pagina('Pagamento in verifica', 'Non riesco a leggere lo stato del bonifico. Se lo hai confermato nella tua banca, la lezione si segna pagata da sola entro qualche ora.', 502);
+  }
+}
 
 Deno.serve(async (req) => {
   const u = new URL(req.url);
   const state = u.searchParams.get('state') ?? '';
+  const { data: l } = await db.from('pagamenti_lezioni').select('*').eq('state', state).maybeSingle();
+  if (l) return lezione(l as PagamentoLezione, u);
   const { data: p } = await db.from('pagamenti').select('id, payment_id').eq('state', state).maybeSingle();
   if (!p?.payment_id) return pagina('Pagamento non trovato', 'Questo link non è più valido. Torna all\'app e riprova da "Paga ora".', 400);
   if (u.searchParams.get('error')) {

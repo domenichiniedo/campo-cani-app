@@ -33,7 +33,14 @@ export async function bancheConPagamento() {
   return banche;
 }
 
-/** Prepara il bonifico nella banca del centro: torna l'id del pagamento e la pagina della banca. */
+/** Gli stati di un pagamento disposto che vogliono dire "partito" e quelli che vogliono dire "non partito". */
+export const PARTITO = ['ACCC', 'ACSC', 'ACSP', 'ACWC', 'ACCP'];
+export const RIFIUTATO = ['RJCT', 'CANC'];
+
+/**
+ * Prepara il bonifico nella banca di chi paga (il centro, o il cliente per una lezione): torna l'id del pagamento
+ * e la pagina della banca. Con il conto di chi paga (da_iban) la banca lo trova già scelto: alcune banche lo vogliono.
+ */
 export async function disponi(a: {
   banca: { nome: string; paese: string };
   tipo: string;
@@ -43,15 +50,18 @@ export async function disponi(a: {
   causale: string;
   state: string;
   ritorno: string;
+  privato?: boolean;
+  da_iban?: string;
 }): Promise<{ payment_id: string; url: string }> {
   const r = await enableBanking('POST', '/payments', {
     aspsp: { name: a.banca.nome, country: a.banca.paese },
     payment_type: a.tipo,
-    psu_type: 'business',
+    psu_type: a.privato ? 'personal' : 'business',
     language: 'it',
     state: a.state,
     redirect_url: a.ritorno,
     payment_request: {
+      ...(a.da_iban ? { debtor_account: { identification: a.da_iban, scheme_name: 'IBAN' } } : {}),
       credit_transfer_transaction: [
         {
           beneficiary: { creditor: { name: a.intestatario }, creditor_account: { identification: a.iban, scheme_name: 'IBAN' } },

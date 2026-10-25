@@ -5,7 +5,7 @@
 //   cambia  cambia piano o formula (consumo, fisso) da oggi: canone e quote si dividono a giorni nell'addebito
 //           del mese; con un piano nuovo torna la licenza nuova
 //           (un piano più piccolo parte dal primo del mese dopo)
-//   iban    l'IBAN da cui il centro fa i bonifici, per riconoscerli anche senza causale
+//   iban    l'IBAN da cui il centro fa i bonifici (obbligatorio), per riconoscerli anche senza causale e per "Paga ora"
 //   disdici disdetta con un mese di preavviso, solo con i conti pagati: il servizio finisce alla fine del mese dopo
 //   tieni   annulla la disdetta, finché il servizio non è finito
 //   banche  le banche da cui si può usare "Paga ora" (vuoto se è spento)
@@ -108,6 +108,7 @@ Deno.serve(async (req) => {
           .in('stato', ['inviato', 'non_pagato'])
           .maybeSingle();
         if (!a || !(a.importo_cents > 0)) return json({ errore: 'Questo conto è già pagato.' }, 400);
+        if (!c.iban) return json({ errore: "Scrivi l'IBAN da cui paghi il piano." }, 400);
         const banca = (await bancheConPagamento()).find((x) => x.nome === body.banca?.nome && x.paese === body.banca?.paese);
         if (!banca) return json({ errore: 'Scegli la tua banca.' }, 400);
         const { data: conto } = await db.from('banca').select('bonifico_iban, bonifico_intestatario').eq('id', 1).maybeSingle();
@@ -122,13 +123,15 @@ Deno.serve(async (req) => {
           causale: a.causale,
           state,
           ritorno: funzione('pagamento'),
+          da_iban: c.iban,
         });
         await db.from('pagamenti').insert({ centro: c.id, addebito: a.id, state, payment_id: p.payment_id, stato: 'RCVD' });
         return json({ url: p.url });
       }
       case 'iban': {
         const iban = String(body.iban ?? '').toUpperCase().replace(/\s/g, '');
-        if (iban && !ibanValido(iban)) return json({ errore: 'IBAN non valido.' }, 400);
+        if (!iban) return json({ errore: "Scrivi l'IBAN da cui paghi il piano." }, 400);
+        if (!ibanValido(iban)) return json({ errore: 'IBAN non valido.' }, 400);
         await db.from('centri').update({ iban }).eq('id', c.id);
         return json(await vedi({ ...c, iban }));
       }
