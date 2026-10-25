@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Share } from 'react-native';
 
 import { CentreQr } from '@/components/centre-qr';
 import { Badge, Body, Button, Card, ErrorText, Field, Muted, Row } from '@/components/ui';
@@ -9,6 +8,7 @@ import { t } from '@/lib/i18n';
 import { licensingEnabled, longer, readLicense } from '@/lib/license';
 import { useLicense } from '@/lib/license-gate';
 import { planOf } from '@/lib/plans';
+import { shareText } from '@/lib/share';
 import { errorText, supabase } from '@/lib/supabase';
 
 const read = () => {
@@ -58,6 +58,13 @@ export function LicensePanel() {
   // Il link (e il QR code) per i clienti: quello del gestore apre l'app o porta a scaricarla; senza gestore il link
   // apre direttamente l'app, se c'è già.
   const link = auto ? inviteLink(license.id) : `campocaniapp://attiva?codice=${encodeURIComponent(read())}`;
+  const invite = auto
+    ? t("Scarica l'app K9 Manager e attivala per {campo} con questo link: {link} (oppure scrivi il codice del centro {codice})", {
+        campo: license.campo,
+        link,
+        codice: license.id,
+      })
+    : t("Scarica l'app K9 Manager e attivala per {campo} con questo link: {link}", { campo: license.campo, link });
 
   async function renew() {
     setErr('');
@@ -113,22 +120,7 @@ export function LicensePanel() {
               ? ` ${t('Mancano {n} giorni: chiedi il rinnovo.', { n: days })}`
               : ''}
         </Muted>
-        <Button
-          small
-          kind="ghost"
-          title={t('Manda il link di attivazione ai clienti')}
-          onPress={() =>
-            Share.share({
-              message: auto
-                ? t("Scarica l'app K9 Manager e attivala per {campo} con questo link: {link} (oppure scrivi il codice del centro {codice})", {
-                    campo: license.campo,
-                    link,
-                    codice: license.id,
-                  })
-                : t("Scarica l'app K9 Manager e attivala per {campo} con questo link: {link}", { campo: license.campo, link }),
-            })
-          }
-        />
+        <Button small kind="ghost" title={t('Manda il link di attivazione ai clienti')} onPress={() => shareText(invite).catch(() => undefined)} />
         <Field
           label={t('Nuovo codice (rinnovo o cambio piano)')}
           value={code}
@@ -142,7 +134,7 @@ export function LicensePanel() {
         {!!msg && <Muted>{msg}</Muted>}
         <Button small title={t('Usa questo codice')} onPress={renew} loading={busy} disabled={!code.trim()} />
       </Card>
-      <CentreQr campo={license.campo} link={link} code={auto ? license.id : null} />
+      <CentreQr campo={license.campo} link={link} code={auto ? license.id : null} message={invite} />
     </>
   );
 }

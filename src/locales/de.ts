@@ -829,12 +829,21 @@ const dict: Record<string, string> = {
   "Prenota le lezioni con l'app K9 Manager": 'Buche deine Stunden mit der App K9 Manager',
   "Inquadra il codice con la fotocamera del telefono: si apre l'app già collegata al centro. Se non hai ancora l'app ti porta a scaricarla: poi inquadralo di nuovo.": 'Scanne den Code mit der Handykamera: Die App öffnet sich schon mit dem Zentrum verbunden. Wenn du die App noch nicht hast, kommst du zum Download: danach scanne ihn noch einmal.',
   'QR code per i clienti': 'QR-Code für Kunden',
-  "Appendilo al campo o mostralo dal telefono: chi lo inquadra apre l'app già collegata al tuo centro. Se non ha ancora l'app lo porta a scaricarla, poi basta inquadrarlo di nuovo.": 'Häng ihn am Platz auf oder zeig ihn auf dem Handy: Wer ihn scannt, öffnet die App schon mit deinem Zentrum verbunden. Wer die App noch nicht hat, kommt zum Download und scannt ihn danach einfach noch einmal.',
   'QR code del centro {campo}': 'QR-Code von {campo}',
   'Codice del centro: {codice}': 'Code des Zentrums: {codice}',
   'Stampa il QR code': 'QR-Code drucken',
   'Togli {campo}': '{campo} entfernen',
   '+ Aggiungi un centro': '+ Zentrum hinzufügen',
+  "Appendilo al campo, mandalo su WhatsApp o pubblicalo sui social: chi lo inquadra apre l'app già collegata al tuo centro. Se non ha ancora l'app lo porta a scaricarla, poi basta inquadrarlo di nuovo.": "Häng ihn am Platz auf, schick ihn per WhatsApp oder teile ihn in den sozialen Netzwerken: Wer ihn scannt, öffnet die App bereits mit deinem Zentrum verbunden. Wer die App noch nicht hat, wird zum Download geleitet und scannt ihn danach einfach erneut.",
+  "Inquadralo con la fotocamera del telefono": "Scanne ihn mit der Handykamera",
+  "Condividi (WhatsApp, social...)": "Teilen (WhatsApp, soziale Netzwerke...)",
+  "Manda su WhatsApp": "Per WhatsApp senden",
+  "Copia l'immagine": "Bild kopieren",
+  "Immagine copiata: incollala con Ctrl+V in WhatsApp, in una mail o in un post.": "Bild kopiert: füge es mit Strg+V in WhatsApp, eine E-Mail oder einen Beitrag ein.",
+  "Copia il link": "Link kopieren",
+  "Messaggio con il link copiato: incollalo dove vuoi.": "Nachricht mit dem Link kopiert: füge sie ein, wo du willst.",
+  "Salva l'immagine": "Bild speichern",
+  "Su WhatsApp parte il messaggio con il link; per mandare anche l'immagine copiala e incollala nella chat.": "Per WhatsApp geht die Nachricht mit dem Link raus; um auch das Bild zu senden, kopiere es und füge es in den Chat ein.",
 };
 
 export default dict;

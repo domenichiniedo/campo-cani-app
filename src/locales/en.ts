@@ -829,12 +829,21 @@ const dict: Record<string, string> = {
   "Prenota le lezioni con l'app K9 Manager": 'Book your lessons with the K9 Manager app',
   "Inquadra il codice con la fotocamera del telefono: si apre l'app già collegata al centro. Se non hai ancora l'app ti porta a scaricarla: poi inquadralo di nuovo.": "Scan the code with your phone camera: the app opens already connected to the centre. If you don't have the app yet it takes you to download it: then scan it again.",
   'QR code per i clienti': 'QR code for clients',
-  "Appendilo al campo o mostralo dal telefono: chi lo inquadra apre l'app già collegata al tuo centro. Se non ha ancora l'app lo porta a scaricarla, poi basta inquadrarlo di nuovo.": "Hang it at the field or show it on your phone: whoever scans it opens the app already connected to your centre. If they don't have the app yet it takes them to download it, then they just scan it again.",
   'QR code del centro {campo}': 'QR code of {campo}',
   'Codice del centro: {codice}': 'Centre code: {codice}',
   'Stampa il QR code': 'Print the QR code',
   'Togli {campo}': 'Remove {campo}',
   '+ Aggiungi un centro': '+ Add a centre',
+  "Appendilo al campo, mandalo su WhatsApp o pubblicalo sui social: chi lo inquadra apre l'app già collegata al tuo centro. Se non ha ancora l'app lo porta a scaricarla, poi basta inquadrarlo di nuovo.": "Hang it at the field, send it on WhatsApp or post it on social media: whoever scans it opens the app already linked to your centre. If they don't have the app yet it takes them to download it, then they just scan it again.",
+  "Inquadralo con la fotocamera del telefono": "Scan it with your phone camera",
+  "Condividi (WhatsApp, social...)": "Share (WhatsApp, social...)",
+  "Manda su WhatsApp": "Send on WhatsApp",
+  "Copia l'immagine": "Copy image",
+  "Immagine copiata: incollala con Ctrl+V in WhatsApp, in una mail o in un post.": "Image copied: paste it with Ctrl+V into WhatsApp, an email or a post.",
+  "Copia il link": "Copy link",
+  "Messaggio con il link copiato: incollalo dove vuoi.": "Message with the link copied: paste it wherever you like.",
+  "Salva l'immagine": "Save image",
+  "Su WhatsApp parte il messaggio con il link; per mandare anche l'immagine copiala e incollala nella chat.": "WhatsApp sends the message with the link; to send the image too, copy it and paste it into the chat.",
 };
 
 export default dict;
