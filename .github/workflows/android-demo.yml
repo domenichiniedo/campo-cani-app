@@ -16,6 +16,12 @@ on:
         description: Prova del piano Pro che dura 3 giorni
         type: boolean
         default: false
+  # La usa anche "Aggiorna le app", a ogni PR unita.
+  workflow_call:
+    inputs:
+      prova:
+        type: boolean
+        default: false
   pull_request:
     paths: ['mobile-demo/**', 'desktop/demo/**', '.github/workflows/android-demo.yml']
 
