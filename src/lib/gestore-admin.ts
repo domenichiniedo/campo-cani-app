@@ -78,6 +78,14 @@ export type Bank = {
 /** Un bonifico in entrata con "K9" o di un centro che non paga nessun addebito: da abbinare a mano. */
 export type Movement = { id: string; data: string; importo_cents: number; iban: string; nome: string; causale: string; centro: string | null };
 
+/** Un file da scaricare in una Release di GitHub. */
+export type ReleaseFile = { nome: string; url: string; mb: number; scaricato: number; data: string };
+export type Release = { tag: string; titolo: string; data: string; note: string; file: ReleaseFile[] };
+/** Una build di GitHub Actions: stato queued/in_progress/completed, esito success/failure/cancelled. */
+export type BuildRun = { id: number; nome: string; stato: string; esito: string | null; quando: string; url: string; titolo: string };
+/** Le app su GitHub; abilitato = c'è il token di GitHub sul gestore. */
+export type AppVersions = { abilitato: boolean; rilasci: Release[]; build: BuildRun[]; lanci: { id: string; titolo: string }[] };
+
 export type AdminData = { oggi: string; centri: AdminCentre[]; addebiti: Charge[]; piani: PlanRow[]; banca: Bank; movimenti: Movement[] };
 
 // Accesso: nella demo basta una qualsiasi email e password.

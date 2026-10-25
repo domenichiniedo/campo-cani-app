@@ -1,5 +1,5 @@
 import type { CentreBilling } from '@/lib/billing';
-import type { AdminCentre, AdminData, Charge, PlanRow } from '@/lib/gestore-admin';
+import type { AdminCentre, AdminData, AppVersions, BuildRun, Charge, PlanRow } from '@/lib/gestore-admin';
 
 // Demo del pannello K9 Gestore: centri e addebiti finti, tutto nel dispositivo, senza server.
 // Le azioni (piano, prezzi, IBAN, rinnovo, sospensione...) cambiano i dati finti finché la pagina resta aperta.
@@ -149,7 +149,53 @@ function build(): AdminData {
   };
 }
 
+const REPO = 'https://github.com/domenichiniedo/campo-cani-app';
+const LANCI = [
+  { id: 'tutte', titolo: 'Tutte le app: demo e prova, Android e Windows' },
+  { id: 'demo-mac', titolo: 'Demo per Mac' },
+  { id: 'demo-web', titolo: 'Demo web per iPhone' },
+  { id: 'pannello', titolo: 'Demo del pannello K9 Gestore' },
+];
+
+/** Releases e build finte, come le mostra GitHub. */
+function versions(): AppVersions {
+  const ago = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
+  const file = (tag: string, nome: string, mb: number, scaricato: number, h: number) => ({
+    nome,
+    url: `${REPO}/releases/download/${tag}/${nome}`,
+    mb,
+    scaricato,
+    data: ago(h),
+  });
+  const run = (id: number, nome: string, h: number, esito: string | null, titolo: string): BuildRun => ({
+    id,
+    nome,
+    stato: esito ? 'completed' : 'in_progress',
+    esito,
+    quando: ago(h),
+    url: `${REPO}/actions/runs/${id}`,
+    titolo,
+  });
+  return {
+    abilitato: true,
+    lanci: LANCI,
+    build: [
+      run(9, 'Aggiorna le app', 0.2, null, 'Merge pull request #54'),
+      run(8, 'Prova con database', 26, 'success', 'Prova con database'),
+      run(7, 'Aggiorna le app', 50, 'success', 'Merge pull request #53'),
+      run(6, 'Demo per Mac', 75, 'failure', 'Demo per Mac'),
+    ],
+    rilasci: [
+      { tag: 'demo-android', titolo: 'Demo per Android', data: ago(50), note: '', file: [file('demo-android', 'K9Manager-Demo.apk', 9.4, 128, 50), file('demo-android', 'K9Manager-Demo.aab', 8.1, 3, 50)] },
+      { tag: 'demo-windows', titolo: 'Demo per Windows', data: ago(50), note: '', file: [file('demo-windows', 'K9Manager-Windows-Demo.exe', 92.3, 41, 50)] },
+      { tag: 'prova-jnysclqgutqetrxitlez', titolo: 'Prova di K9 Manager – jnysclqgutqetrxitlez', data: ago(26), note: '', file: [file('prova-jnysclqgutqetrxitlez', 'K9Manager-Prova.apk', 9.5, 17, 26), file('prova-jnysclqgutqetrxitlez', 'K9Manager-Prova-Windows.exe', 92.4, 6, 26)] },
+      { tag: 'demo-mac', titolo: 'Demo per Mac', data: ago(300), note: '', file: [file('demo-mac', 'K9Manager-Mac-Demo.dmg', 118.0, 9, 300)] },
+    ],
+  };
+}
+
 let data: AdminData | null = null;
+let ver: AppVersions | null = null;
 
 export async function demoCall<T>(azione: string, b: Record<string, unknown>): Promise<T> {
   data ??= build();
@@ -212,6 +258,17 @@ export async function demoCall<T>(azione: string, b: Record<string, unknown>): P
         d.addebiti = d.addebiti.map((x) => (x.id === a.id ? { ...x, stato: 'pagato', errore: '', pagato_il: dayKey(today) } : x));
         d.centri = d.centri.map((x) => (x.id === a.centro ? { ...x, scade: dayThree(today, 1) } : x));
       }
+      break;
+    }
+    case 'versioni':
+      ver ??= versions();
+      return structuredClone(ver) as T;
+    case 'lancia': {
+      // Nella demo la build compare fra quelle in corso, ma non parte davvero.
+      if (b.quale === 'prova' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(b.email ?? ''))) throw new Error("Scrivi l'email del proprietario della prova.");
+      ver ??= versions();
+      const nome = b.quale === 'prova' ? 'Prova con database' : (LANCI.find((l) => l.id === b.quale)?.titolo ?? String(b.quale));
+      ver.build.unshift({ id: Date.now(), nome, stato: 'queued', esito: null, quando: new Date().toISOString(), url: `${REPO}/actions`, titolo: nome });
       break;
     }
     case 'addebita': {

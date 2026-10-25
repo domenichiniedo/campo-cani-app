@@ -19,6 +19,7 @@ import {
   onAdminAuth,
   type AdminCentre,
   type AdminData,
+  type AppVersions,
   type Bank,
   type Charge,
   type Movement,
@@ -26,6 +27,7 @@ import {
 } from '@/lib/gestore-admin';
 import { centreBillingError, centreBillingLines, cleanCentreBilling, type CentreBilling } from '@/lib/billing';
 import { sameOr, useWhenActive } from '@/lib/refresh';
+import { copyText } from '@/lib/share';
 import { useColors } from '@/lib/theme';
 import { formatIban, isValidIban, normalizeIban } from '@/lib/transfer';
 
@@ -133,7 +135,7 @@ function Login() {
 /** Addebiti non ancora pagati: mandati e in attesa, scaduti, o da rifare per un errore. */
 const owed = (charges: Charge[]) => charges.filter((a) => a.stato === 'inviato' || a.stato === 'non_pagato' || (a.stato === 'da_fare' && !!a.errore));
 
-type Section = 'centri' | 'statistiche' | 'banca' | 'piani';
+type Section = 'centri' | 'statistiche' | 'banca' | 'piani' | 'app';
 
 function Dashboard() {
   const c = useColors();
@@ -208,6 +210,7 @@ function Dashboard() {
     { value: 'statistiche', label: 'Statistiche', icon: '▦' },
     { value: 'banca', label: 'Banca e bonifici', icon: '€', count: d.movimenti.length },
     { value: 'piani', label: 'Piani e addebiti', icon: '⚙' },
+    { value: 'app', label: 'App e versioni', icon: '⇩' },
   ];
   const title = sections.find((s) => s.value === section)!.label;
 
@@ -275,6 +278,8 @@ function Dashboard() {
           {!d.movimenti.length && <Muted>Nessun bonifico da abbinare: quelli arrivati sono già tutti collegati a un addebito.</Muted>}
         </>
       )}
+
+      {section === 'app' && <VersionsSection />}
 
       {section === 'piani' && (
         <>
@@ -348,6 +353,151 @@ function PanelMenu({
         <Text style={{ color: SOFT, fontSize: 15, fontWeight: '600' }}>Esci</Text>
       </Pressable>
     </View>
+  );
+}
+
+const quando = (iso: string) => {
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
+/** Le app su GitHub: rifarle, seguire le build e scaricare i file delle Releases. */
+function VersionsSection() {
+  const c = useColors();
+  const [v, setV] = useState<AppVersions | null>(null);
+  const [err, setErr] = useState('');
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState('');
+  const [campo, setCampo] = useState('');
+  const [email, setEmail] = useState('');
+  const [giorni, setGiorni] = useState('30');
+
+  const load = useCallback(
+    () =>
+      adminCall<AppVersions>('versioni')
+        .then((x) => {
+          setV(x);
+          setErr('');
+        })
+        .catch((e: Error) => setErr(e.message)),
+    [],
+  );
+  useEffect(() => {
+    load();
+  }, [load]);
+  // Le build cambiano in fretta: si ricontrolla ogni 30 secondi.
+  useWhenActive(load, 30_000);
+
+  async function start(quale: string, body: object = {}) {
+    setErr('');
+    setMsg('');
+    setBusy(quale);
+    try {
+      await adminCall('lancia', { quale, ...body });
+      setMsg('Build partita: la vedi qui sotto. Quando finisce i file nuovi sono nelle Releases.');
+      load();
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+    setBusy('');
+  }
+
+  if (!v) return err ? <ErrorText>{err}</ErrorText> : <Muted>Carico le versioni…</Muted>;
+  if (!v.abilitato) {
+    return (
+      <Card>
+        <Body bold>Collega GitHub al gestore</Body>
+        <Muted>
+          Per vedere e rifare le app da qui serve un token di GitHub sul gestore: su github.com → Settings → Developer settings → Fine-grained tokens
+          creane uno solo per il repository dell&apos;app, con i permessi Actions (lettura e scrittura) e Contents (lettura). Poi salvalo nei segreti del
+          gestore con il nome GITHUB_TOKEN (gestore/README.md, passo 3). Non scriverlo in chat né nel codice.
+        </Muted>
+      </Card>
+    );
+  }
+
+  const dot = (b: AppVersions['build'][number]) =>
+    b.stato !== 'completed' ? c.brass : b.esito === 'success' ? '#2e9e5b' : b.esito === 'failure' ? '#d0453a' : c.muted;
+  const esito = (b: AppVersions['build'][number]) =>
+    b.stato === 'queued' ? 'in coda' : b.stato !== 'completed' ? 'in corso' : b.esito === 'success' ? 'riuscita' : b.esito === 'failure' ? 'non riuscita' : 'annullata';
+
+  return (
+    <>
+      <Step title="Rifai le app" />
+      <Card>
+        <Muted style={{ fontSize: 13 }}>
+          Ogni modifica unita su GitHub rifà già da sola demo e prova per Android e Windows. Qui le rifai quando vuoi, senza aspettare.
+        </Muted>
+        <Row>
+          {v.lanci.map((l) => (
+            <Button key={l.id} small kind={l.id === 'tutte' ? 'primary' : 'ghost'} title={l.titolo} onPress={() => start(l.id)} loading={busy === l.id} disabled={!!busy} />
+          ))}
+        </Row>
+        <Body bold>Nuova prova con database</Body>
+        <Muted style={{ fontSize: 13 }}>
+          Crea un database nuovo per la prova e costruisce APK e programma per Windows collegati a quello. Il proprietario si iscrive dall&apos;app con questa
+          email ed entra come proprietario.
+        </Muted>
+        <Row>
+          <Field label="Nome del centro" value={campo} onChangeText={setCampo} placeholder="Centro di prova" style={{ flex: 2, minWidth: 180 }} />
+          <Field label="Email del proprietario" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" style={{ flex: 2, minWidth: 200 }} />
+          <Field label="Giorni" value={giorni} onChangeText={setGiorni} keyboardType="number-pad" style={{ width: 90 }} />
+        </Row>
+        <Button
+          small
+          title="Crea la prova"
+          onPress={() => start('prova', { campo, email, giorni: Number(giorni) })}
+          loading={busy === 'prova'}
+          disabled={!!busy || !email.includes('@')}
+        />
+        <ErrorText>{err}</ErrorText>
+        {!!msg && <Muted>{msg}</Muted>}
+      </Card>
+
+      <Step title="Ultime build" />
+      <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.line, borderRadius: 8, overflow: 'hidden' }}>
+        {v.build.map((b, i) => (
+          <Row key={b.id} style={{ paddingVertical: 10, paddingHorizontal: 14, gap: 12, borderTopWidth: i ? 1 : 0, borderTopColor: c.line, flexWrap: 'nowrap' }}>
+            <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: dot(b) }} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Body bold>{b.nome}</Body>
+              <Muted style={{ fontSize: 13 }}>
+                {quando(b.quando)} · {esito(b)}
+                {b.titolo && b.titolo !== b.nome ? ` · ${b.titolo}` : ''}
+              </Muted>
+            </View>
+            <Button small kind="ghost" title="Apri" onPress={() => Linking.openURL(b.url)} />
+          </Row>
+        ))}
+        {!v.build.length && <Muted style={{ padding: 14 }}>Nessuna build recente.</Muted>}
+      </View>
+
+      <Step title="Da scaricare" />
+      {v.rilasci.map((r) => (
+        <Card key={r.tag}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Body bold>{r.titolo}</Body>
+            <Muted style={{ fontSize: 13 }}>aggiornata il {quando(r.data)}</Muted>
+          </Row>
+          {r.file.map((f) => (
+            <Row key={f.nome} style={{ justifyContent: 'space-between' }}>
+              <View style={{ flexShrink: 1 }}>
+                <Body>{f.nome}</Body>
+                <Muted style={{ fontSize: 13 }}>
+                  {f.mb} MB · scaricato {f.scaricato === 1 ? '1 volta' : `${f.scaricato} volte`} · {quando(f.data)}
+                </Muted>
+              </View>
+              <Row>
+                <Button small kind="ghost" title="Copia link" onPress={() => copyText(f.url).then(() => setMsg(`Link di ${f.nome} copiato.`))} />
+                <Button small title="Scarica" onPress={() => Linking.openURL(f.url)} />
+              </Row>
+            </Row>
+          ))}
+          {!r.file.length && <Muted style={{ fontSize: 13 }}>Ancora nessun file.</Muted>}
+        </Card>
+      ))}
+      {!v.rilasci.length && <Muted>Nessuna Release.</Muted>}
+    </>
   );
 }
 

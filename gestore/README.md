@@ -77,6 +77,7 @@ in chat, nell'app o su GitHub.
    AMMINISTRATORI=tua@email.it         # chi entra nel pannello (separati da virgola)
    ENABLE_BANKING_APP_ID=...           # dal passo 5: l'id dell'applicazione Enable Banking
    ENABLE_BANKING_CHIAVE="-----BEGIN PRIVATE KEY-----\n..."   # dal passo 5: la chiave .pem, su una riga con \n
+   GITHUB_TOKEN=github_pat_...         # facoltativo: le app su GitHub dal pannello (App e versioni), vedi sotto
    ```
 
    Servono anche, sempre: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` (le email con il codice che
@@ -94,6 +95,12 @@ in chat, nell'app o su GitHub.
 
    SMTP, Twilio e Google valgono per i centri preparati dopo averli messi: a un centro già pronto si aggiungono a mano
    da Supabase, come spiega il README principale (Email e Accesso con Google).
+
+   `GITHUB_TOKEN` accende nel pannello la sezione **App e versioni**: i file delle Releases da scaricare, le ultime
+   build e i pulsanti per rifare le app e creare una prova nuova. Su github.com → Settings → Developer settings →
+   Personal access tokens → Fine-grained tokens creane uno con accesso **solo** al repository dell'app e i permessi
+   Actions (Read and write) e Contents (Read-only). Se il repository non è `domenichiniedo/campo-cani-app`, aggiungi
+   `GITHUB_REPO=proprietario/nome`.
 
    Il token di Supabase può creare progetti sul tuo account: tienilo solo qui. Ogni centro è un progetto,
    e oltre i 2 progetti gratuiti Supabase chiede il piano a pagamento.
@@ -148,8 +155,9 @@ in chat, nell'app o su GitHub.
    Variables di GitHub metti `GOOGLE_DESKTOP_CLIENT_ID` e `GOOGLE_DESKTOP_SECRET` prima di costruire il pannello.
    Entra chiunque abbia un account Google, ma il pannello risponde solo alle email in `AMMINISTRATORI`.
 
-9. **I prezzi.** Nel pannello, sezione **Piani**: canone al mese e quota per prenotazione di Base, Professional e
-   Pro. All'inizio sono 0 € di canone e 1 € a prenotazione per tutti. Per un centro solo puoi farne di apposta.
+9. **I prezzi.** Nel pannello, sezione **Piani e addebiti**: canone al mese e quota per prenotazione di Base,
+   Professional e Pro. `0004_prezzi.sql` mette quelli di partenza: Base 5,90 € al mese + 1 €, Professional 29,99 € +
+   0,60 €, Pro 80 € + 0,30 € a prenotazione. Per un centro solo puoi farne di apposta (Centri → il centro → Modifica).
 
 ## Prove
 

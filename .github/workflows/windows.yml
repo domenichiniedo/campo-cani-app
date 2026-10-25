@@ -31,14 +31,18 @@ on:
       giorni:
         description: Prova - giorni di prova (0 = senza scadenza)
         default: '0'
+  # La usano "Prova con database" (la prova) e "Aggiorna le app" (demo e prova, a ogni PR unita).
   workflow_call:
     inputs:
+      demo:
+        type: boolean
+        default: false
       supabase_url:
         type: string
-        required: true
+        default: ''
       supabase_key:
         type: string
-        required: true
+        default: ''
       giorni:
         type: string
         default: '3'

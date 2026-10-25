@@ -8,6 +8,7 @@ import { controllaBonifici, segnaPagati } from '../_shared/bonifici.ts';
 import { db, env, funzione, json, messaggio, oggi, preflight, type Centro } from '../_shared/comune.ts';
 import { ibanValido, piuGiorni, type Piano } from '../_shared/costi.ts';
 import { CAMPI_FATTURA, leggiFatturazione } from '../_shared/fatturazione.ts';
+import { githubSpento, lancia, LANCI, versioni, type Lancio } from '../_shared/github.ts';
 
 const PIANI: Piano[] = ['base', 'professional', 'pro'];
 
@@ -166,6 +167,16 @@ Deno.serve(async (req) => {
         if (a) await segnaPagati(a.centro, [b.addebito]);
         return json({ fatto: true });
       }
+      case 'versioni': {
+        // Le app nelle Releases di GitHub e le ultime build.
+        const lanci = Object.entries(LANCI).map(([id, l]) => ({ id, titolo: l.titolo }));
+        if (githubSpento()) return json({ abilitato: false, rilasci: [], build: [], lanci });
+        return json({ abilitato: true, ...(await versioni()), lanci });
+      }
+      case 'lancia':
+        if (githubSpento()) throw new Error('Manca il segreto GITHUB_TOKEN sul gestore (vedi gestore/README.md).');
+        await lancia(b.quale as Lancio, b);
+        return json({ fatto: true });
       case 'addebita': {
         const r = await fetch(funzione('addebito-mensile'), {
           method: 'POST',
