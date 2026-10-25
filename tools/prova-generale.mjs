@@ -13,7 +13,8 @@
 //   4. la prima volta crea la chiave del server per le licenze: la privata va solo nei segreti del gestore, la
 //      pubblica resta nel suo database (tabella chiave_server) per le build dell'app;
 //   5. scrive i segreti delle funzioni: TOKEN_SUPABASE, WEBHOOK_SECRET (nuovo a ogni giro), AMMINISTRATORI, PROVA=1
-//      (i centri si preparano senza SMTP e Twilio) e APP_ANDROID_ID dell'app della prova;
+//      (i centri si preparano senza SMTP e Twilio) e APP_ANDROID_ID dell'app della prova; con GESTORE_GITHUB_TOKEN
+//      (secret del repository) anche GITHUB_TOKEN e GITHUB_REPO, per la sezione "App e versioni" del pannello;
 //   6. un IBAN di prova per i bonifici, se non ne hai messo uno dal pannello, e gli orari di pg_cron;
 //   7. il tuo utente per il pannello (--email): la password, nuova, solo nel riepilogo del workflow.
 // Le funzioni le carica poi il workflow (npx supabase functions deploy).
@@ -164,6 +165,12 @@ await api('POST', `/projects/${ref}/secrets`, [
   { name: 'PROVA', value: '1' },
   { name: 'APP_ANDROID_ID', value: APP_PROVA },
   ...(admin ? [{ name: 'AMMINISTRATORI', value: admin }] : []),
+  ...(process.env.GESTORE_GITHUB_TOKEN
+    ? [
+        { name: 'GITHUB_TOKEN', value: process.env.GESTORE_GITHUB_TOKEN },
+        { name: 'GITHUB_REPO', value: process.env.GITHUB_REPOSITORY || 'domenichiniedo/campo-cani-app' },
+      ]
+    : []),
 ]);
 
 // 6. IBAN di prova e orari.

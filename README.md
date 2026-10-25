@@ -489,7 +489,12 @@ La prova in pratica:
 È una prova: chi si iscrive entra subito, senza codice per email né SMS, e i bonifici non si leggono dalla banca (l'IBAN
 che vedono i centri è d'esempio, lo cambi dal pannello). Il piano gratuito di Supabase tiene due progetti attivi, il
 gestore e il centro: per questo il workflow mette in pausa la prova del punto 11, che si riaccende da supabase.com con i
-suoi dati. Per registrare un secondo centro cancella prima su supabase.com il progetto del primo. Dopo ogni PR unita la
+suoi dati. Per registrare un secondo centro cancella prima su supabase.com il progetto del primo.
+
+Per la sezione **App e versioni** del pannello (le app da scaricare e i pulsanti per rifarle) crea su github.com →
+Settings → Developer settings → Fine-grained tokens un token solo per questo repository, con i permessi Actions (Read and
+write) e Contents (Read-only), salvalo nei secrets del repository come `GESTORE_GITHUB_TOKEN` e rilancia la prova
+generale: lo copia lei nel gestore. Dopo ogni PR unita la
 prova generale si aggiorna da sola. Il gestore vero, per i centri veri, si accende come dice `gestore/README.md`.
 
 ## Cosa fa l'app

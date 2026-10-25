@@ -575,7 +575,8 @@ function VersionsSection() {
         <Muted>
           Per vedere e rifare le app da qui serve un token di GitHub sul gestore: su github.com → Settings → Developer settings → Fine-grained tokens
           creane uno solo per il repository dell&apos;app, con i permessi Actions (lettura e scrittura) e Contents (lettura). Poi salvalo nei segreti del
-          gestore con il nome GITHUB_TOKEN (gestore/README.md, passo 3). Non scriverlo in chat né nel codice.
+          gestore con il nome GITHUB_TOKEN (gestore/README.md, passo 3). Con la prova generale basta salvarlo su GitHub, in Settings → Secrets and
+          variables → Actions, con il nome GESTORE_GITHUB_TOKEN, e rilanciare Actions → Prova generale. Non scriverlo in chat né nel codice.
         </Muted>
       </Card>
     );
