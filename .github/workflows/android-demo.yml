@@ -1,4 +1,5 @@
-# Costruisce la demo da installare sui telefoni Android (K9Manager-Demo.apk): l'app vera con i dati
+# Costruisce la demo da installare sui telefoni Android (K9Manager-Demo.apk) e da caricare su Google Play
+# (K9Manager-Demo.aab, vedi README "Google Play"): l'app vera con i dati
 # di esempio, senza database, con il bottone "Demo" per entrare come proprietario, cliente o trainer.
 # Si scarica dal telefono da GitHub → Releases → "Demo per Android" (file K9Manager-Demo.apk),
 # oppure da Actions → "Demo per Android" → l'ultima esecuzione → Artifacts.
@@ -34,6 +35,7 @@ jobs:
     env:
       DEMO_PROVA_GIORNI: ${{ inputs.prova && '3' || '' }}
       APK: ${{ inputs.prova && 'K9Manager-Prova.apk' || 'K9Manager-Demo.apk' }}
+      AAB: ${{ inputs.prova && 'K9Manager-Prova.aab' || 'K9Manager-Demo.aab' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -57,52 +59,26 @@ jobs:
           cat capacitor.config.json
       - run: npx cap add android
         working-directory: mobile-demo
-      # Da Android 15 l'app andrebbe sotto la barra di stato e i tasti in basso, che coprirebbero le schede:
-      # si tiene il layout classico, con l'app fra le due barre.
-      - name: Schermo fra le barre di sistema
-        working-directory: mobile-demo/android/app/src/main/res/values
+      # Chiave di caricamento di Google Play, dai secrets (vedi README, "Google Play"). Senza, l'AAB non si pubblica.
+      - name: Chiave di caricamento di Google Play
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
         run: |
-          sed -i 's#<style name="AppTheme.NoActionBar"[^>]*>#&\n        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>#' styles.xml
-          grep -q windowOptOutEdgeToEdgeEnforcement styles.xml
-          cat styles.xml
-      # Icona dell'app: quella di K9 Manager al posto di quella di Capacitor.
-      - name: Icona
-        working-directory: mobile-demo/android/app/src/main/res
-        run: |
-          rm -rf mipmap-anydpi-v26
-          for d in mipmap-*; do
-            cp ../../../../../../assets/images/icon.png "$d/ic_launcher.png"
-            cp ../../../../../../assets/images/icon.png "$d/ic_launcher_round.png"
-            rm -f "$d/ic_launcher_foreground.png"
-          done
-      - run: npx cap sync android
+          if [ -z "$KEYSTORE" ]; then echo "Nessuna chiave di caricamento: l'AAB resta solo di prova."; exit 0; fi
+          echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          {
+            echo "UPLOAD_KEYSTORE=$RUNNER_TEMP/upload.jks"
+            echo "UPLOAD_STORE_PASSWORD=$STORE_PASSWORD"
+            echo "UPLOAD_KEY_ALIAS=$KEY_ALIAS"
+            echo "UPLOAD_KEY_PASSWORD=${KEY_PASSWORD:-$STORE_PASSWORD}"
+          } >> "$GITHUB_ENV"
+      # Build di rilascio come la vuole Google Play (API 36, 16 KB, versione che cresce), con i controlli:
+      # vedi mobile-demo/android-build.sh.
+      - run: ./android-build.sh
         working-directory: mobile-demo
-      # Sempre la stessa firma (chiave solo per la demo) e un numero di versione che cresce: così il telefono
-      # installa la demo nuova sopra quella vecchia invece di rifiutarla ("pacchetto in conflitto").
-      # La chiave si indica a Gradle: copiata in ~/.android non veniva usata e ogni APK aveva una firma nuova.
-      - name: Firma e versione della demo
-        run: |
-          # I minuti dal 1970: crescono sempre, chiunque lanci la build. Con il numero dell'esecuzione no:
-          # lanciata da "Aggiorna le app" valeva il suo numero (più basso) e il telefono rifiutava l'aggiornamento.
-          sed -i "s/versionCode [0-9]*/versionCode $(( $(date +%s) / 60 ))/" mobile-demo/android/app/build.gradle
-          cat >> mobile-demo/android/app/build.gradle <<'GRADLE'
-
-          android.signingConfigs.debug.storeFile = rootProject.file('../demo-debug.keystore')
-          android.signingConfigs.debug.storePassword = 'android'
-          android.signingConfigs.debug.keyAlias = 'androiddebugkey'
-          android.signingConfigs.debug.keyPassword = 'android'
-          GRADLE
-          grep -n "versionCode\|signingConfigs" mobile-demo/android/app/build.gradle
-      - run: ./gradlew assembleDebug
-        working-directory: mobile-demo/android
-      - name: Controllo della firma
-        run: |
-          APKSIGNER=$(ls -d $ANDROID_HOME/build-tools/*/ | sort -V | tail -1)apksigner
-          WANT=$(keytool -list -v -keystore mobile-demo/demo-debug.keystore -storepass android | grep 'SHA256:' | head -1 | sed 's/.*SHA256: //; s/://g' | tr A-F a-f)
-          GOT=$($APKSIGNER verify --print-certs mobile-demo/android/app/build/outputs/apk/debug/app-debug.apk | grep 'SHA-256 digest' | head -1 | sed 's/.*: //')
-          echo "attesa $WANT"; echo "trovata $GOT"
-          test "$WANT" = "$GOT"
-      - run: cp mobile-demo/android/app/build/outputs/apk/debug/app-debug.apk $APK
       # Lo spazio per gli artifact di GitHub ha un limite: se è pieno la build va avanti lo stesso e il file esce
       # nelle Releases (che non contano nel limite).
       - uses: actions/upload-artifact@v4
@@ -110,26 +86,31 @@ jobs:
         with:
           retention-days: 7
           name: ${{ inputs.prova && 'K9Manager-Prova-Android' || 'K9Manager-Demo-Android' }}
-          path: ${{ env.APK }}
+          path: |
+            mobile-demo/${{ env.APK }}
+            mobile-demo/${{ env.AAB }}
           if-no-files-found: error
       # Release fissa "demo-android": il link per scaricare l'APK dal telefono resta sempre lo stesso.
       # Solo le demo costruite a mano: una PR non ancora unita non deve sostituire la demo pubblicata
       # (e due PR insieme si pestavano i piedi caricando lo stesso file).
       - name: Pubblica nelle Releases
         if: ${{ github.event_name != 'pull_request' }}
+        working-directory: mobile-demo
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # L'AAB per Google Play solo se è firmato con la chiave di caricamento.
+          FILES="$APK"; [ -n "${UPLOAD_KEYSTORE:-}" ] && FILES="$APK $AAB"
           if [ -n "$DEMO_PROVA_GIORNI" ]; then
             NOTES="Prova di K9 Manager nel piano Pro, con i dati di esempio e senza pagamenti online. Scarica K9Manager-Prova.apk dal telefono e aprilo per installarlo. Dura $DEMO_PROVA_GIORNI giorni dalla prima apertura, poi l'app si blocca."
             gh release view demo-prova >/dev/null 2>&1 || gh release create demo-prova --prerelease --title "Prova Pro per Android" --notes "$NOTES"
             gh release edit demo-prova --title "Prova Pro per Android" --notes "$NOTES"
-            gh release upload demo-prova "$APK" --clobber
+            gh release upload demo-prova $FILES --clobber
             exit 0
           fi
           NOTES="Demo di K9 Manager con i dati di esempio. Scarica K9Manager-Demo.apk dal telefono e aprilo per installarlo. Se il telefono non la installa sopra una demo vecchia, disinstalla prima quella vecchia (solo la prima volta)."
           gh release view demo-android >/dev/null 2>&1 || gh release create demo-android --prerelease --title "Demo per Android" --notes "$NOTES"
           gh release edit demo-android --title "Demo per Android" --notes "$NOTES"
-          gh release upload demo-android K9Manager-Demo.apk --clobber
+          gh release upload demo-android $FILES --clobber
           # Il file col vecchio nome (prima di K9 Manager) non si aggiorna più: si toglie per non confondersi.
           gh release delete-asset demo-android CampoCani-Demo.apk -y || true

@@ -1,5 +1,5 @@
 # A ogni PR unita (push su main) rifà le due app per Android con le novità e le ripubblica nelle Releases:
-#   - la demo con i dati di esempio, i 3 piani e le 4 entrate (proprietario, cliente, trainer, nuovo cliente):
+#   - la demo con i dati di esempio, i 3 piani e le 5 entrate (proprietario, cliente, trainer, nuovo cliente, nuovo centro):
 #     Releases → "Demo per Android" (K9Manager-Demo.apk);
 #   - l'app collegata al database della prova: prima aggiunge al database le migrazioni nuove (i dati restano),
 #     poi costruisce l'APK: Releases → "Prova di K9 Manager – <progetto>" (K9Manager-Prova.apk).
@@ -27,6 +27,8 @@ env:
 jobs:
   demo:
     uses: ./.github/workflows/android-demo.yml
+    # La chiave di caricamento di Google Play, per l'AAB.
+    secrets: inherit
 
   database:
     runs-on: ubuntu-latest
@@ -46,6 +48,7 @@ jobs:
   app:
     needs: database
     uses: ./.github/workflows/android.yml
+    secrets: inherit
     with:
       supabase_url: ${{ needs.database.outputs.url }}
       supabase_key: ${{ needs.database.outputs.chiave }}

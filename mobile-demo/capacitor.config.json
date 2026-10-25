@@ -2,7 +2,17 @@
   "appId": "it.campocani.demo",
   "appName": "K9 Manager Demo",
   "webDir": "www",
-  "android": {
-    "adjustMarginsForEdgeToEdge": "auto"
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css"
+    },
+    "SocialLogin": {
+      "providers": {
+        "google": true,
+        "facebook": false,
+        "apple": false,
+        "twitter": false
+      }
+    }
   }
 }

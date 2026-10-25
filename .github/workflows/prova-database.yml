@@ -53,6 +53,8 @@ jobs:
   app:
     needs: database
     uses: ./.github/workflows/android.yml
+    # La chiave di caricamento di Google Play, per l'AAB.
+    secrets: inherit
     with:
       supabase_url: ${{ needs.database.outputs.url }}
       supabase_key: ${{ needs.database.outputs.chiave }}
