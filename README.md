@@ -125,7 +125,60 @@ Sul telefono installa **Expo Go** (App Store o Play Store) e inquadra il QR code
 
 ## 4. Pubblicare sugli store
 
-Si usa EAS, il servizio di Expo per creare le app vere:
+### Google Play
+
+Le build per Android (Actions → "Demo per Android", "App per Android", "Aggiorna le app") sono già come le vuole
+Google Play. Lo script che le fa è `mobile-demo/android-build.sh`, e la build si ferma se manca un requisito:
+
+- puntano ad **Android 16 (API 36)**, obbligatorio per le app nuove e gli aggiornamenti dal 31 agosto 2026
+  (Capacitor 8);
+- sono **build di rilascio**, non di debug;
+- sono allineate alle **pagine di memoria da 16 KB**;
+- il numero di versione cresce sempre, e il nome viene da `version` in `app.json`;
+- l'app va da bordo a bordo dello schermo (obbligatorio da Android 16) e tiene conto delle barre di sistema;
+- dell'accesso con Google c'è solo Google: nessun SDK di Facebook e nessun ID pubblicitario;
+- esce l'**AAB** (Android App Bundle), il formato da caricare su Google Play, accanto all'APK da installare a mano.
+
+Per caricare l'AAB serve la **chiave di caricamento**. È tua e non va mai in chat né nel repository: si crea una
+volta sola sul tuo computer, con Java installato:
+
+```bash
+keytool -genkeypair -v -keystore k9-upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000
+base64 -i k9-upload.jks | tr -d '\n' > k9-upload.txt     # su Windows: certutil -encode k9-upload.jks k9-upload.txt
+```
+
+Poi vai in GitHub → Settings → Secrets and variables → Actions → **Secrets** e aggiungi:
+
+- `ANDROID_UPLOAD_KEYSTORE_BASE64`: il contenuto di `k9-upload.txt` (con certutil, senza le righe BEGIN/END);
+- `ANDROID_UPLOAD_STORE_PASSWORD`: la password che hai scelto;
+- `ANDROID_UPLOAD_KEY_ALIAS`: `upload`;
+- `ANDROID_UPLOAD_KEY_PASSWORD`: la stessa password, se keytool non te ne ha chiesta un'altra.
+
+Conserva `k9-upload.jks` e la password in un posto sicuro. Da lì in poi l'AAB firmato esce nelle Releases accanto
+all'APK (K9Manager-Demo.aab, K9Manager-Prova.aab). Senza i secrets l'AAB si costruisce lo stesso, ma solo per
+controllo, e non si pubblica. L'APK resta firmato con la chiave della demo, così si installa sopra quella vecchia.
+
+Nella Play Console, per ogni app (demo `it.campocani.demo`, prova `it.campocani.provavera`, app vera
+`it.campocani.app`):
+
+1. Crea l'app e attiva la **firma delle app di Google Play**. Carica l'AAB in un test interno o chiuso.
+2. Con un account sviluppatore personale nuovo, Google chiede un **test chiuso con almeno 12 tester per 14 giorni**
+   prima della produzione.
+3. **Norme sulla privacy**: un indirizzo web con l'informativa sui dati (chi è il titolare, quali dati, per cosa).
+4. **Sicurezza dei dati**: l'app raccoglie nome, email, telefono, dati dei cani, prenotazioni e, se chiesti, dati di
+   fatturazione. Servono per far funzionare l'app, non sono condivisi per pubblicità, viaggiano cifrati e l'utente
+   può chiederne la cancellazione.
+5. **Cancellazione dell'account**: il cliente si cancella da solo dall'app (Profilo → Cancella il mio account). Per
+   la scheda di Google Play serve anche un indirizzo web dove chiedere la cancellazione.
+6. **Accesso all'app**: la prova ha bisogno di un account per entrare. Dai ai revisori di Google un utente di prova,
+   per esempio un cliente creato apposta. La demo non ne ha bisogno, perché si entra con il bottone Demo.
+7. Classificazione dei contenuti, pubblico di destinazione (adulti), nessuna pubblicità, categoria "Sport" o
+   "Produttività".
+8. Scheda dello store: icona 512×512, immagine in evidenza 1024×500, almeno 2 schermate del telefono.
+
+### Con EAS
+
+In alternativa si può usare EAS, il servizio di Expo per creare le app vere:
 
 ```bash
 npm install -g eas-cli

@@ -64,9 +64,11 @@ jobs:
             FINO=$(TZ=Europe/Rome date -d "+$GIORNI days" +%F)
             echo "EXPO_PUBLIC_PROVA_FINO=$FINO" >> $GITHUB_ENV
             echo "APK=K9Manager-Prova.apk" >> $GITHUB_ENV
+            echo "AAB=K9Manager-Prova.aab" >> $GITHUB_ENV
             echo "Prova valida fino al $FINO compreso"
           else
             echo "APK=K9Manager.apk" >> $GITHUB_ENV
+            echo "AAB=K9Manager.aab" >> $GITHUB_ENV
           fi
       - uses: actions/setup-node@v4
         with:
@@ -92,39 +94,26 @@ jobs:
           cat capacitor.config.json
       - run: npx cap add android
         working-directory: mobile-demo
-      # Come nella demo: l'app fra la barra di stato e i tasti in basso.
-      - name: Schermo fra le barre di sistema
-        working-directory: mobile-demo/android/app/src/main/res/values
+      # Chiave di caricamento di Google Play, dai secrets (vedi README, "Google Play"). Senza, l'AAB non si pubblica.
+      - name: Chiave di caricamento di Google Play
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
         run: |
-          sed -i 's#<style name="AppTheme.NoActionBar"[^>]*>#&\n        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>#' styles.xml
-          grep -q windowOptOutEdgeToEdgeEnforcement styles.xml
-      - name: Icona
-        working-directory: mobile-demo/android/app/src/main/res
-        run: |
-          rm -rf mipmap-anydpi-v26
-          for d in mipmap-*; do
-            cp ../../../../../../assets/images/icon.png "$d/ic_launcher.png"
-            cp ../../../../../../assets/images/icon.png "$d/ic_launcher_round.png"
-            rm -f "$d/ic_launcher_foreground.png"
-          done
-      - run: npx cap sync android
+          if [ -z "$KEYSTORE" ]; then echo "Nessuna chiave di caricamento: l'AAB resta solo di prova."; exit 0; fi
+          echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          {
+            echo "UPLOAD_KEYSTORE=$RUNNER_TEMP/upload.jks"
+            echo "UPLOAD_STORE_PASSWORD=$STORE_PASSWORD"
+            echo "UPLOAD_KEY_ALIAS=$KEY_ALIAS"
+            echo "UPLOAD_KEY_PASSWORD=${KEY_PASSWORD:-$STORE_PASSWORD}"
+          } >> "$GITHUB_ENV"
+      # Build di rilascio come la vuole Google Play (API 36, 16 KB, versione che cresce), con i controlli:
+      # vedi mobile-demo/android-build.sh.
+      - run: ./android-build.sh
         working-directory: mobile-demo
-      # Sempre la stessa firma e un numero di versione che cresce: la versione nuova si installa sopra la vecchia.
-      - name: Firma e versione
-        run: |
-          # I minuti dal 1970: crescono sempre, chiunque lanci la build. Con il numero dell'esecuzione no:
-          # lanciata da "Aggiorna le app" valeva il suo numero (più basso) e il telefono rifiutava l'aggiornamento.
-          sed -i "s/versionCode [0-9]*/versionCode $(( $(date +%s) / 60 ))/" mobile-demo/android/app/build.gradle
-          cat >> mobile-demo/android/app/build.gradle <<'GRADLE'
-
-          android.signingConfigs.debug.storeFile = rootProject.file('../demo-debug.keystore')
-          android.signingConfigs.debug.storePassword = 'android'
-          android.signingConfigs.debug.keyAlias = 'androiddebugkey'
-          android.signingConfigs.debug.keyPassword = 'android'
-          GRADLE
-      - run: ./gradlew assembleDebug
-        working-directory: mobile-demo/android
-      - run: cp mobile-demo/android/app/build/outputs/apk/debug/app-debug.apk $APK
       # Lo spazio per gli artifact di GitHub ha un limite: se è pieno la build va avanti lo stesso e il file esce
       # nelle Releases (che non contano nel limite).
       - uses: actions/upload-artifact@v4
@@ -132,13 +121,18 @@ jobs:
         with:
           retention-days: 7
           name: K9Manager-Android
-          path: ${{ env.APK }}
+          path: |
+            mobile-demo/${{ env.APK }}
+            mobile-demo/${{ env.AAB }}
           if-no-files-found: error
       - name: Pubblica nelle Releases
         if: ${{ github.event_name != 'pull_request' }}
+        working-directory: mobile-demo
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # L'AAB per Google Play solo se è firmato con la chiave di caricamento.
+          FILES="$APK"; [ -n "${UPLOAD_KEYSTORE:-}" ] && FILES="$APK $AAB"
           if [ -n "$EXPO_PUBLIC_PROVA_FINO" ]; then
             REF=$(echo "$EXPO_PUBLIC_SUPABASE_URL" | sed 's#https://##; s#\.supabase\.co.*##')
             TAG=prova-$REF; TITLE="Prova di K9 Manager – $REF"
@@ -153,4 +147,4 @@ jobs:
           fi
           gh release view $TAG >/dev/null 2>&1 || gh release create $TAG --prerelease --title "$TITLE" --notes "$NOTES"
           gh release edit $TAG --title "$TITLE" --notes "$NOTES"
-          gh release upload $TAG "$APK" --clobber
+          gh release upload $TAG $FILES --clobber
