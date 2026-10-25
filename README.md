@@ -520,8 +520,11 @@ aggiorna anche la prova generale. Nessuna action parte da sola a ogni commit, tr
 ## Cosa fa l'app
 
 **Cliente**
-- Iscrizione con dati, codice fiscale (o partita IVA) e indirizzo di fatturazione, uno o più cani e consenso a
-  regolamento e privacy. Il codice fiscale viene controllato. Chi era iscritto prima completa i dati al primo accesso.
+- Iscrizione con un modulo corto: nome, cognome, telefono, email, password, nome del cane e un solo consenso a
+  regolamento e privacy. Del cane anche sesso, sterilizzazione, microchip (consigliato) e una nota su obiettivi e
+  situazione attuale. Il cliente sceglie se è una persona (solo scontrino) o un'associazione/società (scontrino o
+  fattura, con i dati della società). Foto, altri cani e consenso social sono facoltativi. Passo passo:
+  [docs/MANUALE.md](docs/MANUALE.md).
 - Prenota: cane, lezione e opzione (IGP: Pista, Obbedienza, Attacco; Educazione base: Cucciolo o Adulto), campo (se ce
   n'è più di uno), giorno, ora. Vede solo le mezz'ore aperte e non già occupate su quel campo.
 - Le mie lezioni, con disdetta fino al limite di ore deciso dal campo.
@@ -599,4 +602,7 @@ src/app/(owner)     schede del proprietario
 src/app/terms.tsx   nuovo consenso quando cambiano le regole
 src/lib             collegamento a Supabase, sessione, date, colori
 supabase/migrations database e regole di accesso
+docs                manuale d'uso, manuale tecnico e studio dei costi
 ```
+
+Manuali: [d'uso](docs/MANUALE.md), [tecnico](docs/MANUALE-TECNICO.md), [studio dei costi](docs/COSTI.md).
