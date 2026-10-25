@@ -7,7 +7,8 @@ export function CentreBillingFields({ value, onChange }: { value: CentreBilling;
   const set = (patch: Partial<CentreBilling>) => onChange({ ...value, ...patch });
   return (
     <>
-      <Field label={t('Ragione sociale')} value={value.ragione_sociale} onChangeText={(v) => set({ ragione_sociale: v })} placeholder={t('Es. Asd Cinofila Le Querce')} />
+      <Muted style={{ fontSize: 13 }}>{t('Se organizzi le lezioni come privato bastano nome e cognome: gli altri dati sono facoltativi, servono solo se vuoi la fattura intestata.')}</Muted>
+      <Field label={t('Nome e cognome o ragione sociale')} value={value.ragione_sociale} onChangeText={(v) => set({ ragione_sociale: v })} placeholder={t('Es. Mario Rossi o Asd Cinofila Le Querce')} />
       <Row>
         <Field
           label={t('Partita IVA')}
@@ -27,7 +28,6 @@ export function CentreBillingFields({ value, onChange }: { value: CentreBilling;
           style={{ flex: 1, minWidth: 140 }}
         />
       </Row>
-      <Muted style={{ fontSize: 13 }}>{t("Basta uno dei due se l'altro non c'è (per esempio un'associazione senza partita IVA).")}</Muted>
       <Field label={t('Sede: via e numero')} value={value.indirizzo} onChangeText={(v) => set({ indirizzo: v })} autoComplete="street-address" />
       <Row>
         <Field label={t('CAP')} value={value.cap} onChangeText={(v) => set({ cap: v })} keyboardType="number-pad" maxLength={5} autoComplete="postal-code" style={{ width: 96 }} />
