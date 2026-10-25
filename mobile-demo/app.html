@@ -9,6 +9,27 @@ html, body { height: 100%; margin: 0; }
 body { overflow: hidden; background: #123a2b; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
 #root { display: flex; height: 100%; flex: 1; }
 </style>
+<script>
+// App Android: il link di invito di un centro (campocaniapp://attiva?codice=..., anche dal QR code) arriva dal
+// sistema. L'app lo legge come ?codice=... nell'indirizzo della pagina (license-gate.tsx): si riapre la pagina così.
+(function () {
+  var C = window.Capacitor;
+  if (window.top !== window || !C || !C.isNativePlatform || !C.isNativePlatform() || !C.nativePromise) return;
+  function go(url) {
+    var m = /[?&]codice=([^&#]+)/.exec(url || '');
+    if (!m) return;
+    var q = '?codice=' + m[1];
+    if (location.search !== q) location.replace(location.pathname + q);
+  }
+  // Il link con cui è partita l'app vale una volta sola: se la pagina si ricarica non riporta a quel centro.
+  C.nativePromise('App', 'getLaunchUrl').then(function (r) {
+    var url = r && r.url;
+    try { if (!url || sessionStorage.getItem('campo-cani-link') === url) return; sessionStorage.setItem('campo-cani-link', url); } catch (e) {}
+    go(url);
+  }, function () {});
+  if (C.addListener) C.addListener('App', 'appUrlOpen', function (e) { go(e && e.url); });
+})();
+</script>
 <script src="app.js" defer></script>
 <script src="demo-backend.js"></script>
 </head>

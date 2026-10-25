@@ -9,6 +9,12 @@ const BASE = (process.env.EXPO_PUBLIC_GESTORE_URL ?? '').replace(/\/+$/, '');
 
 export const gestoreEnabled = BASE.length > 0;
 
+/**
+ * Il link per i clienti di un centro del gestore (anche nel QR code): su Android apre l'app già sul centro, e chi
+ * non ha l'app va a scaricarla. Vedi la funzione invito del gestore.
+ */
+export const inviteLink = (codice: string) => `${BASE}/invito?codice=${encodeURIComponent(codice)}`;
+
 /** Codice del centro, quello corto da dare a clienti e trainer (K9-XXXXXX). */
 export const isCentreCode = (s: string) => /^K9-?[A-Z0-9]{6}$/i.test(s.trim());
 const centreCode = (s: string) => s.trim().toUpperCase().replace(/^K9-?/, 'K9-');
