@@ -8,6 +8,7 @@
     "scheme": "campocaniapp",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "it.campocani.app",
       "icon": "./assets/images/icon.png",
       "infoPlist": {
         "NSAppTransportSecurity": {
@@ -17,6 +18,7 @@
       }
     },
     "android": {
+      "package": "it.campocani.app",
       "adaptiveIcon": {
         "backgroundColor": "#123a2b",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

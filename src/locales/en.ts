@@ -933,6 +933,8 @@ const dict: Record<string, string> = {
   "Microchip non inserito": "No microchip entered",
   "Salva il microchip": "Save microchip",
   "microchip {n}": "microchip {n}",
+  "Pagamenti, cambio di piano e disdetta si fanno dal programma K9 Manager per computer.": "Payments, plan changes and cancellation are done from the K9 Manager program for computers.",
+  "Il tuo account viene cancellato. La tua scheda da trainer, con nome e foto, resta al centro, che può toglierla.": "Your account is deleted. Your trainer card, with name and photo, stays at the centre, which can remove it.",
 };
 
 export default dict;

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { PayNow } from '@/components/pay-now';
 import { TransferBox } from '@/components/transfer';
 import { Badge, Body, Button, Card, Chips, ErrorText, Field, Muted, Row } from '@/components/ui';
+import { storeApp } from '@/lib/edition';
 import { dayKey, euro, today } from '@/lib/format';
 import { cancelSubscription, changePlan, gestoreEnabled, keepSubscription, isCentreCode, setCentreIban, subscription, subscriptionCode, type Due, type Formula, type PlanPrice, type Subscription } from '@/lib/gestore';
 import { t } from '@/lib/i18n';
@@ -101,6 +102,24 @@ function ManualPlan() {
   );
 }
 
+/** Nell'app installata dagli store: piano e conti da pagare, senza pagamenti né cambi di piano. */
+function StorePlan({ sub }: { sub: Subscription }) {
+  const current = (sub.piano as PlanId) in PLANS ? (sub.piano as PlanId) : 'pro';
+  const due = sub.da_pagare.reduce((n, d) => n + d.importo_cents, 0);
+  return (
+    <Card>
+      <Row style={{ justifyContent: 'space-between' }}>
+        <Body bold>{t('Abbonamento')}</Body>
+        {due === 0 && <Badge tone="ok">{t('Tutto pagato')}</Badge>}
+      </Row>
+      <Body>{t('Piano {piano}', { piano: PLANS[current].label })}</Body>
+      {due > 0 && <Badge tone="warn">{t('Da pagare: {importo}', { importo: euro(due) })}</Badge>}
+      {!!sub.disdetta && <Badge tone="bad">{t('Abbonamento disdetto: il servizio finisce il {data}.', { data: date(sub.disdetta) })}</Badge>}
+      <Muted style={{ fontSize: 13 }}>{t('Pagamenti, cambio di piano e disdetta si fanno dal programma K9 Manager per computer.')}</Muted>
+    </Card>
+  );
+}
+
 /** Abbonamento del centro registrato dall'app: piano (anche da cambiare), cosa pagare e IBAN da cui paga. */
 export function SubscriptionPanel() {
   const { license, activate } = useLicense();
@@ -134,6 +153,7 @@ export function SubscriptionPanel() {
 
   if (!code) return <ManualPlan />;
   if (!sub) return err ? <ErrorText>{err}</ErrorText> : null;
+  if (storeApp) return <StorePlan sub={sub} />;
 
   const current = (sub.piano as PlanId) in PLANS ? (sub.piano as PlanId) : 'pro';
   // Il piano più piccolo già scelto, che parte dal mese prossimo.

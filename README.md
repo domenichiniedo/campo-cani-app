@@ -168,17 +168,25 @@ Nella Play Console, per ogni app (demo `it.campocani.demo`, prova `it.campocani.
 1. Crea l'app e attiva la **firma delle app di Google Play**. Carica l'AAB in un test interno o chiuso.
 2. Con un account sviluppatore personale nuovo, Google chiede un **test chiuso con almeno 12 tester per 14 giorni**
    prima della produzione.
-3. **Norme sulla privacy**: un indirizzo web con l'informativa sui dati (chi è il titolare, quali dati, per cosa).
+3. **Norme sulla privacy**: un indirizzo web con l'informativa sui dati. C'è già, nel sito della demo web:
+   `https://domenichiniedo.github.io/campo-cani-app/privacy.html` (il file è `mobile-demo/privacy.html`: prima
+   sostituisci le parti tra [quadre] con nome, indirizzo ed email tuoi). Il sito deve essere pubblico.
 4. **Sicurezza dei dati**: l'app raccoglie nome, email, telefono, dati dei cani, prenotazioni e, se chiesti, dati di
    fatturazione. Servono per far funzionare l'app, non sono condivisi per pubblicità, viaggiano cifrati e l'utente
    può chiederne la cancellazione.
-5. **Cancellazione dell'account**: il cliente si cancella da solo dall'app (Profilo → Cancella il mio account). Per
-   la scheda di Google Play serve anche un indirizzo web dove chiedere la cancellazione.
+5. **Cancellazione dell'account**: clienti e trainer si cancellano da soli dall'app (Profilo → Cancella il mio
+   account). Per la scheda di Google Play serve anche un indirizzo web dove chiedere la cancellazione:
+   `https://domenichiniedo.github.io/campo-cani-app/cancella-account.html` (`mobile-demo/cancella-account.html`).
 6. **Accesso all'app**: la prova ha bisogno di un account per entrare. Dai ai revisori di Google un utente di prova,
    per esempio un cliente creato apposta. La demo non ne ha bisogno, perché si entra con il bottone Demo.
 7. Classificazione dei contenuti, pubblico di destinazione (adulti), nessuna pubblicità, categoria "Sport" o
    "Produttività".
 8. Scheda dello store: icona 512×512, immagine in evidenza 1024×500, almeno 2 schermate del telefono.
+
+Nell'app Android (e in quella per iPhone) il proprietario vede piano e conti, ma li paga, cambia piano o disdice dal
+programma per computer: Google Play e App Store non vogliono che un servizio digitale si paghi dentro l'app senza i
+loro sistemi di pagamento. Le lezioni dei clienti invece si pagano con Nexi anche nell'app: sono servizi al campo.
+Pubblica sugli store solo l'app vera (`it.campocani.app`): demo e prova restano negli APK delle Releases.
 
 ### Con EAS
 

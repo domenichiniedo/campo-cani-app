@@ -51,6 +51,8 @@ const entry = readdirSync(js).find((f) => f.startsWith('entry-') && f.endsWith('
 cpSync(join(js, entry), join(www, 'app.js'));
 if (existsSync(join(out, 'assets'))) cpSync(join(out, 'assets'), join(www, 'assets'), { recursive: true });
 cpSync(join(root, 'assets/images/icon.png'), join(www, 'icon.png'));
+// Le pagine pubbliche per Google Play e App Store (informativa privacy e cancellazione dell'account).
+for (const f of ['privacy.html', 'cancella-account.html', 'pagina.css']) cpSync(join(import.meta.dirname, f), join(www, f));
 if (real) {
   // L'app vera si apre direttamente, senza il finto database.
   writeFileSync(join(www, 'index.html'), readFileSync(join(import.meta.dirname, 'app.html'), 'utf8').replace('<script src="demo-backend.js"></script>\n', ''));
