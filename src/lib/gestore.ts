@@ -30,9 +30,36 @@ async function call<T>(fn: string, body: object, token?: string): Promise<T> {
   return data as T;
 }
 
-/** Registra un centro nuovo: torna il suo codice e il link di Stripe per firmare il mandato SEPA. */
-export const registerCentre = (campo: string, email: string, piano: string) =>
-  call<{ codice: string; mandato: string | null }>('registra-centro', { campo, email, piano });
+/** Registra un centro nuovo (con l'IBAN da cui pagherà, se lo dà): torna il suo codice. */
+export const registerCentre = (campo: string, email: string, piano: string, iban: string) =>
+  call<{ codice: string }>('registra-centro', { campo, email, piano, iban });
+
+export type PlanPrice = { canone_cents: number; tariffa_cents: number };
+
+/** I prezzi dei piani, per chi sta per registrare un centro. */
+export const planPrices = () => call<{ piani: Partial<Record<string, PlanPrice>> }>('centro', { prezzi: true }).then((r) => r.piani);
+
+export type Due = { id: string; mese: string; prenotazioni: number; canone_cents: number; importo_cents: number; stato: 'inviato' | 'non_pagato'; causale: string; scadenza: string | null };
+
+export type Subscription = {
+  piano: string;
+  piani: Record<string, PlanPrice>;
+  iban_centro: string;
+  scade: string | null;
+  /** Il conto del gestore dove il centro paga con il bonifico istantaneo. */
+  bonifico: { iban: string; intestatario: string };
+  da_pagare: Due[];
+};
+
+/** Piano, prezzi e cosa c'è da pagare; solo il proprietario, con il suo accesso. */
+export const subscription = (codice: string, token: string) => call<Subscription>('abbonamento', { codice, azione: 'vedi' }, token);
+
+/** Cambia piano da oggi: torna anche la licenza nuova da attivare subito. */
+export const changePlan = (codice: string, piano: string, token: string) =>
+  call<Subscription & { licenza: string }>('abbonamento', { codice, azione: 'cambia', piano }, token);
+
+/** L'IBAN da cui il centro paga, per riconoscere i suoi bonifici. */
+export const setCentreIban = (codice: string, iban: string, token: string) => call<Subscription>('abbonamento', { codice, azione: 'iban', iban }, token);
 
 export const centreStatus = (codice: string) => call<{ stato: CentreState; campo: string; licenza: string | null }>('centro', { codice: centreCode(codice) });
 

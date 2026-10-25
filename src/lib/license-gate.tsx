@@ -39,6 +39,12 @@ const write = (code: string) => {
   } catch {}
 };
 
+/** Il centro della licenza salvata sul dispositivo, anche scaduta (per mostrare al proprietario cosa pagare). */
+export const storedCentre = () => {
+  const r = readLicense(read());
+  return r.ok ? r.license.id : '';
+};
+
 /** Codice dal link di attivazione: campocaniapp://attiva?codice=... */
 const codeFromUrl = (url: string | null) => {
   if (!url) return '';
