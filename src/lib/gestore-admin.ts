@@ -49,6 +49,34 @@ export type AdminCentre = CentreBilling & {
   scade: string | null;
   sospeso: boolean;
   creato: string;
+  /** Il progetto Supabase del centro (null finché non è creato) e le migrazioni dell'app già caricate. */
+  progetto?: string | null;
+  migrazioni?: number;
+};
+
+/** Un progetto Supabase del tuo account: il database di un centro, del gestore o un altro tuo. */
+export type DbProject = {
+  ref: string;
+  nome: string;
+  stato: string;
+  regione: string;
+  creato: string | null;
+  centro: { id: string; campo: string; codice: string } | null;
+  gestore: boolean;
+};
+
+/** Il database di un centro: solo numeri, nessun dato dei clienti. righe è una stima di Postgres. */
+export type CentreDatabase = {
+  stato: string;
+  regione: string;
+  creato: string | null;
+  postgres: string;
+  mb: number;
+  utenti: number;
+  tabelle: { nome: string; righe: number }[];
+  migrazioni: number;
+  migrazioni_app: number;
+  link: string;
 };
 
 export type Charge = {

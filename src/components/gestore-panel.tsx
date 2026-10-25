@@ -22,6 +22,8 @@ import {
   type AppVersions,
   type BonusCode,
   type Bank,
+  type CentreDatabase,
+  type DbProject,
   type Charge,
   type Movement,
   type PlanRow,
@@ -50,6 +52,8 @@ const STATO: Record<AdminCentre['stato'], string> = {
   pronto: 'Attivo',
   errore: 'Preparazione non riuscita',
 };
+const STATO_DB: Record<string, string> = { ACTIVE_HEALTHY: 'Acceso', COMING_UP: 'Si accende', INACTIVE: 'Spento', PAUSING: 'Si spegne', RESTORING: 'Si riaccende', UNKNOWN: 'Stato sconosciuto' };
+
 const RUOLO: Record<string, string> = { owner: 'titolare', trainer: 'trainer', client: 'cliente' };
 
 const ADDEBITO: Record<Charge['stato'], string> = {
@@ -145,7 +149,7 @@ function Login() {
 /** Addebiti non ancora pagati: mandati e in attesa, scaduti, o da rifare per un errore. */
 const owed = (charges: Charge[]) => charges.filter((a) => a.stato === 'inviato' || a.stato === 'non_pagato' || (a.stato === 'da_fare' && !!a.errore));
 
-type Section = 'centri' | 'statistiche' | 'banca' | 'piani' | 'bonus' | 'app';
+type Section = 'centri' | 'database' | 'statistiche' | 'banca' | 'piani' | 'bonus' | 'app';
 
 function Dashboard() {
   const c = useColors();
@@ -217,6 +221,7 @@ function Dashboard() {
 
   const sections: { value: Section; label: string; icon: string; count?: number }[] = [
     { value: 'centri', label: 'Centri', icon: '☺', count: daPagare.length },
+    { value: 'database', label: 'Database', icon: '◫' },
     { value: 'statistiche', label: 'Statistiche', icon: '▦' },
     { value: 'banca', label: 'Banca e bonifici', icon: '€', count: d.movimenti.length },
     { value: 'piani', label: 'Piani e addebiti', icon: '⚙' },
@@ -285,6 +290,8 @@ function Dashboard() {
           </View>
         </>
       )}
+
+      {section === 'database' && <DatabaseSection />}
 
       {section === 'statistiche' && <Stats d={d} />}
 
@@ -375,6 +382,108 @@ function PanelMenu({
         <Text style={{ color: SOFT, fontSize: 15, fontWeight: '600' }}>Esci</Text>
       </Pressable>
     </View>
+  );
+}
+
+// Prezzi di Supabase (supabase.com/pricing): il piano Pro costa 25 $ al mese con 10 $ di crediti, che pagano
+// il primo database Micro; ogni altro database acceso costa da 10 $ al mese. Il piano gratuito tiene 2 database accesi.
+const PRO_DOLLARI = 25;
+const MICRO_DOLLARI = 10;
+const GRATIS_ACCESI = 2;
+const acceso = (p: DbProject) => p.stato !== 'INACTIVE' && p.stato !== 'PAUSING' && p.stato !== 'REMOVED';
+
+/** Tutti i database del tuo account Supabase: quanti sono, quanto costano e il bottone per accenderli e spegnerli. */
+function DatabaseSection() {
+  const c = useColors();
+  const [list, setList] = useState<DbProject[] | null>(null);
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState('');
+  const [sure, setSure] = useState('');
+
+  const load = useCallback(
+    () =>
+      adminCall<{ progetti: DbProject[] }>('database_tutti')
+        .then((r) => (setList(r.progetti), setErr('')))
+        .catch((e: Error) => setErr(e.message)),
+    [],
+  );
+  useEffect(() => {
+    load();
+  }, [load]);
+  useWhenActive(load, 30_000);
+
+  async function toggle(p: DbProject) {
+    if (!p.centro) return;
+    if (acceso(p) && sure !== p.ref) return setSure(p.ref);
+    setSure('');
+    setErr('');
+    setBusy(p.ref);
+    try {
+      await adminCall('database_accendi', { id: p.centro.id, acceso: !acceso(p) });
+      await load();
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+    setBusy('');
+  }
+
+  if (!list) return err ? <ErrorText>{err}</ErrorText> : <Muted>Carico i database…</Muted>;
+  const accesi = list.filter(acceso).length;
+  const centri = list.filter((p) => p.centro).length;
+  const pro = PRO_DOLLARI + Math.max(0, accesi - 1) * MICRO_DOLLARI;
+  return (
+    <>
+      <Row>
+        <Stat label="Database" value={String(list.length)} />
+        <Stat label="Accesi" value={String(accesi)} />
+        <Stat label="Spenti" value={String(list.length - accesi)} />
+        <Stat label="Dei centri" value={String(centri)} />
+      </Row>
+      <Card>
+        <Body bold>Costo di Supabase (stima)</Body>
+        <Body>
+          Piano gratuito: 0 $ al mese, ma tiene al massimo {GRATIS_ACCESI} database accesi
+          {accesi > GRATIS_ACCESI ? ` (ora ne hai ${accesi})` : ''}.
+        </Body>
+        <Body>
+          Piano Pro: circa {pro} $ al mese ({PRO_DOLLARI} $ del piano{accesi > 1 ? ` + ${accesi - 1} database × ${MICRO_DOLLARI} $` : ''}), con database Micro.
+        </Body>
+        <Muted style={{ fontSize: 13 }}>
+          Supabase non dà il conto dalle sue API: la cifra vera, con tasse e consumi oltre i limiti, la trovi su Supabase nella tua organizzazione, alla voce Billing.
+        </Muted>
+        <Row>
+          <Button small kind="ghost" title="Apri il conto su Supabase" onPress={() => Linking.openURL('https://supabase.com/dashboard/organizations')} />
+        </Row>
+      </Card>
+      <Muted style={{ fontSize: 13 }}>
+        Spegnere un database lo mette in pausa: i dati restano, ma l&apos;app di quel centro non funziona finché non lo riaccendi (ci vuole qualche minuto).
+        Supabase lascia mettere in pausa solo i database del piano gratuito. Il gestore non si spegne da qui.
+      </Muted>
+      <ErrorText>{err}</ErrorText>
+      <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.line, borderRadius: 8, overflow: 'hidden' }}>
+        {list.map((p, i) => (
+          <Row key={p.ref} style={{ padding: 12, borderTopWidth: i ? 1 : 0, borderTopColor: c.line, justifyContent: 'space-between' }}>
+            <View style={{ flex: 1, minWidth: 180 }}>
+              <Body bold>{p.centro ? p.centro.campo : p.gestore ? 'Gestore' : p.nome}</Body>
+              <Muted style={{ fontSize: 13 }}>{[p.centro?.codice, p.nome, p.ref, p.regione].filter(Boolean).join(' · ')}</Muted>
+            </View>
+            <Badge tone={p.stato === 'ACTIVE_HEALTHY' ? 'ok' : acceso(p) ? 'warn' : 'bad'}>{STATO_DB[p.stato] ?? p.stato}</Badge>
+            {p.centro && (
+              <Button
+                small
+                kind={acceso(p) ? 'danger' : 'primary'}
+                title={acceso(p) ? (sure === p.ref ? 'Sicuro? Spegni' : 'Spegni') : 'Accendi'}
+                onPress={() => toggle(p)}
+                loading={busy === p.ref}
+                disabled={!!busy || p.stato === 'COMING_UP' || p.stato === 'RESTORING' || p.stato === 'PAUSING'}
+              />
+            )}
+            <Button small kind="ghost" title="Apri" onPress={() => Linking.openURL(`https://supabase.com/dashboard/project/${p.ref}`)} />
+          </Row>
+        ))}
+        {!list.length && <Muted style={{ padding: 14 }}>Nessun database.</Muted>}
+      </View>
+    </>
   );
 }
 
@@ -880,6 +989,7 @@ function CentreRow({
   const [pwEmail, setPwEmail] = useState('');
   const [pw, setPw] = useState('');
   const [pwDone, setPwDone] = useState('');
+  const [db, setDb] = useState<CentreDatabase | null>(null);
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
   const billing = centreBillingLines(cleanCentreBilling(x));
@@ -899,6 +1009,17 @@ function CentreRow({
     try {
       await adminCall(azione, { id: x.id, ...body });
       onChange();
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+    setBusy('');
+  }
+
+  async function loadDatabase() {
+    setErr('');
+    setBusy('database');
+    try {
+      setDb(await adminCall<CentreDatabase>('database', { id: x.id }));
     } catch (e) {
       setErr((e as Error).message);
     }
@@ -1004,6 +1125,29 @@ function CentreRow({
               }}
             />
           </Row>
+          {!!x.progetto && (
+            <View style={{ gap: 6 }}>
+              <Row>
+                <Body bold>Database</Body>
+                <Muted style={{ fontSize: 13 }}>{x.progetto}</Muted>
+                <Button small kind="ghost" title={db ? 'Aggiorna' : 'Mostra il database'} onPress={loadDatabase} loading={busy === 'database'} />
+                <Button small kind="ghost" title="Apri su Supabase" onPress={() => Linking.openURL(`https://supabase.com/dashboard/project/${x.progetto}`)} />
+              </Row>
+              {db && (
+                <>
+                  <Row>
+                    <Badge tone={db.stato === 'ACTIVE_HEALTHY' ? 'ok' : 'bad'}>{STATO_DB[db.stato] ?? db.stato}</Badge>
+                    <Badge>{`${db.mb} MB`}</Badge>
+                    <Badge>{`${db.utenti} account`}</Badge>
+                    <Badge tone={db.migrazioni < db.migrazioni_app ? 'warn' : 'neutral'}>{`Aggiornamenti ${db.migrazioni} su ${db.migrazioni_app}`}</Badge>
+                    {!!db.regione && <Badge>{db.regione}</Badge>}
+                    {!!db.postgres && <Badge>{`Postgres ${db.postgres}`}</Badge>}
+                  </Row>
+                  <Muted style={{ fontSize: 13 }}>Righe per tabella (circa): {db.tabelle.map((t) => `${t.nome} ${t.righe}`).join(' · ')}</Muted>
+                </>
+              )}
+            </View>
+          )}
           <Button small kind="ghost" title={open ? 'Chiudi' : 'Modifica'} onPress={() => setOpen(!open)} />
           {open && (
             <View style={{ gap: 10 }}>
