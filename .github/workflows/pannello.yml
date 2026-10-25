@@ -39,6 +39,7 @@ on:
 permissions:
   contents: write
 
+# K9 Gestore ha l'icona di K9 Manager con lo sfondo blu (assets/images/icon-gestore.png).
 env:
   EXPO_PUBLIC_PANNELLO: '1'
   EXPO_PUBLIC_PANNELLO_DEMO: ${{ inputs.demo && '1' || '' }}
@@ -103,7 +104,7 @@ jobs:
         working-directory: desktop
       - run: npm run web
         working-directory: desktop
-      - run: npm run dist -- -c.appId=$APP_ID -c.productName="K9 Gestore" -c.extraMetadata.productName="K9 Gestore" -c.nsis.shortcutName="K9 Gestore" -c.win.artifactName=$NOME-Windows.exe
+      - run: npm run dist -- -c.appId=$APP_ID -c.productName="K9 Gestore" -c.extraMetadata.productName="K9 Gestore" -c.nsis.shortcutName="K9 Gestore" -c.win.artifactName=$NOME-Windows.exe -c.win.icon=../assets/images/icon-gestore.png
         shell: bash
         working-directory: desktop
       - name: Carica nelle Releases
@@ -130,7 +131,7 @@ jobs:
         working-directory: desktop
       - run: npm run web
         working-directory: desktop
-      - run: npm run dist:mac -- -c.appId=$APP_ID -c.productName="K9 Gestore" -c.extraMetadata.productName="K9 Gestore" -c.mac.artifactName=$NOME-Mac.dmg
+      - run: npm run dist:mac -- -c.appId=$APP_ID -c.productName="K9 Gestore" -c.extraMetadata.productName="K9 Gestore" -c.mac.artifactName=$NOME-Mac.dmg -c.mac.icon=../assets/images/icon-gestore.png
         working-directory: desktop
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -147,6 +148,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       APP_VERA: '1'
+      # La stessa icona di K9 Manager, con lo sfondo blu: sul telefono si distinguono.
+      ICONA: ../assets/images/icon-gestore.png
       APK: ${{ inputs.demo && 'K9Gestore-Demo-Android.apk' || 'K9Gestore-Android.apk' }}
       AAB: K9Gestore-Android.aab
       # Google sul telefono usa il client web (vedi gestore/README.md): vuota = solo email e password.

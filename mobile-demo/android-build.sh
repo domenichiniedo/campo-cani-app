@@ -19,13 +19,15 @@ cd "$(dirname "$0")"
 # Google Play: dal 31 agosto 2026 le app nuove e gli aggiornamenti devono puntare ad Android 16 (API 36).
 grep -q 'targetSdkVersion = 36' android/variables.gradle || { echo "::error::Il progetto Android non punta ad Android 16 (API 36)"; cat android/variables.gradle; exit 1; }
 
-# Icona dell'app: quella di K9 Manager al posto di quella di Capacitor.
+# Icona dell'app: quella di K9 Manager al posto di quella di Capacitor (con ICONA un'altra, da mobile-demo: il
+# pannello del gestore ha la sua).
+ICONA_PNG=$(realpath "${ICONA:-../assets/images/icon.png}")
 (
   cd android/app/src/main/res
   rm -rf mipmap-anydpi-v26
   for d in mipmap-*; do
-    cp ../../../../../../assets/images/icon.png "$d/ic_launcher.png"
-    cp ../../../../../../assets/images/icon.png "$d/ic_launcher_round.png"
+    cp "$ICONA_PNG" "$d/ic_launcher.png"
+    cp "$ICONA_PNG" "$d/ic_launcher_round.png"
     rm -f "$d/ic_launcher_foreground.png"
   done
 )
