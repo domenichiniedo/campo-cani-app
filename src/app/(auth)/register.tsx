@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { EmailCode } from '@/components/email-code';
 import { GoogleButton } from '@/components/google-button';
 import { PhotoPicker, saveSignupPhoto } from '@/components/photo';
-import { ConsentCard, DogCards, InvoiceCard, newDog, type DogDraft } from '@/components/signup-parts';
+import { ConsentCard, DogCards, InvoiceCard, newDog, OptionalSection, SocialCheck, type DogDraft } from '@/components/signup-parts';
 import { Button, Card, Chips, ErrorText, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingColumns, billingError, emptyBilling, type BillingDraft } from '@/lib/billing';
 import { isDayKey } from '@/lib/format';
@@ -27,8 +27,8 @@ export default function Register() {
   // Codice fiscale e indirizzo servono solo a chi vuole la fattura.
   const [wantsInvoice, setWantsInvoice] = useState(false);
   const [dogs, setDogs] = useState<DogDraft[]>([newDog()]);
-  const [rulesOk, setRulesOk] = useState(false);
-  const [privacyOk, setPrivacyOk] = useState(false);
+  // Regolamento e privacy in un solo consenso.
+  const [accepted, setAccepted] = useState(false);
   const [socialOk, setSocialOk] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -42,10 +42,10 @@ export default function Register() {
     if (!first.trim() || !last.trim() || !phone.trim()) return setErr(t('Inserisci nome, cognome e telefono.'));
     const bErr = asTrainer || !wantsInvoice ? null : billingError(billing);
     if (bErr) return setErr(bErr);
-    if (!asTrainer && !cleanDogs.length) return setErr(t('Inserisci almeno un cane.'));
+    if (!asTrainer && !cleanDogs.length) return setErr(t('Scrivi il nome del tuo cane.'));
     if (cleanDogs.some((d) => d.birth && !isDayKey(d.birth))) return setErr(t('Scrivi la data di nascita come AAAA-MM-GG, per esempio 2024-03-15.'));
     if (password.length < 8) return setErr(t('La password deve avere almeno 8 caratteri.'));
-    if (!rulesOk || !privacyOk) return setErr(t('Per iscriverti devi accettare il regolamento e l’informativa privacy.'));
+    if (!accepted) return setErr(t('Per iscriverti devi accettare il regolamento e l’informativa privacy.'));
     if (!settings) return setErr(t('Impossibile leggere il regolamento. Controlla la connessione.'));
 
     setBusy(true);
@@ -104,14 +104,11 @@ export default function Register() {
     );
   }
 
+  const setDogName = (name: string) => setDogs(dogs.map((d, i) => (i === 0 ? { ...d, name } : d)));
+
   return (
     <Screen>
       <H1>{t('Iscriviti')}</H1>
-      <Muted>
-        {asTrainer
-          ? t("Usa l'email che hai dato al centro: entrerai nell'area trainer con le tue lezioni.")
-          : t('Servono i tuoi dati, quelli del cane e il consenso al regolamento e alla privacy.')}
-      </Muted>
       <Chips
         items={[
           { value: 'client', label: t('Sono un cliente') },
@@ -120,11 +117,15 @@ export default function Register() {
         value={asTrainer ? 'trainer' : 'client'}
         onChange={(v) => setAsTrainer(v === 'trainer')}
       />
-      {/* Con Google l'account nasce subito: telefono, cani e consensi li chiede poi la schermata di benvenuto. */}
+      {/* Con Google l'account nasce subito: telefono, cane e consenso li chiede poi la schermata di benvenuto. */}
       <GoogleButton client={supabase} url={connection().url} apiKey={connection().key} />
 
-      <Step n="1" title={t('I tuoi dati')} />
       <Card>
+        <Muted>
+          {asTrainer
+            ? t("Usa l'email che hai dato al centro: entrerai nell'area trainer con le tue lezioni.")
+            : t('Bastano i tuoi dati e il nome del cane: il resto puoi aggiungerlo dopo.')}
+        </Muted>
         <Row>
           <Field label={t('Nome')} value={first} onChangeText={setFirst} autoComplete="given-name" style={{ flex: 1, minWidth: 140 }} />
           <Field label={t('Cognome')} value={last} onChangeText={setLast} autoComplete="family-name" style={{ flex: 1, minWidth: 140 }} />
@@ -132,36 +133,31 @@ export default function Register() {
         <Field label={t('Telefono')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" />
         <Field label={t('Email')} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
         <Field label={t('Password (almeno 8 caratteri)')} value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
+        {!asTrainer && <Field label={t('Nome del cane')} value={dogs[0].name} onChangeText={setDogName} />}
       </Card>
 
-      <Step n="2" title={t('La tua foto (se vuoi)')} />
-      <Card>
-        <Muted>
-          {asTrainer
-            ? t('I clienti la vedono nelle loro lezioni e nel diario dei cani. Puoi metterla anche dopo, dal tuo profilo.')
-            : t('Il centro e i trainer la vedono per riconoscerti al campo. Puoi metterla anche dopo, dal tuo profilo.')}
-        </Muted>
-        <PhotoPicker name={`${first} ${last}`.trim()} value={photo} onChange={setPhoto} />
-      </Card>
+      <ConsentCard accepted={accepted} onAccepted={setAccepted} />
 
-      {!asTrainer && (
-        <>
-          <Step n="3" title={t('Fattura')} />
-          <InvoiceCard wants={wantsInvoice} onWants={setWantsInvoice} billing={billing} onBilling={setBilling} />
-
-          <Step n="4" title={dogs.length > 1 ? t('I tuoi cani') : t('Il tuo cane')} />
-          <DogCards dogs={dogs} onChange={setDogs} />
-        </>
-      )}
-
-      <Step n={asTrainer ? '3' : '5'} title={t('Consensi')} />
-      <ConsentCard
-        rules={rulesOk}
-        onRules={setRulesOk}
-        privacy={privacyOk}
-        onPrivacy={setPrivacyOk}
-        {...(asTrainer ? {} : { social: socialOk, onSocial: setSocialOk })}
-      />
+      <OptionalSection>
+        <Step title={t('La tua foto (se vuoi)')} />
+        <Card>
+          <Muted>
+            {asTrainer
+              ? t('I clienti la vedono nelle loro lezioni e nel diario dei cani. Puoi metterla anche dopo, dal tuo profilo.')
+              : t('Il centro e i trainer la vedono per riconoscerti al campo. Puoi metterla anche dopo, dal tuo profilo.')}
+          </Muted>
+          <PhotoPicker name={`${first} ${last}`.trim()} value={photo} onChange={setPhoto} />
+        </Card>
+        {!asTrainer && (
+          <>
+            <Step title={dogs.length > 1 ? t('I tuoi cani') : t('Il tuo cane')} />
+            <DogCards dogs={dogs} onChange={setDogs} extraOnly />
+            <Step title={t('Fattura')} />
+            <InvoiceCard wants={wantsInvoice} onWants={setWantsInvoice} billing={billing} onBilling={setBilling} />
+            <SocialCheck value={socialOk} onChange={setSocialOk} />
+          </>
+        )}
+      </OptionalSection>
 
       <ErrorText>{err}</ErrorText>
       <Button title={t('Crea il mio account')} onPress={submit} loading={busy} />

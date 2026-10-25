@@ -1,4 +1,6 @@
 import { BillingFields } from '@/components/billing-fields';
+import { useState, type ReactNode } from 'react';
+
 import { Button, Card, Check, Expandable, Field, Muted } from '@/components/ui';
 import type { BillingDraft } from '@/lib/billing';
 import { t } from '@/lib/i18n';
@@ -26,17 +28,24 @@ export function InvoiceCard(p: { wants: boolean; onWants: (v: boolean) => void; 
   );
 }
 
-/** Un riquadro per cane, con il bottone per aggiungerne un altro. */
-export function DogCards({ dogs, onChange }: { dogs: DogDraft[]; onChange: (v: DogDraft[]) => void }) {
+/**
+ * Un riquadro per cane, con il bottone per aggiungerne un altro. Con `extraOnly` il nome del primo cane è già
+ * nel modulo principale: qui restano razza e nascita.
+ */
+export function DogCards({ dogs, onChange, extraOnly }: { dogs: DogDraft[]; onChange: (v: DogDraft[]) => void; extraOnly?: boolean }) {
   const setDog = (i: number, patch: Partial<DogDraft>) => onChange(dogs.map((d, j) => (j === i ? { ...d, ...patch } : d)));
   return (
     <>
       {dogs.map((d, i) => (
         <Card key={i}>
-          <Field label={t('Nome del cane')} value={d.name} onChangeText={(v) => setDog(i, { name: v })} />
+          {extraOnly && i === 0 ? (
+            <Muted style={{ fontSize: 13 }}>{d.name.trim() || t('Il tuo cane')}</Muted>
+          ) : (
+            <Field label={t('Nome del cane')} value={d.name} onChangeText={(v) => setDog(i, { name: v })} />
+          )}
           <Field label={t('Razza')} value={d.breed} onChangeText={(v) => setDog(i, { breed: v })} />
           <Field label={t('Nato il (AAAA-MM-GG)')} value={d.birth} onChangeText={(v) => setDog(i, { birth: v })} placeholder="2024-03-15" keyboardType="numbers-and-punctuation" />
-          {dogs.length > 1 && <Button title={t('Togli questo cane')} kind="danger" small onPress={() => onChange(dogs.filter((_, j) => j !== i))} />}
+          {dogs.length > 1 && i > 0 && <Button title={t('Togli questo cane')} kind="danger" small onPress={() => onChange(dogs.filter((_, j) => j !== i))} />}
         </Card>
       ))}
       <Button title={t('+ Aggiungi un altro cane')} kind="ghost" onPress={() => onChange([...dogs, newDog()])} />
@@ -44,34 +53,40 @@ export function DogCards({ dogs, onChange }: { dogs: DogDraft[]; onChange: (v: D
   );
 }
 
-/** Regolamento e privacy (obbligatori) e, se c'è `social`, il consenso facoltativo a foto e video. */
-export function ConsentCard(p: {
-  rules: boolean;
-  onRules: (v: boolean) => void;
-  privacy: boolean;
-  onPrivacy: (v: boolean) => void;
-  social?: boolean;
-  onSocial?: (v: boolean) => void;
-}) {
+/** Regolamento e privacy (obbligatori) in un solo consenso, con i testi da leggere. */
+export function ConsentCard(p: { accepted: boolean; onAccepted: (v: boolean) => void }) {
   const { settings, lessonTypes } = useSession();
   return (
     <Card>
+      <Check value={p.accepted} onChange={p.onAccepted}>
+        {t('Ho letto e accetto il regolamento del campo e l’informativa privacy.')}
+      </Check>
       {settings && <Expandable title={t('il regolamento')} lines={rulesLines(settings, lessonTypes)} />}
-      <Check value={p.rules} onChange={p.onRules}>
-        {t('Ho letto e accetto il regolamento del campo.')}
-      </Check>
       {settings && <Expandable title={t("l'informativa privacy")} lines={settings.privacy.split('\n').filter(Boolean)} />}
-      <Check value={p.privacy} onChange={p.onPrivacy}>
-        {t("Ho letto l'informativa e acconsento al trattamento dei miei dati per gestire le prenotazioni.")}
-      </Check>
-      {p.onSocial && (
-        <>
-          <Check value={!!p.social} onChange={p.onSocial}>
-            {t('Acconsento alla pubblicazione sui social del centro di foto e video in cui compaiono i miei cani o io.')}
-          </Check>
-          <Muted style={{ fontSize: 13 }}>{t('Facoltativo: puoi iscriverti anche senza, e cambiare idea quando vuoi dal Profilo.')}</Muted>
-        </>
-      )}
     </Card>
+  );
+}
+
+/** Il consenso facoltativo a foto e video sui social. */
+export function SocialCheck({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <Card>
+      <Check value={value} onChange={onChange}>
+        {t('Acconsento alla pubblicazione sui social del centro di foto e video in cui compaiono i miei cani o io.')}
+      </Check>
+      <Muted style={{ fontSize: 13 }}>{t('Facoltativo: puoi iscriverti anche senza, e cambiare idea quando vuoi dal Profilo.')}</Muted>
+    </Card>
+  );
+}
+
+/** I dati facoltativi, chiusi finché non li apri: così il modulo resta corto. */
+export function OptionalSection({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button title={open ? t('Nascondi i dati facoltativi') : t('Aggiungi altri dati (facoltativi)')} kind="ghost" onPress={() => setOpen(!open)} />
+      {!open && <Muted style={{ fontSize: 13 }}>{t('Puoi aggiungerli adesso o più tardi, dal tuo profilo.')}</Muted>}
+      {open && children}
+    </>
   );
 }
