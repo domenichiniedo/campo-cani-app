@@ -1,8 +1,10 @@
 import { Tabs } from 'expo-router/js-tabs';
 
+import { OwnerSidebar } from '@/components/owner-sidebar';
 import { tabIcon } from '@/components/ui';
 import { t } from '@/lib/i18n';
 import { usePlan } from '@/lib/plans';
+import { sectionMenu } from '@/lib/sections';
 import { useColors } from '@/lib/theme';
 
 export default function OwnerLayout() {
@@ -10,7 +12,10 @@ export default function OwnerLayout() {
   const plan = usePlan();
   return (
     <Tabs
+      // Nel programma per Windows le pagine stanno in un menu a sinistra, con i loro paragrafi.
+      tabBar={sectionMenu ? (props) => <OwnerSidebar {...props} /> : undefined}
       screenOptions={{
+        tabBarPosition: sectionMenu ? 'left' : 'bottom',
         headerShown: false,
         tabBarActiveTintColor: c.accent,
         tabBarInactiveTintColor: c.muted,

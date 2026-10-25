@@ -18,6 +18,7 @@ import { t } from '@/lib/i18n';
 import { pickAndUpload, removeImage, type Source } from '@/lib/images';
 import { licensingEnabled } from '@/lib/license';
 import { planWith, usePlan } from '@/lib/plans';
+import { useSections } from '@/lib/sections';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
@@ -263,6 +264,26 @@ export default function OwnerSettings() {
     setMsg(t('Impostazioni salvate.'));
   }
 
+  // Nel programma per Windows i paragrafi stanno nel menu a sinistra e se ne vede uno alla volta.
+  const open = useSections('settings', [
+    ...(licensingEnabled ? [{ id: 'licenza', title: t('Licenza') }] : []),
+    { id: 'centro', title: t('Centro e logo') },
+    { id: 'campi', title: t('Campi') },
+    { id: 'trainer', title: t('Trainer') },
+    { id: 'orari', title: t('Orari e regole') },
+    { id: 'pagamenti', title: t('Metodi di pagamento') },
+    { id: 'lezioni', title: t('Lezioni') },
+    { id: 'pacchetti', title: t('Pacchetti') },
+    { id: 'valutazioni', title: t('Schede di valutazione') },
+    { id: 'fatture', title: plan.invoices ? t('Fatture') : t('Fatture e scontrini') },
+    { id: 'report', title: t('Report mensile') },
+    { id: 'proprietari', title: t('Proprietari') },
+    { id: 'regole', title: t('Regolamento e privacy') },
+  ]);
+  const show = (id: string) => open === null || open === id;
+  // "Salva impostazioni" serve ai paragrafi con i campi da compilare; gli altri salvano da sé.
+  const saveHere = open === null || ['centro', 'campi', 'trainer', 'orari', 'lezioni', 'regole'].includes(open);
+
   if (!settings) return null;
   const consentsChanged = rules !== settings.rules || privacy !== settings.privacy;
 
@@ -276,7 +297,7 @@ export default function OwnerSettings() {
         </Card>
       )}
 
-      {licensingEnabled && (
+      {licensingEnabled && show('licenza') && (
         <>
           <Step title={t('Licenza')} />
           <LicensePanel />
@@ -284,57 +305,65 @@ export default function OwnerSettings() {
         </>
       )}
 
-      <Step title={t('Centro e logo')} />
-      <Card>
-        <Row>
-          <View style={{ width: 72, height: 72, borderRadius: 36, overflow: 'hidden', backgroundColor: c.pitch }}>
-            {logoUrl && <Image source={{ uri: logoUrl }} style={{ width: '100%', height: '100%' }} contentFit="contain" />}
-          </View>
-          <View style={{ gap: 8, flex: 1 }}>
-            <Button small title={logoUrl ? t('Cambia logo') : t('Carica logo')} onPress={() => pickLogo('library')} loading={uploading} />
-            <Button small kind="ghost" title={t('Scatta foto del logo')} onPress={() => pickLogo('camera')} disabled={uploading} />
-            {logoUrl && <Button small kind="ghost" title={t('Togli logo')} onPress={removeLogo} />}
-          </View>
-        </Row>
-        <Field label={t('Nome del centro')} value={name} onChangeText={setName} />
-        <Field label={t('Indirizzo della sede')} value={address} onChangeText={setAddress} />
-      </Card>
+      {show('centro') && (
+        <>
+          <Step title={t('Centro e logo')} />
+          <Card>
+            <Row>
+              <View style={{ width: 72, height: 72, borderRadius: 36, overflow: 'hidden', backgroundColor: c.pitch }}>
+                {logoUrl && <Image source={{ uri: logoUrl }} style={{ width: '100%', height: '100%' }} contentFit="contain" />}
+              </View>
+              <View style={{ gap: 8, flex: 1 }}>
+                <Button small title={logoUrl ? t('Cambia logo') : t('Carica logo')} onPress={() => pickLogo('library')} loading={uploading} />
+                <Button small kind="ghost" title={t('Scatta foto del logo')} onPress={() => pickLogo('camera')} disabled={uploading} />
+                {logoUrl && <Button small kind="ghost" title={t('Togli logo')} onPress={removeLogo} />}
+              </View>
+            </Row>
+            <Field label={t('Nome del centro')} value={name} onChangeText={setName} />
+            <Field label={t('Indirizzo della sede')} value={address} onChangeText={setAddress} />
+          </Card>
+        </>
+      )}
 
-      <Step title={t('Campi')} />
-      <Card>
-        <Row style={{ justifyContent: 'space-between' }}>
-          <Body bold>{t('Numero di campi')}</Body>
-          <Row>
-            <Button small kind="ghost" title="−" onPress={() => setFieldCount(fieldList.length - 1)} disabled={fieldList.length <= 1} />
-            <Text style={{ color: c.text, fontSize: 22, fontWeight: '800', minWidth: 28, textAlign: 'center' }}>{fieldList.length}</Text>
-            <Button
-              small
-              kind="ghost"
-              title="+"
-              onPress={() => setFieldCount(fieldList.length + 1)}
-              disabled={plan.maxFields !== null && fieldList.length >= plan.maxFields}
-            />
-          </Row>
-        </Row>
-        <Muted style={{ fontSize: 13 }}>
-          {t('Ogni campo ha orari e prenotazioni suoi. Più campi possono stare allo stesso indirizzo. Se togli un campo, le prenotazioni già fatte restano nel piano.')}
-        </Muted>
-        {plan.maxFields !== null && (
-          <Muted style={{ fontSize: 13, color: fieldList.length > plan.maxFields ? c.brassText : c.muted }}>
-            {fieldList.length > plan.maxFields
-              ? t('Il piano {piano} prevede {campi}: si prenotano solo i primi.', { piano: plan.label, campi: fieldsText })
-              : t('Il piano {piano} prevede fino a {campi}. Per averne di più serve un piano superiore.', { piano: plan.label, campi: fieldsText })}
-          </Muted>
-        )}
-      </Card>
-      {fieldList.map((f, i) => (
-        <Card key={f.id ?? `new-${i}`}>
-          <Field label={t('Campo {n}: nome', { n: i + 1 })} value={f.name} onChangeText={(v) => setFieldAt(i, { name: v })} />
-          <Field label={t('Indirizzo')} value={f.address} onChangeText={(v) => setFieldAt(i, { address: v })} />
-        </Card>
-      ))}
+      {show('campi') && (
+        <>
+          <Step title={t('Campi')} />
+          <Card>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Body bold>{t('Numero di campi')}</Body>
+              <Row>
+                <Button small kind="ghost" title="−" onPress={() => setFieldCount(fieldList.length - 1)} disabled={fieldList.length <= 1} />
+                <Text style={{ color: c.text, fontSize: 22, fontWeight: '800', minWidth: 28, textAlign: 'center' }}>{fieldList.length}</Text>
+                <Button
+                  small
+                  kind="ghost"
+                  title="+"
+                  onPress={() => setFieldCount(fieldList.length + 1)}
+                  disabled={plan.maxFields !== null && fieldList.length >= plan.maxFields}
+                />
+              </Row>
+            </Row>
+            <Muted style={{ fontSize: 13 }}>
+              {t('Ogni campo ha orari e prenotazioni suoi. Più campi possono stare allo stesso indirizzo. Se togli un campo, le prenotazioni già fatte restano nel piano.')}
+            </Muted>
+            {plan.maxFields !== null && (
+              <Muted style={{ fontSize: 13, color: fieldList.length > plan.maxFields ? c.brassText : c.muted }}>
+                {fieldList.length > plan.maxFields
+                  ? t('Il piano {piano} prevede {campi}: si prenotano solo i primi.', { piano: plan.label, campi: fieldsText })
+                  : t('Il piano {piano} prevede fino a {campi}. Per averne di più serve un piano superiore.', { piano: plan.label, campi: fieldsText })}
+              </Muted>
+            )}
+          </Card>
+          {fieldList.map((f, i) => (
+            <Card key={f.id ?? `new-${i}`}>
+              <Field label={t('Campo {n}: nome', { n: i + 1 })} value={f.name} onChangeText={(v) => setFieldAt(i, { name: v })} />
+              <Field label={t('Indirizzo')} value={f.address} onChangeText={(v) => setFieldAt(i, { address: v })} />
+            </Card>
+          ))}
+        </>
+      )}
 
-      {plan.trainers ? (
+      {!show('trainer') ? null : plan.trainers ? (
         <>
           <Step title={t('Trainer')} />
           <Muted>{t('Assegni il trainer a ogni lezione dal piano del giorno. Un trainer non può avere due lezioni alla stessa ora.')}</Muted>
@@ -371,81 +400,93 @@ export default function OwnerSettings() {
         <PlanNote title={t('Trainer')} plan={planWith('trainers')} />
       )}
 
-      <Step title={t('Orari e regole')} />
-      <Card>
-        <Row>
-          <Field label={t('Apre alle')} value={openAt} onChangeText={setOpenAt} style={{ flex: 1, minWidth: 120 }} />
-          <Field label={t('Chiude alle')} value={closeAt} onChangeText={setCloseAt} style={{ flex: 1, minWidth: 120 }} />
-        </Row>
-        <Row>
-          <Field label={t('Disdetta fino a (ore prima)')} value={cancelHours} onChangeText={setCancelHours} keyboardType="number-pad" style={{ flex: 1, minWidth: 140 }} />
-          <Field label={t('Sospendi alla penalità n° (0 = mai)')} value={penaltyLimit} onChangeText={setPenaltyLimit} keyboardType="number-pad" style={{ flex: 1, minWidth: 140 }} />
-        </Row>
-      </Card>
-
-      <Step title={t('Metodi di pagamento')} />
-      <Muted>{t('I clienti possono sempre pagare al campo. Qui apri gli altri metodi che vuoi offrire.')}</Muted>
-      <Card>
-        <TransferPanel />
-      </Card>
-      <Card>
-        <NexiPanel />
-      </Card>
-
-      <Step title={t('Lezioni')} />
-      {types.map((ty, i) => (
-        <Card key={ty.id}>
-          <Field label={t('Nome')} value={ty.label} onChangeText={(v) => setType(i, { label: v })} />
-          <Field label={t('Descrizione')} value={ty.description} onChangeText={(v) => setType(i, { description: v })} />
-          <Row>
-            <Field label={t('Durata (min)')} value={ty.duration} onChangeText={(v) => setType(i, { duration: v })} keyboardType="number-pad" style={{ flex: 1, minWidth: 120 }} />
-            <Field label={t('Prezzo (€)')} value={ty.price} onChangeText={(v) => setType(i, { price: v })} keyboardType="decimal-pad" style={{ flex: 1, minWidth: 120 }} />
-          </Row>
-          <Field label={t('Opzioni, separate da virgola')} value={ty.options} onChangeText={(v) => setType(i, { options: v })} />
-          <Toggle label={t('Prenotabile')} value={ty.active} onChange={(v) => setType(i, { active: v })} disabled={!ty.active && typesFull} />
-          {(plan.groups || ty.group) && (
-            <>
-              <Toggle label={t('Lezione di gruppo')} value={ty.group} onChange={(v) => setType(i, { group: v })} />
-              {ty.group && (
-                <>
-                  <Field
-                    label={t('Posti per classe')}
-                    value={ty.seats}
-                    onChangeText={(v) => setType(i, { seats: v })}
-                    keyboardType="number-pad"
-                  />
-                  <Muted style={{ fontSize: 13 }}>
-                    {t('Le classi si mettono in calendario dal Giorno; i clienti si iscrivono ai posti liberi e ogni cane paga la sua lezione.')}
-                  </Muted>
-                </>
-              )}
-            </>
-          )}
-        </Card>
-      ))}
-      <Button
-        title={t('+ Aggiungi lezione')}
-        kind="ghost"
-        disabled={typesFull}
-        onPress={() =>
-          setTypes([
-            ...types,
-            // L'id resta fisso anche se poi cambi il nome; serve ai trainer per riconoscere la lezione.
-            { id: `lez-${Date.now().toString(36)}`, label: '', description: '', duration: '60', price: '0', options: '', active: true, group: false, seats: '6' },
-          ])
-        }
-      />
-      <Muted style={{ fontSize: 13 }}>
-        {t('Per togliere una lezione spegni "Prenotabile": i clienti non la vedono più, ma restano le prenotazioni già fatte.')}
-      </Muted>
-      <LimitNote kind="maxLessonTypes" count={activeTypes} what={t('lezioni prenotabili')} />
-      {!plan.groups && (
-        <Muted style={{ fontSize: 13 }}>
-          {t('Le lezioni di gruppo, con più cani nella stessa classe, sono nel piano {piano}. Per passare a un piano superiore chiedi un nuovo codice di licenza.', { piano: planWith('groups') })}
-        </Muted>
+      {show('orari') && (
+        <>
+          <Step title={t('Orari e regole')} />
+          <Card>
+            <Row>
+              <Field label={t('Apre alle')} value={openAt} onChangeText={setOpenAt} style={{ flex: 1, minWidth: 120 }} />
+              <Field label={t('Chiude alle')} value={closeAt} onChangeText={setCloseAt} style={{ flex: 1, minWidth: 120 }} />
+            </Row>
+            <Row>
+              <Field label={t('Disdetta fino a (ore prima)')} value={cancelHours} onChangeText={setCancelHours} keyboardType="number-pad" style={{ flex: 1, minWidth: 140 }} />
+              <Field label={t('Sospendi alla penalità n° (0 = mai)')} value={penaltyLimit} onChangeText={setPenaltyLimit} keyboardType="number-pad" style={{ flex: 1, minWidth: 140 }} />
+            </Row>
+          </Card>
+        </>
       )}
 
-      {plan.packages ? (
+      {show('pagamenti') && (
+        <>
+          <Step title={t('Metodi di pagamento')} />
+          <Muted>{t('I clienti possono sempre pagare al campo. Qui apri gli altri metodi che vuoi offrire.')}</Muted>
+          <Card>
+            <TransferPanel />
+          </Card>
+          <Card>
+            <NexiPanel />
+          </Card>
+        </>
+      )}
+
+      {show('lezioni') && (
+        <>
+          <Step title={t('Lezioni')} />
+          {types.map((ty, i) => (
+            <Card key={ty.id}>
+              <Field label={t('Nome')} value={ty.label} onChangeText={(v) => setType(i, { label: v })} />
+              <Field label={t('Descrizione')} value={ty.description} onChangeText={(v) => setType(i, { description: v })} />
+              <Row>
+                <Field label={t('Durata (min)')} value={ty.duration} onChangeText={(v) => setType(i, { duration: v })} keyboardType="number-pad" style={{ flex: 1, minWidth: 120 }} />
+                <Field label={t('Prezzo (€)')} value={ty.price} onChangeText={(v) => setType(i, { price: v })} keyboardType="decimal-pad" style={{ flex: 1, minWidth: 120 }} />
+              </Row>
+              <Field label={t('Opzioni, separate da virgola')} value={ty.options} onChangeText={(v) => setType(i, { options: v })} />
+              <Toggle label={t('Prenotabile')} value={ty.active} onChange={(v) => setType(i, { active: v })} disabled={!ty.active && typesFull} />
+              {(plan.groups || ty.group) && (
+                <>
+                  <Toggle label={t('Lezione di gruppo')} value={ty.group} onChange={(v) => setType(i, { group: v })} />
+                  {ty.group && (
+                    <>
+                      <Field
+                        label={t('Posti per classe')}
+                        value={ty.seats}
+                        onChangeText={(v) => setType(i, { seats: v })}
+                        keyboardType="number-pad"
+                      />
+                      <Muted style={{ fontSize: 13 }}>
+                        {t('Le classi si mettono in calendario dal Giorno; i clienti si iscrivono ai posti liberi e ogni cane paga la sua lezione.')}
+                      </Muted>
+                    </>
+                  )}
+                </>
+              )}
+            </Card>
+          ))}
+          <Button
+            title={t('+ Aggiungi lezione')}
+            kind="ghost"
+            disabled={typesFull}
+            onPress={() =>
+              setTypes([
+                ...types,
+                // L'id resta fisso anche se poi cambi il nome; serve ai trainer per riconoscere la lezione.
+                { id: `lez-${Date.now().toString(36)}`, label: '', description: '', duration: '60', price: '0', options: '', active: true, group: false, seats: '6' },
+              ])
+            }
+          />
+          <Muted style={{ fontSize: 13 }}>
+            {t('Per togliere una lezione spegni "Prenotabile": i clienti non la vedono più, ma restano le prenotazioni già fatte.')}
+          </Muted>
+          <LimitNote kind="maxLessonTypes" count={activeTypes} what={t('lezioni prenotabili')} />
+          {!plan.groups && (
+            <Muted style={{ fontSize: 13 }}>
+              {t('Le lezioni di gruppo, con più cani nella stessa classe, sono nel piano {piano}. Per passare a un piano superiore chiedi un nuovo codice di licenza.', { piano: planWith('groups') })}
+            </Muted>
+          )}
+        </>
+      )}
+
+      {!show('pacchetti') ? null : plan.packages ? (
         <>
           <Step title={t('Pacchetti')} />
           <PackagesEditor />
@@ -454,7 +495,7 @@ export default function OwnerSettings() {
         <PlanNote title={t('Pacchetti')} plan={planWith('packages')} />
       )}
 
-      {plan.evals ? (
+      {!show('valutazioni') ? null : plan.evals ? (
         <>
           <Step title={t('Schede di valutazione')} />
           <EvalFormsEditor />
@@ -463,7 +504,7 @@ export default function OwnerSettings() {
         <PlanNote title={t('Schede di valutazione')} plan={planWith('evals')} />
       )}
 
-      {plan.invoices ? (
+      {!show('fatture') ? null : plan.invoices ? (
         <>
           <Step title={t('Fatture')} />
           <InvoicesPanel />
@@ -472,7 +513,7 @@ export default function OwnerSettings() {
         <PlanNote title={t('Fatture e scontrini')} plan={planWith('invoices')} />
       )}
 
-      {plan.report ? (
+      {!show('report') ? null : plan.report ? (
         <>
           <Step title={t('Report mensile')} />
           <ReportPanel />
@@ -481,26 +522,38 @@ export default function OwnerSettings() {
         <PlanNote title={t('Report mensile')} plan={planWith('report')} />
       )}
 
-      <Step title={t('Proprietari')} />
-      <OwnersPanel />
+      {show('proprietari') && (
+        <>
+          <Step title={t('Proprietari')} />
+          <OwnersPanel />
+        </>
+      )}
 
-      <Step title={t('Regolamento e privacy')} />
-      <Card>
-        <Muted>
-          {t("Le regole su orari, disdetta e penalità sono già scritte dall'app. Qui aggiungi le tue, una per riga.")}
-        </Muted>
-        <Field label={t('Regolamento')} value={rules} onChangeText={setRules} multiline />
-        <Field label={t('Informativa privacy')} value={privacy} onChangeText={setPrivacy} multiline />
-        {consentsChanged && (
-          <Body style={{ color: c.brassText }}>
-            {t('Salvando, i clienti dovranno accettare di nuovo il testo modificato prima di prenotare.')}
-          </Body>
-        )}
-      </Card>
+      {show('regole') && (
+        <>
+          <Step title={t('Regolamento e privacy')} />
+          <Card>
+            <Muted>
+              {t("Le regole su orari, disdetta e penalità sono già scritte dall'app. Qui aggiungi le tue, una per riga.")}
+            </Muted>
+            <Field label={t('Regolamento')} value={rules} onChangeText={setRules} multiline />
+            <Field label={t('Informativa privacy')} value={privacy} onChangeText={setPrivacy} multiline />
+            {consentsChanged && (
+              <Body style={{ color: c.brassText }}>
+                {t('Salvando, i clienti dovranno accettare di nuovo il testo modificato prima di prenotare.')}
+              </Body>
+            )}
+          </Card>
+        </>
+      )}
 
-      <ErrorText>{err}</ErrorText>
-      {!!msg && <Muted>{msg}</Muted>}
-      <Button title={t('Salva impostazioni')} onPress={save} loading={saving} />
+      {saveHere && (
+        <>
+          <ErrorText>{err}</ErrorText>
+          {!!msg && <Muted>{msg}</Muted>}
+          <Button title={t('Salva impostazioni')} onPress={save} loading={saving} />
+        </>
+      )}
 
       <Muted style={{ textAlign: 'center' }}>{t('Accesso come proprietario: {email}', { email: profile?.email ?? '' })}</Muted>
       <Button title={t('Esci')} kind="ghost" onPress={() => supabase.auth.signOut()} />
