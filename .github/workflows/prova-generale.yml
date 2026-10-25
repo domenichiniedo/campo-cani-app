@@ -10,6 +10,8 @@
 # Per le email con il codice (password dimenticata, conferma dell'email): i secret SMTP_USER e SMTP_PASS. Con Gmail
 # SMTP_USER è il tuo indirizzo e SMTP_PASS una "password per le app" (myaccount.google.com/apppasswords); per un altro
 # servizio aggiungi SMTP_HOST (e SMTP_PORT se non è 587). Senza, Supabase manda solo un link che nell'app non funziona.
+# Per entrare con Google (clienti, trainer e proprietari): le variabili GOOGLE_WEB_CLIENT_ID e GOOGLE_DESKTOP_CLIENT_ID e
+# il secret GOOGLE_WEB_SECRET (il client secret del client web), come nel README ("Accesso con Google").
 #
 # Actions → Prova generale → Run workflow, con la tua email. In una ventina di minuti:
 #   - il gestore acceso su Supabase (progetto "K9 Gestore"), con le funzioni, gli orari e il tuo utente: la password è
@@ -77,6 +79,11 @@ jobs:
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          # Accesso con Google ai centri (vedi README, "Accesso con Google"): le stesse variabili delle app e il secret
+          # del client web. Senza, si entra solo con email e password.
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_WEB_SECRET }}
+          GOOGLE_ALTRI_CLIENT_ID: ${{ vars.GOOGLE_DESKTOP_CLIENT_ID }}
           EMAIL: ${{ inputs.email }}
           PAUSA: ${{ github.event_name == 'workflow_dispatch' && inputs.pausa_prova_vecchia && env.PROVA_PROGETTO || '' }}
           NUOVA: ${{ inputs.nuova_password && 'si' || '' }}

@@ -288,14 +288,15 @@ Deno.test('dati per la fattura del centro', () => {
     const x = leggiFatturazione(v);
     return 'errore' in x ? x.errore : '';
   };
-  uguale(errore({ ...buoni, partita_iva: '', codice_fiscale: '' }), 'Scrivi la partita IVA o il codice fiscale.');
+  // Un privato: basta nome e cognome.
+  uguale('dati' in leggiFatturazione({ ragione_sociale: 'Mario Rossi' }), true);
   uguale(errore({ ...buoni, partita_iva: '01234567890' }), 'La partita IVA non è valida: sono 11 cifre.');
   uguale(errore({ ...buoni, codice_fiscale: 'RSSMRA80A01H501X' }), 'Il codice fiscale non è valido. Controlla le lettere e i numeri.');
   uguale(errore({ ...buoni, cap: '401' }), 'Il CAP deve avere 5 cifre.');
-  uguale(errore({ ...buoni, provincia: '' }), 'La provincia va scritta con la sigla, per esempio BO.');
+  uguale(errore({ ...buoni, provincia: 'B1' }), 'La provincia va scritta con la sigla, per esempio BO.');
   uguale(errore({ ...buoni, codice_sdi: 'ABC' }), 'Il codice destinatario ha 7 lettere o cifre.');
   uguale(errore({ ...buoni, pec: 'non-una-pec' }), 'La PEC non è un indirizzo email valido.');
-  uguale(errore(undefined as unknown as object), 'Scrivi la ragione sociale (o il nome della società o associazione).');
+  uguale(errore(undefined as unknown as object), 'Scrivi nome e cognome o la ragione sociale.');
 });
 
 Deno.test('invito: su Android apre l\'app sul centro, se no Google Play con il codice', () => {
@@ -312,7 +313,7 @@ Deno.test('invito: su Android apre l\'app sul centro, se no Google Play con il c
 Deno.test('le build del pannello esistono nel repository e la prova controlla i dati', async () => {
   const { LANCI, lancia } = await import('./github.ts');
   for (const l of Object.values(LANCI)) await Deno.stat(new URL(`../../../../.github/workflows/${l.file}`, import.meta.url));
-  for (const b of [{ email: 'no', giorni: 10 }, { email: 'a@b.it', giorni: 0 }, { email: 'a@b.it', giorni: 200 }]) {
+  for (const b of [{ email: 'no', giorni: 10 }, { email: 'a@b.it', giorni: 0 }, { email: 'a@b.it', giorni: 200 }, { email: 'a@b.it', giorni: 10, android: false, windows: false }]) {
     let errore = '';
     await lancia('prova', b).catch((e) => (errore = e.message));
     if (!errore) throw new Error(`accettata: ${JSON.stringify(b)}`);

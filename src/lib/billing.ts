@@ -126,14 +126,12 @@ export const cleanCentreBilling = (raw: CentreBilling): CentreBilling => {
 /** Il primo dato per la fattura del centro mancante o sbagliato, oppure null (come il gestore, fatturazione.ts). */
 export function centreBillingError(raw: CentreBilling): string | null {
   const b = cleanCentreBilling(raw);
-  if (b.ragione_sociale.length < 2) return t('Scrivi la ragione sociale (o il nome della società o associazione).');
-  if (!b.partita_iva && !b.codice_fiscale) return t('Scrivi la partita IVA o il codice fiscale.');
+  // Basta il nome: anche un privato che organizza le lezioni apre un centro. Il resto, se c'è, dev'essere giusto.
+  if (b.ragione_sociale.length < 2) return t('Scrivi nome e cognome o la ragione sociale.');
   if (b.partita_iva && !isValidVat(b.partita_iva)) return t('La partita IVA non è valida: sono 11 cifre.');
   if (b.codice_fiscale && !isValidTaxCode(b.codice_fiscale)) return t('Il codice fiscale non è valido. Controlla le lettere e i numeri.');
-  if (!b.indirizzo) return t('Scrivi via e numero civico della sede.');
-  if (!/^\d{5}$/.test(b.cap)) return t('Il CAP deve avere 5 cifre.');
-  if (!b.comune) return t('Scrivi il comune della sede.');
-  if (!/^[A-Z]{2}$/.test(b.provincia)) return t('La provincia va scritta con la sigla, per esempio BO.');
+  if (b.cap && !/^\d{5}$/.test(b.cap)) return t('Il CAP deve avere 5 cifre.');
+  if (b.provincia && !/^[A-Z]{2}$/.test(b.provincia)) return t('La provincia va scritta con la sigla, per esempio BO.');
   if (b.codice_sdi && !/^[A-Z0-9]{7}$/.test(b.codice_sdi)) return t('Il codice destinatario ha 7 lettere o cifre.');
   if (b.pec && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.pec)) return t('La PEC non è un indirizzo email valido.');
   return null;

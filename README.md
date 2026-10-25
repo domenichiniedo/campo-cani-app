@@ -78,13 +78,16 @@ centro, e gli stessi client valgono per tutti i centri. Si prepara **una volta s
      e un **client secret**.
    - **Android**, nome pacchetto `it.campocani.app`, impronta SHA-1
      `02:B3:E4:2E:B2:A9:A1:47:C6:3A:F3:4F:42:8B:0E:6A:EB:8A:9B:02` (è la firma di `mobile-demo/demo-debug.keystore`).
-   - **Android** di nuovo, uguale ma con pacchetto `it.campocani.provavera` (le prove con database).
+   - **Android** di nuovo, uguale ma con pacchetto `it.campocani.provavera` (le prove con database), e un altro con
+     `it.campocani.provagenerale` (la prova generale).
    - **App desktop**, "K9 Manager computer": ti dà un altro **ID client** e un **client secret** (per Google quello delle
      app desktop non è segreto: può stare nel programma).
 3. **GitHub → Settings → Secrets and variables → Actions → Variables**: `GOOGLE_WEB_CLIENT_ID` (ID del client web),
    `GOOGLE_DESKTOP_CLIENT_ID` e `GOOGLE_DESKTOP_SECRET` (quelli del client desktop). Poi ricostruisci app e programma
    (Actions → App per Android, App per Windows, App per Mac). Per la versione web la variabile è
-   `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (vedi `.env.example`).
+   `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (vedi `.env.example`). Per la **prova generale** aggiungi in **Secrets** anche
+   `GOOGLE_WEB_SECRET` (il client secret del client web) e rilanciala: accende Google nel gestore di prova e nei suoi
+   centri, anche quelli già pronti.
 4. **Ogni progetto Supabase** (lo fa da solo il gestore per i centri nuovi, vedi `gestore/README.md`): in
    **Authentication → Sign In / Providers → Google** attivalo, in *Client IDs* metti l'ID del client web e, separato da
    una virgola, quello del client desktop; in *Client Secret* il secret del client web. Lascia spento "Skip nonce

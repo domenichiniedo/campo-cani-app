@@ -68,9 +68,9 @@ jobs:
       EXPO_PUBLIC_GESTORE_URL: ${{ inputs.gestore_url }}
       EXPO_PUBLIC_LICENSE_SERVER_KEY: ${{ inputs.chiave_server }}
       GIORNI: ${{ github.event_name == 'pull_request' && '3' || inputs.giorni }}
-      # Accesso con Google (vedi README, "Accesso con Google"): vuota = niente pulsante. Non nella prova generale, che
-      # prepara i centri senza Google.
-      EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ inputs.gestore_url == '' && vars.GOOGLE_WEB_CLIENT_ID || '' }}
+      # Accesso con Google (vedi README, "Accesso con Google"): vuota = niente pulsante. Anche nella prova generale: il
+      # pulsante compare solo nei centri dove il gestore ha acceso Google.
+      EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
     steps:
       - uses: actions/checkout@v4
       - name: Database e scadenza

@@ -60,16 +60,14 @@ export function leggiFatturazione(v: unknown): { dati: Fatturazione } | { errore
     codice_sdi: codice(f.codice_sdi),
     pec: testo(f.pec, 120).toLowerCase(),
   };
-  if (dati.ragione_sociale.length < 2) return { errore: 'Scrivi la ragione sociale (o il nome della società o associazione).' };
-  if (!dati.partita_iva && !dati.codice_fiscale) return { errore: 'Scrivi la partita IVA o il codice fiscale.' };
+  // Basta il nome: anche un privato che organizza le lezioni apre un centro. Il resto, se c'è, dev'essere giusto.
+  if (dati.ragione_sociale.length < 2) return { errore: 'Scrivi nome e cognome o la ragione sociale.' };
   if (dati.partita_iva && !partitaIvaValida(dati.partita_iva)) return { errore: 'La partita IVA non è valida: sono 11 cifre.' };
   if (dati.codice_fiscale && !codiceFiscaleValido(dati.codice_fiscale)) {
     return { errore: 'Il codice fiscale non è valido. Controlla le lettere e i numeri.' };
   }
-  if (!dati.indirizzo) return { errore: 'Scrivi via e numero civico della sede.' };
-  if (!/^\d{5}$/.test(dati.cap)) return { errore: 'Il CAP deve avere 5 cifre.' };
-  if (!dati.comune) return { errore: 'Scrivi il comune della sede.' };
-  if (!/^[A-Z]{2}$/.test(dati.provincia)) return { errore: 'La provincia va scritta con la sigla, per esempio BO.' };
+  if (dati.cap && !/^\d{5}$/.test(dati.cap)) return { errore: 'Il CAP deve avere 5 cifre.' };
+  if (dati.provincia && !/^[A-Z]{2}$/.test(dati.provincia)) return { errore: 'La provincia va scritta con la sigla, per esempio BO.' };
   if (dati.codice_sdi && !/^[A-Z0-9]{7}$/.test(dati.codice_sdi)) return { errore: 'Il codice destinatario ha 7 lettere o cifre.' };
   if (dati.pec && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dati.pec)) return { errore: 'La PEC non è un indirizzo email valido.' };
   return { dati };

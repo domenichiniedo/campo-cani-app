@@ -52,6 +52,8 @@ export type AdminCentre = CentreBilling & {
   /** Il progetto Supabase del centro (null finché non è creato) e le migrazioni dell'app già caricate. */
   progetto?: string | null;
   migrazioni?: number;
+  /** Stato del progetto su Supabase (ACTIVE_HEALTHY, INACTIVE...), MANCANTE se è stato cancellato, null se non si sa. */
+  db_stato?: string | null;
 };
 
 /** Un progetto Supabase del tuo account: il database di un centro, del gestore o un altro tuo. */

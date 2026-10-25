@@ -167,6 +167,11 @@ const smtp = process.env.SMTP_USER && process.env.SMTP_PASS
     }
   : null;
 
+// L'accesso con Google ai centri: il client web (ID e secret) e quello desktop.
+const google = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+  ? { id: process.env.GOOGLE_CLIENT_ID, segreto: process.env.GOOGLE_CLIENT_SECRET, altri: process.env.GOOGLE_ALTRI_CLIENT_ID || '' }
+  : null;
+
 // 5. I segreti delle funzioni.
 const webhook = randomBytes(24).toString('base64url');
 const admin = soloSeEsiste ? null : email;
@@ -182,6 +187,13 @@ await api('POST', `/projects/${ref}/secrets`, [
     ? [
         { name: 'GITHUB_TOKEN', value: process.env.GESTORE_GITHUB_TOKEN },
         { name: 'GITHUB_REPO', value: process.env.GITHUB_REPOSITORY || 'domenichiniedo/campo-cani-app' },
+      ]
+    : []),
+  ...(google
+    ? [
+        { name: 'GOOGLE_CLIENT_ID', value: google.id },
+        { name: 'GOOGLE_CLIENT_SECRET', value: google.segreto },
+        { name: 'GOOGLE_ALTRI_CLIENT_ID', value: google.altri },
       ]
     : []),
   ...(smtp
@@ -213,6 +225,27 @@ if (smtp) {
       mailer_templates_confirmation_content: `<h2>Benvenuto in ${c.campo.replace(/[<>&]/g, '')}</h2>\n<p>Il codice per confermare la tua email è: <strong>{{ .Token }}</strong></p>`,
     });
   }
+}
+
+// Ai centri già pronti l'accesso con Google, come lo accende il gestore per quelli nuovi (passi.ts).
+if (google) {
+  for (const c of await query('select progetto, campo from public.centri where progetto is not null;')) {
+    step(`Accesso con Google per "${c.campo}"…`);
+    // Un centro in pausa o cancellato non ferma la prova: si salta e lo dice.
+    const res = await fetch(`${API}/projects/${c.progetto}/config/auth`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        external_google_enabled: true,
+        external_google_client_id: google.id,
+        external_google_secret: google.segreto,
+        external_google_additional_client_ids: google.altri,
+      }),
+    });
+    if (!res.ok) step(`  non riuscito (${res.status}): il database è in pausa o non c'è più?`);
+  }
+} else {
+  step('Niente accesso con Google ai centri: mancano GOOGLE_WEB_CLIENT_ID o il secret GOOGLE_WEB_SECRET.');
 }
 
 // 6. IBAN di prova e orari.

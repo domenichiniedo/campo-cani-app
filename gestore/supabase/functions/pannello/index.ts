@@ -70,9 +70,15 @@ Deno.serve(async (req) => {
         const errore = centri.error ?? addebiti.error ?? piani.error ?? banca.error ?? movimenti.error ?? codici.error ?? crediti.error;
         if (errore) throw new Error(errore.message);
         const { conto, ...resto } = banca.data!;
+        // Lo stato del database di ogni centro: "mancante" se il progetto non c'è più su Supabase.
+        const progetti = await (managementApi('GET', '/projects') as Promise<{ id?: string; ref?: string; status: string }[]>).catch(() => null);
+        const statoDb = (ref: string | null) => {
+          if (!ref || !progetti) return null;
+          return progetti.find((p) => (p.id ?? p.ref) === ref)?.status ?? 'MANCANTE';
+        };
         return json({
           oggi: oggi(),
-          centri: centri.data,
+          centri: ((centri.data ?? []) as unknown as { progetto: string | null }[]).map((c) => ({ ...c, db_stato: statoDb(c.progetto) })),
           addebiti: addebiti.data,
           piani: piani.data,
           banca: { ...resto, collegata: !!conto, abilitata: !bancaSpenta() },
