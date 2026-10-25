@@ -1,8 +1,10 @@
-# A ogni PR unita (push su main) rifà le due app per Android con le novità e le ripubblica nelle Releases:
+# A ogni PR unita (push su main) rifà le app per Android e per Windows con le novità e le ripubblica nelle Releases:
 #   - la demo con i dati di esempio, i 3 piani e le 5 entrate (proprietario, cliente, trainer, nuovo cliente, nuovo centro):
-#     Releases → "Demo per Android" (K9Manager-Demo.apk);
+#     Releases → "Demo per Android" (K9Manager-Demo.apk) e "Demo per Windows" (K9Manager-Windows-Demo.exe);
 #   - l'app collegata al database della prova: prima aggiunge al database le migrazioni nuove (i dati restano),
-#     poi costruisce l'APK: Releases → "Prova di K9 Manager – <progetto>" (K9Manager-Prova.apk).
+#     poi costruisce APK e programma per Windows: Releases → "Prova di K9 Manager – <progetto>" (K9Manager-Prova.apk e
+#     K9Manager-Prova-Windows.exe).
+# Si lancia anche dal pannello K9 Gestore (App e versioni).
 # Il progetto della prova è PROVA_PROGETTO qui sotto (il codice in xxxx.supabase.co): per collegare un'altra prova
 # cambialo qui. Usa il secret SUPABASE_ACCESS_TOKEN, lo stesso di "Prova con database".
 # Si può lanciare anche a mano: Actions → Aggiorna le app → Run workflow.
@@ -53,4 +55,17 @@ jobs:
       supabase_url: ${{ needs.database.outputs.url }}
       supabase_key: ${{ needs.database.outputs.chiave }}
       # Ogni aggiornamento sposta la fine della prova a 30 giorni da oggi.
+      giorni: '30'
+
+  demo-windows:
+    uses: ./.github/workflows/windows.yml
+    with:
+      demo: true
+
+  app-windows:
+    needs: database
+    uses: ./.github/workflows/windows.yml
+    with:
+      supabase_url: ${{ needs.database.outputs.url }}
+      supabase_key: ${{ needs.database.outputs.chiave }}
       giorni: '30'

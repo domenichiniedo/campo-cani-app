@@ -56,7 +56,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       supabase.from('trainers').select('*').eq('active', true).order('sort'),
     ]);
     if (s.data) setSettings(sameOr<Settings | null>(s.data as Settings));
-    setLessonTypes(sameOr(upTo((t.data ?? []) as LessonType[], plan.maxLessonTypes)));
+    // Con un piano più piccolo restano prenotabili solo le prime lezioni e le prime opzioni di ognuna.
+    setLessonTypes(sameOr(upTo((t.data ?? []) as LessonType[], plan.maxLessonTypes).map((l) => ({ ...l, options: upTo(l.options ?? [], plan.maxOptions) }))));
     setFields(sameOr(((f.data ?? []) as Field[]).slice(0, plan.maxFields ?? undefined)));
     setTrainers(sameOr(upTo((tr.data ?? []) as Trainer[], plan.maxTrainers)));
     const uid = (await supabase.auth.getSession()).data.session?.user.id ?? null;

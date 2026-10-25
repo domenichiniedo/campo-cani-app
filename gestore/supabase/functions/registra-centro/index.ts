@@ -27,11 +27,21 @@ Deno.serve(async (req) => {
   if (campo.length < 2) return json({ errore: 'Scrivi il nome del centro.' }, 400);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ errore: 'Email non valida.' }, 400);
   if (!PIANI.includes(piano)) return json({ errore: 'Scegli il piano.' }, 400);
+  // A consumo (canone + quota per prenotazione) o a prezzo fisso al mese.
+  const formula = String(body.formula ?? 'consumo');
+  if (formula !== 'consumo' && formula !== 'fisso') return json({ errore: 'Scegli a consumo o fisso.' }, 400);
   const iban = String(body.iban ?? '').toUpperCase().replace(/\s/g, '');
   if (iban && !ibanValido(iban)) return json({ errore: 'IBAN non valido.' }, 400);
   // Ragione sociale, partita IVA o codice fiscale, sede e SDI o PEC: per fatturargli canone e prenotazioni.
   const fattura = leggiFatturazione(body.fattura);
   if ('errore' in fattura) return json({ errore: fattura.errore }, 400);
+  // Codice bonus (facoltativo): si controlla prima, così chi lo sbaglia lo corregge prima di registrarsi.
+  const bonus = String(body.bonus ?? '').trim().toUpperCase();
+  if (bonus) {
+    const { data: b } = await db.from('codici_bonus').select('attivo, scade, usi_max, usati').eq('codice', bonus).maybeSingle();
+    if (!b || !b.attivo || (b.scade && b.scade < oggi()) || (b.usi_max !== null && b.usati >= b.usi_max))
+      return json({ errore: 'Codice bonus non valido o scaduto. Correggilo o lascialo vuoto.' }, 400);
+  }
 
   // Ogni centro costa un progetto Supabase: si limita chi prova a registrarne tanti.
   const giorno = new Date(Date.now() - 24 * 3600_000).toISOString();
@@ -42,18 +52,19 @@ Deno.serve(async (req) => {
 
   let centro: { id: string; codice: string } | null = null;
   for (let i = 0; i < 5 && !centro; i++) {
-    // Canone e quota per prenotazione: quelli del piano (tabella piani), finché non ne fai di apposta dal pannello.
+    // Canone, quota per prenotazione e fisso: quelli del piano (tabella piani), finché non ne fai di apposta dal pannello.
     const { data, error } = await db
       .from('centri')
-      .insert({ codice: nuovoCodice(), campo, email, piano, iban, ...fattura.dati, stato: 'progetto' })
+      .insert({ codice: nuovoCodice(), campo, email, piano, formula, iban, ...fattura.dati, stato: 'progetto' })
       .select('id, codice')
       .single();
     if (data) centro = data;
     else if (error?.code !== '23505') return json({ errore: error?.message ?? 'Registrazione non riuscita.' }, 500);
   }
   if (!centro) return json({ errore: 'Registrazione non riuscita, riprova.' }, 500);
-  await db.from('cambi_piano').insert({ centro: centro.id, piano, dal: oggi(), da: 'registrazione' });
+  await db.from('cambi_piano').insert({ centro: centro.id, piano, formula, dal: oggi(), da: 'registrazione' });
+  const { data: credito } = bonus ? await db.rpc('usa_codice_bonus', { p_codice: bonus, p_centro: centro.id }) : { data: 0 };
 
   sveglia();
-  return json({ codice: centro.codice });
+  return json({ codice: centro.codice, bonus_cents: Number(credito) || 0 });
 });

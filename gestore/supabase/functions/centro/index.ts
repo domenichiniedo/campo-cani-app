@@ -12,8 +12,12 @@ Deno.serve(async (req) => {
 
   const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
   if (body.prezzi) {
-    const { data } = await db.from('piani').select('piano, canone_cents, tariffa_cents');
-    return json({ piani: Object.fromEntries((data ?? []).map((p) => [p.piano, { canone_cents: p.canone_cents, tariffa_cents: p.tariffa_cents }])) });
+    const { data } = await db.from('piani').select('*');
+    return json({
+      piani: Object.fromEntries(
+        (data ?? []).map((p) => [p.piano, { canone_cents: p.canone_cents, tariffa_cents: p.tariffa_cents, fisso_cents: p.fisso_cents ?? null, pacchetti_bp: p.pacchetti_bp ?? null }]),
+      ),
+    });
   }
   const codice = String(body.codice ?? q.get('codice') ?? '').trim().toUpperCase().replace(/^K9(?!-)/, 'K9-');
   if (!/^K9-[A-Z0-9]{6}$/.test(codice)) return json({ errore: 'Codice del centro non valido.' }, 400);

@@ -321,8 +321,9 @@ L'app è una sola: il piano scritto nella licenza decide cosa si vede. Le licenz
 | --- | --- | --- | --- |
 | Prenotazioni, orari, clienti e cani, penalità, regolamento e privacy, logo | sì | sì | sì |
 | Campi | 1 | fino a 2 | senza limite |
-| Clienti iscritti | fino a 100 | fino a 100 | senza limite |
+| Clienti iscritti | fino a 60 | fino a 100 | senza limite |
 | Lezioni prenotabili | fino a 3 | fino a 5 | senza limite |
+| Opzioni di ogni lezione (per esempio Pista, Obbedienza, Attacco) | fino a 2 | fino a 5 | senza limite |
 | Pacchetti di lezioni richiedibili | fino a 3 | fino a 5 | senza limite |
 | Trainer (con la loro app e il diario dei cani) | no | fino a 2 | senza limite |
 | Incassi: lezioni da incassare e pagina Incassi | no | sì | sì |
@@ -331,10 +332,10 @@ L'app è una sola: il piano scritto nella licenza decide cosa si vede. Le licenz
 | Registratore in cloud o registratore Epson al campo | no | no | sì |
 | Programma per Windows e Mac | no | no | sì |
 | Lezioni di gruppo: classi con più cani, anche ogni settimana | no | no | sì |
-| Schede di valutazione nel diario dei cani | no | no | sì |
+| Schede di valutazione nel diario dei cani | no | fino a 3 | senza limite |
 
-Le lezioni e i pacchetti spenti non contano nel limite. Se un centro scende di piano con più campi, lezioni, pacchetti o
-trainer di quanti ne comprende il nuovo piano, restano attivi solo i primi in ordine.
+Le lezioni, i pacchetti e le schede spenti non contano nel limite. Se un centro scende di piano con più campi, lezioni,
+opzioni, pacchetti, schede o trainer di quanti ne comprende il nuovo piano, restano attivi solo i primi in ordine.
 
 Per cambiare piano genera un codice con lo **stesso `--id`** e il nuovo `--piano` (la scadenza può restare uguale): il
 centro lo incolla in Impostazioni → Licenza. Quando un centro raggiunge il limite di clienti, i nuovi non possono
@@ -472,7 +473,7 @@ Quando la prova è finita puoi mettere in pausa o cancellare il progetto in Supa
 - Pacchetti: vede quelli offerti e li richiede; paga al campo e il proprietario lo attiva. Da lì ogni prenotazione di quel
   tipo scala una lezione, e una lezione annullata torna nel pacchetto.
 - Diario: per ogni cane, cosa si è fatto a ogni lezione e i commenti del trainer, con le schede di valutazione che il
-  trainer ha compilato sul cane (piano Pro).
+  trainer ha compilato sul cane (piani Professional e Pro).
 - Profilo: foto (fotocamera o galleria), dati, cani, penalità ricevute, regolamento e privacy.
 - Le mie lezioni mostrano il trainer con la sua foto.
 - Se il proprietario cambia regolamento o privacy, al prossimo accesso deve accettare il nuovo testo prima di prenotare.
@@ -494,7 +495,7 @@ Quando la prova è finita puoi mettere in pausa o cancellare il progetto in Supa
   incassi e statistiche.
 - Impostazioni: nome del centro, logo, numero di campi (ognuno con nome e indirizzo, anche uguale), trainer con le
   lezioni che seguono, pacchetti (lezioni, prezzo, validità), orario della griglia, ore per la disdetta, limite penalità, lezioni (nome, durata,
-  prezzo, opzioni), modelli delle schede di valutazione del cane (piano Pro: per esempio primo incontro o ipersensibilità al tatto, con
+  prezzo, opzioni), modelli delle schede di valutazione del cane (piani Professional e Pro: per esempio primo incontro o ipersensibilità al tatto, con
   voci a voto da 1 a 5, sì/no, scelta tra risposte o testo), regolamento e
   privacy.
 
@@ -502,7 +503,7 @@ Quando la prova è finita puoi mettere in pausa o cancellare il progetto in Supa
 - Il proprietario, nella scheda Trainer, scrive l'email del trainer. Il trainer si iscrive dall'app con quella email
   scegliendo "Sono un trainer del centro" (se aveva già un account, diventa trainer subito).
 - Lezioni: le sue lezioni del giorno con cane, cliente e telefono; il giorno della lezione fa entrare il cane in campo.
-- Diario: dopo la lezione scrive cosa si è fatto e i commenti. Nel piano Pro compila le schede di valutazione del centro
+- Diario: dopo la lezione scrive cosa si è fatto e i commenti. Nei piani Professional e Pro compila le schede di valutazione del centro
   sul cane, quando vuole ("+ Valuta il cane" nei Diari) o nella pagina della lezione. Li leggono il cliente e il
   proprietario.
 - Disponibilità: segna le mezz'ore in cui può fare lezione.

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
+import { LimitNote } from '@/components/limit-note';
 import { Button, Card, Chips, ErrorText, Field, Muted, Row, Toggle } from '@/components/ui';
 import { t, tKey } from '@/lib/i18n';
+import { usePlan } from '@/lib/plans';
 import { errorText, supabase } from '@/lib/supabase';
 import type { EvalForm, EvalItem } from '@/lib/types';
 
@@ -19,6 +21,7 @@ const EVAL_KINDS: { value: EvalItem['kind']; label: string }[] = [
 
 /** Schede di valutazione che i trainer compilano nel diario. Si salvano a parte dalle altre impostazioni. */
 export function EvalFormsEditor() {
+  const plan = usePlan();
   const [list, setList] = useState<Draft[]>([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
@@ -44,6 +47,9 @@ export function EvalFormsEditor() {
     load();
   }, []);
 
+  // Il piano conta le schede in uso: quelle spente non pesano.
+  const inUse = list.filter((d) => d.active).length;
+  const full = plan.maxEvalForms !== null && inUse >= plan.maxEvalForms;
   const setAt = (i: number, patch: Partial<Draft>) => setList(list.map((d, j) => (j === i ? { ...d, ...patch } : d)));
   const setItem = (i: number, k: number, patch: Partial<DraftItem>) =>
     setAt(i, { items: list[i].items.map((it, j) => (j === k ? { ...it, ...patch } : it)) });
@@ -51,6 +57,8 @@ export function EvalFormsEditor() {
   async function save() {
     setErr('');
     setMsg('');
+    if (plan.maxEvalForms !== null && inUse > plan.maxEvalForms)
+      return setErr(t('Il piano {piano} comprende fino a {max} {cosa}.', { piano: plan.label, max: plan.maxEvalForms, cosa: t('schede in uso') }));
     const rows = [];
     for (const [i, d] of list.entries()) {
       const items: EvalItem[] = d.items.map((it) =>
@@ -103,10 +111,11 @@ export function EvalFormsEditor() {
             </View>
           ))}
           <Button small kind="ghost" title={t('+ Aggiungi voce')} disabled={d.items.length >= 40} onPress={() => setAt(i, { items: [...d.items, { label: '', kind: 'score', optionsText: '' }] })} />
-          <Toggle label={t('In uso')} value={d.active} onChange={(v) => setAt(i, { active: v })} />
+          <Toggle label={t('In uso')} value={d.active} onChange={(v) => setAt(i, { active: v })} disabled={!d.active && full} />
         </Card>
       ))}
-      <Button title={t('+ Aggiungi scheda')} kind="ghost" onPress={() => setList([...list, { name: '', items: [{ label: '', kind: 'score', optionsText: '' }], active: true }])} />
+      <Button title={t('+ Aggiungi scheda')} kind="ghost" disabled={full} onPress={() => setList([...list, { name: '', items: [{ label: '', kind: 'score', optionsText: '' }], active: true }])} />
+      <LimitNote kind="maxEvalForms" count={inUse} what={t('schede in uso')} />
       <ErrorText>{err}</ErrorText>
       {!!msg && <Muted>{msg}</Muted>}
       {list.length > 0 && <Button title={t('Salva schede')} onPress={save} loading={saving} />}

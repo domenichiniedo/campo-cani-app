@@ -453,7 +453,7 @@
   // Il gestore nella demo: registra un centro nuovo e lo "prepara" in pochi secondi invece che in minuti.
   // La licenza arriva dalla pagina della demo (mobile-demo/index.html), che ha quelle firmate per la demo.
   var CENTRO = 'campo-demo-centro-nuovo';
-  var PREZZI = { base: { canone_cents: 0, tariffa_cents: 100 }, professional: { canone_cents: 1900, tariffa_cents: 80 }, pro: { canone_cents: 3900, tariffa_cents: 60 } };
+  var PREZZI = { base: { canone_cents: 590, tariffa_cents: 100, fisso_cents: 3900, pacchetti_bp: 100 }, professional: { canone_cents: 2999, tariffa_cents: 60, fisso_cents: 7900, pacchetti_bp: 100 }, pro: { canone_cents: 8000, tariffa_cents: 30, fisso_cents: 14900, pacchetti_bp: 100 } };
   var PASSI = ['progetto', 'avvio', 'database', 'chiavi', 'licenza'];
   function gestore(fn, a) {
     if (fn === 'centro' && a.prezzi) return json(200, { piani: PREZZI });
@@ -462,17 +462,23 @@
       if (campo.length < 2) return json(400, { errore: 'Scrivi il nome del centro.' });
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(400, { errore: 'Email non valida.' });
       if (!PREZZI[a.piano]) return json(400, { errore: 'Scegli il piano.' });
+      if (a.formula && a.formula !== 'consumo' && a.formula !== 'fisso') return json(400, { errore: 'Scegli a consumo o fisso.' });
+      try { localStorage.setItem('campo-demo-formula', a.formula || 'consumo'); } catch (e) {}
       var f = a.fattura || {};
       if (String(f.ragione_sociale || '').trim().length < 2 || !(f.partita_iva || f.codice_fiscale) || !/^\d{5}$/.test(f.cap || '')) {
         return json(400, { errore: 'Completa i dati per la fattura.' });
       }
+      // Nella demo vale un solo codice bonus, quello che si vede anche nella demo del pannello.
+      var bonus = String(a.bonus || '').trim().toUpperCase();
+      if (bonus && bonus !== 'BENVENUTO30') return json(400, { errore: 'Codice bonus non valido o scaduto. Correggilo o lascialo vuoto.' });
+      try { localStorage.setItem('campo-demo-bonus', bonus ? '3000' : '0'); } catch (e) {}
       var codice = 'K9-' + Array.from({ length: 6 }, function () { return 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.random() * 31 | 0]; }).join('');
       try { localStorage.setItem(CENTRO, JSON.stringify({ codice: codice, campo: campo, email: email, piano: a.piano, fattura: f, inizio: Date.now() })); } catch (e) {}
       // Come il gestore vero: nome del campo e titolare (chi si iscrive con questa email è il proprietario).
       db.settings[0].field_name = campo;
       if (!db.owner_emails.some(function (x) { return x.email === email; })) db.owner_emails.push({ email: email });
       save();
-      return json(200, { codice: codice });
+      return json(200, { codice: codice, bonus_cents: bonus ? 3000 : 0 });
     }
     if (fn === 'centro') {
       var c = null;
@@ -495,15 +501,36 @@
       try { lic = JSON.parse(localStorage.getItem('campo-demo-licenze') || '{}'); } catch (e) {}
       var piano = localStorage.getItem('campo-cani-demo-piano');
       if (!PREZZI[piano]) piano = 'pro';
+      var formula = localStorage.getItem('campo-demo-formula') === 'fisso' ? 'fisso' : 'consumo';
+      var ORDINE = ['base', 'professional', 'pro'];
+      var prossimo = localStorage.getItem('campo-demo-piano-prossimo') || null;
+      var formulaProssima = localStorage.getItem('campo-demo-formula-prossima') || null;
+      var oggi = new Date();
+      var giorno = function (d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+      var primoDopo = giorno(new Date(oggi.getFullYear(), oggi.getMonth() + 1, 1));
+      var fineDopo = giorno(new Date(oggi.getFullYear(), oggi.getMonth() + 2, 0));
       if (a.azione === 'cambia') {
         if (!PREZZI[a.piano] || !lic[a.piano]) return json(400, { errore: 'Piano non valido.' });
-        piano = a.piano;
-        try { localStorage.setItem('campo-cani-demo-piano', piano); } catch (e) {}
+        if (a.formula && a.formula !== 'consumo' && a.formula !== 'fisso') return json(400, { errore: 'Scegli a consumo o fisso.' });
+        // Come il gestore vero: un piano superiore subito; un piano più piccolo e il passaggio fra consumo e fisso
+        // dal primo del mese dopo.
+        if (ORDINE.indexOf(a.piano) > ORDINE.indexOf(piano)) piano = a.piano;
+        prossimo = a.piano !== piano ? a.piano : null;
+        formulaProssima = a.formula && a.formula !== formula ? a.formula : null;
+        try {
+          localStorage.setItem('campo-cani-demo-piano', piano);
+          if (prossimo) localStorage.setItem('campo-demo-piano-prossimo', prossimo); else localStorage.removeItem('campo-demo-piano-prossimo');
+          if (formulaProssima) localStorage.setItem('campo-demo-formula-prossima', formulaProssima); else localStorage.removeItem('campo-demo-formula-prossima');
+        } catch (e) {}
         db.settings[0].license_code = lic[piano]; save();
       }
+      if (a.azione === 'disdici') try { localStorage.setItem('campo-demo-disdetta', fineDopo); } catch (e) {}
+      if (a.azione === 'banche') return json(200, { banche: [] });
+      if (a.azione === 'tieni') try { localStorage.removeItem('campo-demo-disdetta'); } catch (e) {}
       if (a.azione === 'iban') try { localStorage.setItem('campo-demo-iban-centro', String(a.iban || '')); } catch (e) {}
-      var out = { piano: piano, piani: PREZZI, iban_centro: localStorage.getItem('campo-demo-iban-centro') || '', scade: null,
-        bonifico: { iban: 'IT60X0542811101000000123456', intestatario: 'K9 Manager' }, da_pagare: [] };
+      var out = { piano: piano, formula: formula, piano_prossimo: prossimo, formula_prossima: formulaProssima, piano_dal: prossimo || formulaProssima ? primoDopo : null, disdetta: localStorage.getItem('campo-demo-disdetta') || null, disdetta_se_oggi: fineDopo, piani: PREZZI, iban_centro: localStorage.getItem('campo-demo-iban-centro') || '', scade: null,
+        bonifico: { iban: 'IT60X0542811101000000123456', intestatario: 'K9 Manager' }, da_pagare: [],
+        credito_cents: Number(localStorage.getItem('campo-demo-bonus') || 0) };
       if (a.azione === 'cambia') out.licenza = lic[piano];
       return json(200, out);
     }

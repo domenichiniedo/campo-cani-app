@@ -131,14 +131,14 @@ Deno.test('accesso con Google: con il client di Google si accende, senza no', as
 Deno.test('conto del mese: canone a giorni, quote del piano del giorno, prezzi del centro', async () => {
   const { contoDelMese, scadenzaLicenza, piuGiorni, giorniPerPagare } = await import('./costi.ts');
   const prezzi = {
-    base: { canone_cents: 0, tariffa_cents: 100 },
-    professional: { canone_cents: 3000, tariffa_cents: 80 },
-    pro: { canone_cents: 6000, tariffa_cents: 50 },
+    base: { canone_cents: 0, tariffa_cents: 100, fisso_cents: 3900, pacchetti_bp: 100 },
+    professional: { canone_cents: 3000, tariffa_cents: 80, fisso_cents: 7900, pacchetti_bp: 100 },
+    pro: { canone_cents: 6000, tariffa_cents: 50, fisso_cents: 15000, pacchetti_bp: 100 },
   };
   // Tutto il mese in Professional: canone pieno e 80 cent a prenotazione.
   uguale(
     contoDelMese({ mese: '2026-11', dal: '2026-01-01', cambi: [{ piano: 'professional', dal: '2026-01-01' }], attuale: 'professional', prezzi, canone: null, tariffa: null, prenotazioni: { '2026-11-03': 2, '2026-11-20': 3 } }),
-    { canone_cents: 3000, prenotazioni: 5, quote_cents: 400, importo_cents: 3400 },
+    { canone_cents: 3000, prenotazioni: 5, quote_cents: 400, pacchetti_cents: 0, importo_cents: 3400 },
   );
   // Passa a Pro il 16 novembre (30 giorni): 15 giorni a 30 € e 15 a 60 €; le quote seguono il piano del giorno.
   uguale(
@@ -152,13 +152,48 @@ Deno.test('conto del mese: canone a giorni, quote del piano del giorno, prezzi d
       tariffa: null,
       prenotazioni: { '2026-11-03': 2, '2026-11-20': 3 },
     }),
-    { canone_cents: 4500, prenotazioni: 5, quote_cents: 310, importo_cents: 4810 },
+    { canone_cents: 4500, prenotazioni: 5, quote_cents: 310, pacchetti_cents: 0, importo_cents: 4810 },
   );
   // Registrato il 21: canone solo per 10 giorni. Prezzi fatti apposta per il centro.
   uguale(
     contoDelMese({ mese: '2026-11', dal: '2026-11-21', cambi: [{ piano: 'pro', dal: '2026-11-21' }], attuale: 'pro', prezzi, canone: 900, tariffa: 0, prenotazioni: { '2026-11-25': 4 } }),
-    { canone_cents: 300, prenotazioni: 4, quote_cents: 0, importo_cents: 300 },
+    { canone_cents: 300, prenotazioni: 4, quote_cents: 0, pacchetti_cents: 0, importo_cents: 300 },
   );
+  // A prezzo fisso: solo il fisso del piano, le prenotazioni non pagano quota.
+  uguale(
+    contoDelMese({ mese: '2026-11', dal: '2026-01-01', cambi: [{ piano: 'pro', dal: '2026-01-01', formula: 'fisso' }], attuale: 'pro', formula: 'fisso', prezzi, canone: null, tariffa: null, prenotazioni: { '2026-11-03': 40 }, pacchetti: { '2026-11-04': 20000 } }),
+    { canone_cents: 15000, prenotazioni: 40, quote_cents: 0, pacchetti_cents: 0, importo_cents: 15000 },
+  );
+  // Passa al fisso il 16: 15 giorni di canone Professional con le quote, 15 giorni di fisso senza quote.
+  uguale(
+    contoDelMese({
+      mese: '2026-11',
+      dal: '2026-01-01',
+      cambi: [{ piano: 'professional', dal: '2026-01-01' }, { piano: 'professional', dal: '2026-11-16', formula: 'fisso' }],
+      attuale: 'professional',
+      formula: 'fisso',
+      prezzi,
+      canone: null,
+      tariffa: null,
+      prenotazioni: { '2026-11-03': 2, '2026-11-20': 3 },
+      // Un pacchetto da 150 € a consumo (1% = 1,50 €), uno da 200 € quando paga già il fisso (niente).
+      pacchetti: { '2026-11-05': 15000, '2026-11-25': 20000 },
+    }),
+    { canone_cents: 5450, prenotazioni: 5, quote_cents: 160, pacchetti_cents: 150, importo_cents: 5760 },
+  );
+  // Fisso fatto apposta per il centro.
+  uguale(
+    contoDelMese({ mese: '2026-11', dal: '2026-01-01', cambi: [], attuale: 'base', formula: 'fisso', prezzi, canone: null, tariffa: null, fisso: 2500, prenotazioni: { '2026-11-03': 9 } }),
+    { canone_cents: 2500, prenotazioni: 9, quote_cents: 0, pacchetti_cents: 0, importo_cents: 2500 },
+  );
+  // Piano più piccolo dal primo del mese dopo; disdetta alla fine del mese dopo.
+  const { primoDelMeseDopo, fineDelMeseDopo, piuPiccolo } = await import('./costi.ts');
+  uguale(primoDelMeseDopo('2026-10-25'), '2026-11-01');
+  uguale(primoDelMeseDopo('2026-12-31'), '2027-01-01');
+  uguale(fineDelMeseDopo('2026-10-25'), '2026-11-30');
+  uguale(fineDelMeseDopo('2026-12-01'), '2027-01-31');
+  uguale(fineDelMeseDopo('2027-01-31'), '2027-02-28');
+  uguale([piuPiccolo('base', 'pro'), piuPiccolo('pro', 'professional'), piuPiccolo('pro', 'pro')], [true, false, false]);
   // Licenza fino al giorno 3 del mese dopo (anche a dicembre).
   uguale(scadenzaLicenza('2026-11-01', 3), '2026-12-03');
   uguale(scadenzaLicenza('2026-12-28', 3), '2027-01-03');
@@ -264,4 +299,22 @@ Deno.test('invito: su Android apre l\'app sul centro, se no Google Play con il c
   );
   uguale(daAndroid('Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 Chrome/141 Mobile'), true);
   uguale(daAndroid('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)'), false);
+});
+
+Deno.test('le build del pannello esistono nel repository e la prova controlla i dati', async () => {
+  const { LANCI, lancia } = await import('./github.ts');
+  for (const l of Object.values(LANCI)) await Deno.stat(new URL(`../../../../.github/workflows/${l.file}`, import.meta.url));
+  for (const b of [{ email: 'no', giorni: 10 }, { email: 'a@b.it', giorni: 0 }, { email: 'a@b.it', giorni: 200 }]) {
+    let errore = '';
+    await lancia('prova', b).catch((e) => (errore = e.message));
+    if (!errore) throw new Error(`accettata: ${JSON.stringify(b)}`);
+  }
+});
+
+Deno.test('Paga ora: il bonifico istantaneo se la banca lo ha, se no il SEPA', async () => {
+  const { tipoBonifico } = await import('./paga.ts');
+  uguale(tipoBonifico([{ payment_type: 'SEPA', currencies: ['EUR'] }, { payment_type: 'INST_SEPA', currencies: ['EUR'] }]), 'INST_SEPA');
+  uguale(tipoBonifico([{ payment_type: 'BULK_SEPA', currencies: ['EUR'] }, { payment_type: 'SEPA', currencies: ['EUR'] }]), 'SEPA');
+  uguale(tipoBonifico([{ payment_type: 'DOMESTIC', currencies: ['SEK'] }]), null);
+  uguale(tipoBonifico(undefined), null);
 });

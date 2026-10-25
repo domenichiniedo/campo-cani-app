@@ -34,6 +34,16 @@ export type AdminCentre = CentreBilling & {
   /** Prezzi fatti apposta per il centro; null = quelli del piano. */
   tariffa_cents: number | null;
   canone_cents: number | null;
+  /** Come paga il piano: canone + quote (consumo) o una cifra fissa al mese. */
+  formula: 'consumo' | 'fisso';
+  /** Prezzo fisso fatto apposta per il centro; null = quello del piano. */
+  fisso_cents: number | null;
+  /** Piano più piccolo scelto dal centro, che parte dal primo del mese dopo. */
+  piano_prossimo?: 'base' | 'professional' | 'pro' | null;
+  /** Formula scelta dal centro, che parte dal primo del mese dopo. */
+  formula_prossima?: 'consumo' | 'fisso' | null;
+  /** Disdetto: ultimo giorno del servizio. */
+  disdetta?: string | null;
   /** IBAN da cui il centro paga, per riconoscere i suoi bonifici. */
   iban: string;
   scade: string | null;
@@ -47,7 +57,11 @@ export type Charge = {
   mese: string;
   prenotazioni: number;
   canone_cents: number;
+  /** Quota sui pacchetti attivati nel mese, già compresa in importo_cents. */
+  pacchetti_cents?: number;
   importo_cents: number;
+  /** Bonus scalato dal conto: importo_cents è già al netto. */
+  bonus_cents: number;
   stato: 'da_fare' | 'zero' | 'inviato' | 'pagato' | 'non_pagato';
   fattura: string | null;
   errore: string;
@@ -57,7 +71,8 @@ export type Charge = {
   pagato_il: string | null;
 };
 
-export type PlanRow = { piano: AdminCentre['piano']; canone_cents: number; tariffa_cents: number };
+/** pacchetti_bp: la quota sul prezzo dei pacchetti attivati, in centesimi di punto (100 = 1%). */
+export type PlanRow = { piano: AdminCentre['piano']; canone_cents: number; tariffa_cents: number; fisso_cents: number; pacchetti_bp: number };
 
 /** Il tuo conto: IBAN per i bonifici dei centri e collegamento in sola lettura con Enable Banking. */
 export type Bank = {
@@ -78,7 +93,29 @@ export type Bank = {
 /** Un bonifico in entrata con "K9" o di un centro che non paga nessun addebito: da abbinare a mano. */
 export type Movement = { id: string; data: string; importo_cents: number; iban: string; nome: string; causale: string; centro: string | null };
 
-export type AdminData = { oggi: string; centri: AdminCentre[]; addebiti: Charge[]; piani: PlanRow[]; banca: Bank; movimenti: Movement[] };
+/** Un file da scaricare in una Release di GitHub. */
+export type ReleaseFile = { nome: string; url: string; mb: number; scaricato: number; data: string };
+export type Release = { tag: string; titolo: string; data: string; note: string; file: ReleaseFile[] };
+/** Una build di GitHub Actions: stato queued/in_progress/completed, esito success/failure/cancelled. */
+export type BuildRun = { id: number; nome: string; stato: string; esito: string | null; quando: string; url: string; titolo: string };
+/** Le app su GitHub; abilitato = c'è il token di GitHub sul gestore. */
+export type AppVersions = { abilitato: boolean; rilasci: Release[]; build: BuildRun[]; lanci: { id: string; titolo: string }[] };
+
+/** Un codice bonus per i centri nuovi: lo scrivono quando si registrano. usi_max null = senza limite. */
+export type BonusCode = { codice: string; importo_cents: number; usi_max: number | null; usati: number; scade: string | null; nota: string; attivo: boolean; creato: string };
+/** Il credito di un centro, dal pannello (codice null) o da un codice bonus: si scala dai conti del mese. */
+export type Credit = { id: string; centro: string; importo_cents: number; residuo_cents: number; codice: string | null; nota: string; creato: string };
+
+export type AdminData = {
+  oggi: string;
+  centri: AdminCentre[];
+  addebiti: Charge[];
+  piani: PlanRow[];
+  banca: Bank;
+  movimenti: Movement[];
+  codici: BonusCode[];
+  crediti: Credit[];
+};
 
 // Accesso: nella demo basta una qualsiasi email e password.
 let demoIn = false;

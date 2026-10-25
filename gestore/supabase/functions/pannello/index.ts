@@ -8,6 +8,7 @@ import { controllaBonifici, segnaPagati } from '../_shared/bonifici.ts';
 import { db, env, funzione, json, messaggio, oggi, preflight, type Centro } from '../_shared/comune.ts';
 import { ibanValido, piuGiorni, type Piano } from '../_shared/costi.ts';
 import { CAMPI_FATTURA, leggiFatturazione } from '../_shared/fatturazione.ts';
+import { githubSpento, lancia, LANCI, versioni, type Lancio } from '../_shared/github.ts';
 
 const PIANI: Piano[] = ['base', 'professional', 'pro'];
 
@@ -43,22 +44,24 @@ Deno.serve(async (req) => {
       case 'dati': {
         const da = new Date();
         da.setUTCMonth(da.getUTCMonth() - 13);
-        const [centri, addebiti, piani, banca, movimenti] = await Promise.all([
+        const [centri, addebiti, piani, banca, movimenti, codici, crediti] = await Promise.all([
           db
             .from('centri')
-            .select(`id, codice, campo, email, piano, stato, errore, tariffa_cents, canone_cents, iban, scade, sospeso, creato, ${CAMPI_FATTURA.join(', ')}`)
+            .select(`id, codice, campo, email, piano, formula, piano_prossimo, formula_prossima, disdetta, stato, errore, tariffa_cents, canone_cents, fisso_cents, iban, scade, sospeso, creato, ${CAMPI_FATTURA.join(', ')}`)
             .order('creato', { ascending: false }),
           db
             .from('addebiti')
-            .select('id, centro, mese, prenotazioni, canone_cents, importo_cents, stato, fattura, errore, scadenza, causale, pagato_il')
+            .select('id, centro, mese, prenotazioni, canone_cents, pacchetti_cents, importo_cents, bonus_cents, stato, fattura, errore, scadenza, causale, pagato_il')
             .gte('mese', da.toISOString().slice(0, 7))
             .order('mese'),
           db.from('piani').select('*'),
           db.from('banca').select('bonifico_iban, bonifico_intestatario, banca, paese, tipo, conto, iban, valido_fino, ultimo_controllo, errore').eq('id', 1).single(),
           // I bonifici con "K9" o di un centro che non pagano nessun addebito: da abbinare a mano.
           db.from('movimenti').select('id, data, importo_cents, iban, nome, causale, centro').eq('addebiti', '{}').gte('data', piuGiorni(oggi(), -120)).order('data', { ascending: false }),
+          db.from('codici_bonus').select('*').order('creato', { ascending: false }),
+          db.from('crediti').select('id, centro, importo_cents, residuo_cents, codice, nota, creato').order('creato', { ascending: false }),
         ]);
-        const errore = centri.error ?? addebiti.error ?? piani.error ?? banca.error ?? movimenti.error;
+        const errore = centri.error ?? addebiti.error ?? piani.error ?? banca.error ?? movimenti.error ?? codici.error ?? crediti.error;
         if (errore) throw new Error(errore.message);
         const { conto, ...resto } = banca.data!;
         return json({
@@ -68,16 +71,26 @@ Deno.serve(async (req) => {
           piani: piani.data,
           banca: { ...resto, collegata: !!conto, abilitata: !bancaSpenta() },
           movimenti: movimenti.data,
+          codici: codici.data,
+          crediti: crediti.data,
         });
       }
       case 'piano': {
         if (!PIANI.includes(b.piano)) throw new Error('Piano non valido.');
-        await cambiaPiano(await centro(b.id), b.piano, 'pannello');
+        if (b.formula !== undefined && b.formula !== 'consumo' && b.formula !== 'fisso') throw new Error('Scegli a consumo o fisso.');
+        await cambiaPiano(await centro(b.id), b.piano, 'pannello', b.formula);
         return json({ fatto: true });
       }
       case 'prezzi': {
         if (!PIANI.includes(b.piano)) throw new Error('Piano non valido.');
-        await db.from('piani').update({ canone_cents: centesimi(b.canone_cents), tariffa_cents: centesimi(b.tariffa_cents) }).eq('piano', b.piano);
+        const m: Record<string, number | null> = { canone_cents: centesimi(b.canone_cents), tariffa_cents: centesimi(b.tariffa_cents) };
+        if (b.fisso_cents !== undefined) m.fisso_cents = centesimi(b.fisso_cents);
+        if (b.pacchetti_bp !== undefined) {
+          const bp = Math.round(Number(b.pacchetti_bp));
+          if (!Number.isFinite(bp) || bp < 0 || bp > 10000) throw new Error('Percentuale sui pacchetti non valida.');
+          m.pacchetti_bp = bp;
+        }
+        await db.from('piani').update(m).eq('piano', b.piano);
         return json({ fatto: true });
       }
       case 'tariffa':
@@ -98,6 +111,9 @@ Deno.serve(async (req) => {
         }
         if (b.canone_cents !== undefined) m.canone_cents = centesimi(b.canone_cents, true);
         if (b.tariffa_cents !== undefined) m.tariffa_cents = centesimi(b.tariffa_cents, true);
+        if (b.fisso_cents !== undefined) m.fisso_cents = centesimi(b.fisso_cents, true);
+        // Solo per togliere una disdetta: la chiede il centro dall'app.
+        if (b.disdetta === null) Object.assign(m, { disdetta: null, disdetta_chiesta: null });
         await db.from('centri').update(m).eq('id', b.id);
         return json({ fatto: true });
       }
@@ -166,6 +182,42 @@ Deno.serve(async (req) => {
         if (a) await segnaPagati(a.centro, [b.addebito]);
         return json({ fatto: true });
       }
+      case 'bonus_codice_crea': {
+        // Un codice bonus da dare ai centri nuovi: lo scrivono quando si registrano dall'app.
+        const codice = String(b.codice ?? '').trim().toUpperCase();
+        if (!/^[A-Z0-9-]{4,20}$/.test(codice)) throw new Error('Il codice va da 4 a 20 lettere, cifre o trattini.');
+        const usi = b.usi_max === null || b.usi_max === '' || b.usi_max === undefined ? null : Math.round(Number(b.usi_max));
+        if (usi !== null && (!Number.isInteger(usi) || usi < 1)) throw new Error('Il numero di centri deve essere almeno 1 (vuoto = senza limite).');
+        const scade = b.scade ? String(b.scade) : null;
+        if (scade && !/^\d{4}-\d{2}-\d{2}$/.test(scade)) throw new Error('La scadenza va scritta AAAA-MM-GG.');
+        const importo = centesimi(b.importo_cents);
+        if (!importo) throw new Error('Scrivi quanto vale il bonus.');
+        const { error } = await db.from('codici_bonus').insert({ codice, importo_cents: importo, usi_max: usi, scade, nota: String(b.nota ?? '').trim().slice(0, 120) });
+        if (error) throw new Error(error.code === '23505' ? 'Questo codice esiste già.' : error.message);
+        return json({ fatto: true });
+      }
+      case 'bonus_codice':
+        await db.from('codici_bonus').update({ attivo: !!b.attivo }).eq('codice', String(b.codice ?? ''));
+        return json({ fatto: true });
+      case 'bonus_dai': {
+        // Un bonus dato a mano a un centro: si scala dai suoi prossimi conti.
+        const importo = centesimi(b.importo_cents);
+        if (!importo) throw new Error('Scrivi quanto vale il bonus.');
+        await centro(b.id);
+        const { error } = await db.from('crediti').insert({ centro: b.id, importo_cents: importo, residuo_cents: importo, nota: String(b.nota ?? '').trim().slice(0, 120) });
+        if (error) throw new Error(error.message);
+        return json({ fatto: true });
+      }
+      case 'versioni': {
+        // Le app nelle Releases di GitHub e le ultime build.
+        const lanci = Object.entries(LANCI).map(([id, l]) => ({ id, titolo: l.titolo }));
+        if (githubSpento()) return json({ abilitato: false, rilasci: [], build: [], lanci });
+        return json({ abilitato: true, ...(await versioni()), lanci });
+      }
+      case 'lancia':
+        if (githubSpento()) throw new Error('Manca il segreto GITHUB_TOKEN sul gestore (vedi gestore/README.md).');
+        await lancia(b.quale as Lancio, b);
+        return json({ fatto: true });
       case 'addebita': {
         const r = await fetch(funzione('addebito-mensile'), {
           method: 'POST',

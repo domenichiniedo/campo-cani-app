@@ -1,5 +1,5 @@
 import type { CentreBilling } from '@/lib/billing';
-import type { AdminCentre, AdminData, Charge, PlanRow } from '@/lib/gestore-admin';
+import type { AdminCentre, AdminData, AppVersions, BuildRun, Charge, PlanRow } from '@/lib/gestore-admin';
 
 // Demo del pannello K9 Gestore: centri e addebiti finti, tutto nel dispositivo, senza server.
 // Le azioni (piano, prezzi, IBAN, rinnovo, sospensione...) cambiano i dati finti finché la pagina resta aperta.
@@ -14,9 +14,9 @@ const monthOf = (d: Date, delta: number) => {
 const dayThree = (d: Date, delta: number) => dayKey(new Date(d.getFullYear(), d.getMonth() + delta, 3));
 
 const PIANI: PlanRow[] = [
-  { piano: 'base', canone_cents: 0, tariffa_cents: 100 },
-  { piano: 'professional', canone_cents: 1900, tariffa_cents: 80 },
-  { piano: 'pro', canone_cents: 3900, tariffa_cents: 60 },
+  { piano: 'base', canone_cents: 590, tariffa_cents: 100, fisso_cents: 3900, pacchetti_bp: 100 },
+  { piano: 'professional', canone_cents: 2999, tariffa_cents: 60, fisso_cents: 7900, pacchetti_bp: 100 },
+  { piano: 'pro', canone_cents: 8000, tariffa_cents: 30, fisso_cents: 14900, pacchetti_bp: 100 },
 ];
 const price = (p: AdminCentre['piano']) => PIANI.find((x) => x.piano === p)!;
 
@@ -89,6 +89,12 @@ function build(): AdminData {
     errore: stato === 'errore' ? 'Supabase 402 su POST /projects: raggiunto il limite dei progetti gratuiti.' : '',
     tariffa_cents: i === 0 ? 50 : null,
     canone_cents: null,
+    // Agility Team Brianza paga il prezzo fisso.
+    formula: i === 3 ? 'fisso' : 'consumo',
+    fisso_cents: null,
+    // Dog Village passa a Base dal mese prossimo; K9 Academy Torino ha disdetto.
+    piano_prossimo: i === 1 ? 'base' : null,
+    disdetta: i === 5 ? dayKey(new Date(now.getFullYear(), now.getMonth() + 2, 0)) : null,
     iban: i % 2 === 0 && stato === 'pronto' ? `IT${String(10 + i)}X05428111010000001234${String(50 + i)}` : '',
     scade: stato === 'pronto' ? (i === 4 ? dayThree(now, 0) : dayThree(now, 1)) : null,
     sospeso: false,
@@ -114,8 +120,11 @@ function build(): AdminData {
         centro: `demo-${i}`,
         mese,
         prenotazioni: n,
-        canone_cents: p.canone_cents,
-        importo_cents: p.canone_cents + n * (i === 0 ? 50 : p.tariffa_cents),
+        canone_cents: i === 3 ? p.fisso_cents : p.canone_cents,
+        // Qualche pacchetto da 120 € al mese: l'1% del prezzo.
+        pacchetti_cents: i === 3 ? 0 : Math.round(n / 25) * 120,
+        importo_cents: i === 3 ? p.fisso_cents : p.canone_cents + n * (i === 0 ? 50 : p.tariffa_cents) + Math.round(n / 25) * 120,
+        bonus_cents: 0,
         stato: statoAddebito,
         fattura: null,
         errore: '',
@@ -146,10 +155,64 @@ function build(): AdminData {
     movimenti: [
       { id: 'm-1', data: dayKey(now), importo_cents: 4100, iban: 'IT02L1234512345123456789012', nome: 'ASD Cani Felici', causale: 'K9 abbonamento', centro: null },
     ],
+    codici: [
+      { codice: 'BENVENUTO30', importo_cents: 3000, usi_max: null, usati: 4, scade: null, nota: 'Benvenuto per i centri nuovi', attivo: true, creato: `${monthOf(now, -5)}-01T10:00:00Z` },
+      { codice: 'FIERA-BO', importo_cents: 5000, usi_max: 10, usati: 10, scade: dayKey(new Date(now.getFullYear(), now.getMonth() - 1, 20)), nota: 'Fiera di Bologna', attivo: true, creato: `${monthOf(now, -3)}-10T10:00:00Z` },
+    ],
+    crediti: [
+      { id: 'cr-1', centro: 'demo-6', importo_cents: 3000, residuo_cents: 1200, codice: 'BENVENUTO30', nota: 'Benvenuto per i centri nuovi', creato: `${monthOf(now, -2)}-04T10:00:00Z` },
+      { id: 'cr-2', centro: 'demo-1', importo_cents: 2000, residuo_cents: 2000, codice: null, nota: 'Scuse per il disservizio di settembre', creato: `${monthOf(now, 0)}-02T10:00:00Z` },
+    ],
+  };
+}
+
+const REPO = 'https://github.com/domenichiniedo/campo-cani-app';
+const LANCI = [
+  { id: 'tutte', titolo: 'Tutte le app: demo e prova, Android e Windows' },
+  { id: 'demo-mac', titolo: 'Demo per Mac' },
+  { id: 'demo-web', titolo: 'Demo web per iPhone' },
+  { id: 'pannello', titolo: 'Demo del pannello K9 Gestore' },
+];
+
+/** Releases e build finte, come le mostra GitHub. */
+function versions(): AppVersions {
+  const ago = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
+  const file = (tag: string, nome: string, mb: number, scaricato: number, h: number) => ({
+    nome,
+    url: `${REPO}/releases/download/${tag}/${nome}`,
+    mb,
+    scaricato,
+    data: ago(h),
+  });
+  const run = (id: number, nome: string, h: number, esito: string | null, titolo: string): BuildRun => ({
+    id,
+    nome,
+    stato: esito ? 'completed' : 'in_progress',
+    esito,
+    quando: ago(h),
+    url: `${REPO}/actions/runs/${id}`,
+    titolo,
+  });
+  return {
+    abilitato: true,
+    lanci: LANCI,
+    build: [
+      run(9, 'Aggiorna le app', 0.2, null, 'Merge pull request #54'),
+      run(8, 'Prova con database', 26, 'success', 'Prova con database'),
+      run(7, 'Aggiorna le app', 50, 'success', 'Merge pull request #53'),
+      run(6, 'Demo per Mac', 75, 'failure', 'Demo per Mac'),
+    ],
+    rilasci: [
+      { tag: 'demo-android', titolo: 'Demo per Android', data: ago(50), note: '', file: [file('demo-android', 'K9Manager-Demo.apk', 9.4, 128, 50), file('demo-android', 'K9Manager-Demo.aab', 8.1, 3, 50)] },
+      { tag: 'demo-windows', titolo: 'Demo per Windows', data: ago(50), note: '', file: [file('demo-windows', 'K9Manager-Windows-Demo.exe', 92.3, 41, 50)] },
+      { tag: 'prova-jnysclqgutqetrxitlez', titolo: 'Prova di K9 Manager – jnysclqgutqetrxitlez', data: ago(26), note: '', file: [file('prova-jnysclqgutqetrxitlez', 'K9Manager-Prova.apk', 9.5, 17, 26), file('prova-jnysclqgutqetrxitlez', 'K9Manager-Prova-Windows.exe', 92.4, 6, 26)] },
+      { tag: 'demo-mac', titolo: 'Demo per Mac', data: ago(300), note: '', file: [file('demo-mac', 'K9Manager-Mac-Demo.dmg', 118.0, 9, 300)] },
+    ],
   };
 }
 
 let data: AdminData | null = null;
+let ver: AppVersions | null = null;
 
 export async function demoCall<T>(azione: string, b: Record<string, unknown>): Promise<T> {
   data ??= build();
@@ -162,19 +225,31 @@ export async function demoCall<T>(azione: string, b: Record<string, unknown>): P
     case 'dati':
       return structuredClone(d) as T;
     case 'piano':
-      set({ piano: b.piano as AdminCentre['piano'] });
+      set({ piano: b.piano as AdminCentre['piano'], piano_prossimo: null, ...(b.formula ? { formula: b.formula as AdminCentre['formula'] } : {}) });
       break;
     case 'centro': {
       const patch: Partial<AdminCentre> = {};
       if (b.iban !== undefined) patch.iban = String(b.iban);
       if (b.canone_cents !== undefined) patch.canone_cents = b.canone_cents as number | null;
       if (b.tariffa_cents !== undefined) patch.tariffa_cents = b.tariffa_cents as number | null;
+      if (b.fisso_cents !== undefined) patch.fisso_cents = b.fisso_cents as number | null;
+      if (b.disdetta === null) patch.disdetta = null;
       if (b.fattura !== undefined) Object.assign(patch, b.fattura);
       set(patch);
       break;
     }
     case 'prezzi':
-      d.piani = d.piani.map((x) => (x.piano === b.piano ? { ...x, canone_cents: Number(b.canone_cents), tariffa_cents: Number(b.tariffa_cents) } : x));
+      d.piani = d.piani.map((x) =>
+        x.piano === b.piano
+          ? {
+              ...x,
+              canone_cents: Number(b.canone_cents),
+              tariffa_cents: Number(b.tariffa_cents),
+              fisso_cents: b.fisso_cents === undefined ? x.fisso_cents : Number(b.fisso_cents),
+              pacchetti_bp: b.pacchetti_bp === undefined ? x.pacchetti_bp : Number(b.pacchetti_bp),
+            }
+          : x,
+      );
       break;
     case 'conto':
       d.banca = { ...d.banca, bonifico_iban: String(b.iban), bonifico_intestatario: String(b.intestatario) };
@@ -212,6 +287,33 @@ export async function demoCall<T>(azione: string, b: Record<string, unknown>): P
         d.addebiti = d.addebiti.map((x) => (x.id === a.id ? { ...x, stato: 'pagato', errore: '', pagato_il: dayKey(today) } : x));
         d.centri = d.centri.map((x) => (x.id === a.centro ? { ...x, scade: dayThree(today, 1) } : x));
       }
+      break;
+    }
+    case 'bonus_codice_crea': {
+      const codice = String(b.codice ?? '').trim().toUpperCase();
+      if (!/^[A-Z0-9-]{4,20}$/.test(codice)) throw new Error('Il codice va da 4 a 20 lettere, cifre o trattini.');
+      if (d.codici.some((x) => x.codice === codice)) throw new Error('Questo codice esiste già.');
+      if (!Number(b.importo_cents)) throw new Error('Scrivi quanto vale il bonus.');
+      const usi = b.usi_max === null || b.usi_max === '' || b.usi_max === undefined ? null : Number(b.usi_max);
+      d.codici.unshift({ codice, importo_cents: Number(b.importo_cents), usi_max: usi, usati: 0, scade: (b.scade as string) || null, nota: String(b.nota ?? ''), attivo: true, creato: new Date().toISOString() });
+      break;
+    }
+    case 'bonus_codice':
+      d.codici = d.codici.map((x) => (x.codice === b.codice ? { ...x, attivo: !!b.attivo } : x));
+      break;
+    case 'bonus_dai':
+      if (!Number(b.importo_cents)) throw new Error('Scrivi quanto vale il bonus.');
+      d.crediti.unshift({ id: `cr-${Date.now()}`, centro: String(b.id), importo_cents: Number(b.importo_cents), residuo_cents: Number(b.importo_cents), codice: null, nota: String(b.nota ?? ''), creato: new Date().toISOString() });
+      break;
+    case 'versioni':
+      ver ??= versions();
+      return structuredClone(ver) as T;
+    case 'lancia': {
+      // Nella demo la build compare fra quelle in corso, ma non parte davvero.
+      if (b.quale === 'prova' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(b.email ?? ''))) throw new Error("Scrivi l'email del proprietario della prova.");
+      ver ??= versions();
+      const nome = b.quale === 'prova' ? 'Prova con database' : (LANCI.find((l) => l.id === b.quale)?.titolo ?? String(b.quale));
+      ver.build.unshift({ id: Date.now(), nome, stato: 'queued', esito: null, quando: new Date().toISOString(), url: `${REPO}/actions`, titolo: nome });
       break;
     }
     case 'addebita': {

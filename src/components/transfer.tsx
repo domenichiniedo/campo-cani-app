@@ -1,5 +1,5 @@
 import qrcode from 'qrcode-generator';
-import { useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { Image, Platform, Text, View } from 'react-native';
 
 import { Body, Button, Card, Muted, Row } from '@/components/ui';
@@ -38,7 +38,24 @@ function Line({ label, value, copy }: { label: string; value: string; copy?: str
 }
 
 /** Dati di un bonifico istantaneo: QR da inquadrare con l'app della banca, beneficiario, IBAN, importo e causale. */
-export function TransferBox({ title, intro, holder, iban, cents, reason }: { title: string; intro: string; holder: string; iban: string; cents: number; reason: string }) {
+export function TransferBox({
+  title,
+  intro,
+  holder,
+  iban,
+  cents,
+  reason,
+  children,
+}: {
+  title: string;
+  intro: string;
+  holder: string;
+  iban: string;
+  cents: number;
+  reason: string;
+  /** Sotto la spiegazione, prima dei dati del bonifico (per esempio "Paga ora"). */
+  children?: ReactNode;
+}) {
   const qr = useMemo(() => {
     const q = qrcode(0, 'M');
     q.addData(epcPayload(holder, iban, cents, reason));
@@ -50,6 +67,7 @@ export function TransferBox({ title, intro, holder, iban, cents, reason }: { tit
     <Card>
       <Body bold>{title}</Body>
       <Muted>{intro}</Muted>
+      {children}
       <View style={{ alignItems: 'center', paddingVertical: 4 }}>
         <View style={{ backgroundColor: '#fff', padding: 6, borderRadius: 8 }}>
           <Image source={{ uri: qr }} style={{ width: 200, height: 200 }} accessibilityLabel={t('Codice QR del bonifico')} />

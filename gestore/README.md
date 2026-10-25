@@ -8,16 +8,21 @@ oggi fai a mano con `tools/nuovo-centro.mjs`:
 2. il gestore crea il suo progetto Supabase, carica tutte le tabelle, rende proprietaria quella email e
    firma la licenza con la **chiave del server**. Il centro riceve il codice corto (K9-XXXXXX) da dare a
    clienti e trainer;
-3. il primo del mese il gestore fa il conto del mese prima di ogni centro: il **canone** del piano (diviso a
-   giorni se il centro ha cambiato piano o si è registrato a metà mese) più la **quota** per ogni prenotazione
-   non disdetta pagata al campo o con bonifico al centro. Il centro lo vede nell'app (Impostazioni → Licenza)
+3. il primo del mese il gestore fa il conto del mese prima di ogni centro. **A consumo**: il **canone** del piano
+   (diviso a giorni se il centro ha cambiato piano o si è registrato a metà mese), la **quota** per ogni
+   prenotazione pagata al campo, con bonifico, con carta al centro o scalata da un pacchetto, anche se poi è stata
+   annullata, e l'**1%** del prezzo di ogni pacchetto attivato. **A prezzo
+   fisso**: solo il fisso del piano. Il centro sceglie come pagare alla registrazione e lo cambia dall'app. Dal
+   conto si scala il **bonus** del centro, se ne ha. Il centro lo vede nell'app (Impostazioni → Piano e abbonamento, e appena apre l'app)
    con il tuo IBAN, la causale (`K9-XXXXXX AAAA-MM`) e il codice QR, e ti paga con un **bonifico istantaneo**;
 4. ogni 6 ore il gestore legge i bonifici in entrata sul tuo conto (open banking con **Enable Banking**, solo
    lettura: non può muovere soldi), riconosce quelli dei centri dal codice nella causale o dall'IBAN e
    rinnova la licenza fino al giorno 3 del mese dopo. Se il bonifico non arriva entro il **giorno 3** la
    licenza scade e l'app del centro si blocca; appena arriva, la licenza si rinnova e l'app si sblocca;
-5. il proprietario può **cambiare piano dall'app**: la licenza nuova arriva subito e canone e quote del mese
-   si dividono a giorni fra il piano vecchio e quello nuovo;
+5. il proprietario può **cambiare piano dall'app**: a un piano superiore la licenza nuova arriva subito e canone e
+   quote del mese si dividono a giorni fra il piano vecchio e quello nuovo; un piano più piccolo parte dal primo
+   del mese dopo. Può anche **disdire**, solo con i conti pagati e con un mese di preavviso: il servizio finisce
+   alla fine del mese dopo, l'ultimo conto arriva come sempre e poi la licenza non si rinnova;
 6. quando esce una migrazione nuova dell'app, il gestore la aggiunge da solo al database di ogni centro.
 
 Ogni centro ha il suo database: i clienti di un centro non stanno mai nello stesso posto di quelli di un
@@ -25,7 +30,8 @@ altro, e i proprietari di un centro non vedono niente degli altri. Il gestore co
 titolare, codice, stato dei pagamenti e il numero di prenotazioni del mese: mai i dati dei clienti.
 
 Il pannello **K9 Gestore** (workflow "Pannello del gestore") ti mostra tutti i centri, gli addebiti e le
-statistiche, e ti lascia scrivere e cambiare il tuo IBAN per i bonifici, i prezzi dei piani (canone e quota),
+statistiche, e ti lascia scrivere e cambiare il tuo IBAN per i bonifici, i prezzi dei piani (canone, quota, fisso e
+percentuale sui pacchetti), dare bonus ai centri e creare codici bonus per la registrazione,
 collegare il conto in banca, cambiare piano e prezzi di un centro, abbinare a mano un bonifico non riconosciuto,
 rinnovare a mano, sospendere i rinnovi, segnare un addebito come pagato e riprovare una preparazione non riuscita.
 
@@ -39,6 +45,9 @@ al centro con la carta (Nexi) contano nel conto del mese come quelle pagate al c
 | `supabase/migrations/0001_centri.sql` | tabelle `centri` e `addebiti` del gestore |
 | `supabase/migrations/0002_bonifici_piani.sql` | prezzi dei piani, cambi di piano, il tuo conto e i bonifici visti |
 | `supabase/migrations/0003_fatturazione.sql` | i dati per fatturare a ogni centro (ragione sociale, P.IVA o CF, sede, SDI o PEC) |
+| `supabase/migrations/0004_prezzi.sql` | i prezzi di partenza dei piani: Base 5,90 € + 1 €, Professional 29,99 € + 0,60 €, Pro 80 € + 0,30 € a prenotazione |
+| `supabase/migrations/0005_bonus.sql` | i bonus: codici da usare alla registrazione e crediti dei centri, scalati dai conti |
+| `supabase/migrations/0006_fisso_pacchetti.sql` | il prezzo fisso (Base 39 €, Professional 79 €, Pro 149 €), l'1% sui pacchetti, il piano più piccolo dal mese dopo e la disdetta |
 | `registra-centro` | registrazione dall'app |
 | `centro` | stato di un centro dal codice e prezzi dei piani |
 | `prepara-centri` | crea e aggiorna i database dei centri, un passo alla volta (pg_cron ogni minuto) |
@@ -47,6 +56,7 @@ al centro con la carta (Nexi) contano nel conto del mese come quelle pagate al c
 | `banca` | pagina di ritorno dalla tua banca quando colleghi il conto |
 | `abbonamento` | piano, prezzi e cosa pagare, dall'app del proprietario; cambio di piano |
 | `pannello` | i dati e le azioni del pannello K9 Gestore |
+| `pagamento` | pagina di ritorno dalla banca del centro dopo "Paga ora" |
 | `invito` | il link e il QR code che i centri danno ai clienti: su Android apre l'app già sul centro, o porta a scaricarla |
 
 ## Come si accende (una volta sola)
@@ -55,7 +65,7 @@ Tutti i comandi si lanciano **sul tuo computer**, nella cartella del progetto. N
 in chat, nell'app o su GitHub.
 
 1. **Progetto del gestore.** Su supabase.com crea un progetto nuovo, per esempio "K9 Gestore". Nel SQL
-   Editor esegui `gestore/supabase/migrations/0001_centri.sql`, poi `0002_bonifici_piani.sql` e `0003_fatturazione.sql`. In Authentication → Users → Add user crea
+   Editor esegui `gestore/supabase/migrations/0001_centri.sql`, poi `0002_bonifici_piani.sql`, `0003_fatturazione.sql`, `0004_prezzi.sql`, `0005_bonus.sql` e `0006_fisso_pacchetti.sql`. In Authentication → Users → Add user crea
    il tuo utente (email e password): con quello entri nel pannello.
 
 2. **Chiave del server per le licenze.**
@@ -76,6 +86,7 @@ in chat, nell'app o su GitHub.
    AMMINISTRATORI=tua@email.it         # chi entra nel pannello (separati da virgola)
    ENABLE_BANKING_APP_ID=...           # dal passo 5: l'id dell'applicazione Enable Banking
    ENABLE_BANKING_CHIAVE="-----BEGIN PRIVATE KEY-----\n..."   # dal passo 5: la chiave .pem, su una riga con \n
+   GITHUB_TOKEN=github_pat_...         # facoltativo: le app su GitHub dal pannello (App e versioni), vedi sotto
    ```
 
    Servono anche, sempre: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` (le email con il codice che
@@ -93,6 +104,12 @@ in chat, nell'app o su GitHub.
 
    SMTP, Twilio e Google valgono per i centri preparati dopo averli messi: a un centro già pronto si aggiungono a mano
    da Supabase, come spiega il README principale (Email e Accesso con Google).
+
+   `GITHUB_TOKEN` accende nel pannello la sezione **App e versioni**: i file delle Releases da scaricare, le ultime
+   build e i pulsanti per rifare le app e creare una prova nuova. Su github.com → Settings → Developer settings →
+   Personal access tokens → Fine-grained tokens creane uno con accesso **solo** al repository dell'app e i permessi
+   Actions (Read and write) e Contents (Read-only). Se il repository non è `domenichiniedo/campo-cani-app`, aggiungi
+   `GITHUB_REPO=proprietario/nome`.
 
    Il token di Supabase può creare progetti sul tuo account: tienilo solo qui. Ogni centro è un progetto,
    e oltre i 2 progetti gratuiti Supabase chiede il piano a pagamento.
@@ -113,6 +130,13 @@ in chat, nell'app o su GitHub.
    banca e premi **Collega**: entri nella tua banca e dai il permesso di sola lettura. Il permesso dura di solito
    90 o 180 giorni: quando scade il pannello te lo dice e lo ricolleghi con lo stesso bottone.
 
+   **"Paga ora" (facoltativo).** Con `PAGA_ORA=1` in `gestore.env` il centro, quando arriva il conto, tocca
+   **Paga ora**, sceglie la sua banca e trova il bonifico istantaneo già compilato: deve solo confermarlo (la
+   PSD2 vuole sempre la conferma di chi paga). Usa la stessa applicazione Enable Banking, ma per disporre
+   pagamenti in produzione Enable Banking chiede un contratto apposito (scrivi a support.api@enablebanking.com);
+   in modalità Sandbox lo provi subito. Aggiungi `https://<ref>.supabase.co/functions/v1/pagamento` ai redirect
+   URL dell'applicazione. Senza `PAGA_ORA` il centro vede solo i dati del bonifico e il codice QR, come prima.
+
 6. **Orari automatici.** Nel SQL Editor del gestore (Database → Extensions: attiva `pg_cron` e `pg_net`):
 
    ```sql
@@ -132,7 +156,8 @@ in chat, nell'app o su GitHub.
 
    Se hai già il gestore acceso con la versione di prima: esegui `0002_bonifici_piani.sql`, aggiungi il terzo
    orario, togli il webhook di Stripe e cancella le funzioni `stripe-webhook` e `stripe-collega` (non ci sono più),
-   poi ripeti il passo 4. Se hai già `0002` ma non `0003_fatturazione.sql`, esegui quella e ripeti il passo 4.
+   poi ripeti il passo 4. Se hai già `0002`, esegui in ordine quelle che mancano fra `0003_fatturazione.sql`, `0004_prezzi.sql`,
+   `0005_bonus.sql` e `0006_fisso_pacchetti.sql`, e ripeti il passo 4.
 
 7. **L'app.** Nelle build per gli store e per i centri imposta `EXPO_PUBLIC_GESTORE_URL` =
    `https://<ref>.supabase.co/functions/v1` (senza `EXPO_PUBLIC_SUPABASE_URL`: ogni centro ha il suo
@@ -147,8 +172,11 @@ in chat, nell'app o su GitHub.
    Variables di GitHub metti `GOOGLE_DESKTOP_CLIENT_ID` e `GOOGLE_DESKTOP_SECRET` prima di costruire il pannello.
    Entra chiunque abbia un account Google, ma il pannello risponde solo alle email in `AMMINISTRATORI`.
 
-9. **I prezzi.** Nel pannello, sezione **Piani**: canone al mese e quota per prenotazione di Base, Professional e
-   Pro. All'inizio sono 0 € di canone e 1 € a prenotazione per tutti. Per un centro solo puoi farne di apposta.
+9. **I prezzi.** Nel pannello, sezione **Piani e addebiti**: per Base, Professional e Pro il canone al mese, la quota
+   per prenotazione, il prezzo fisso e la percentuale sui pacchetti. Quelli di partenza (`0004_prezzi.sql` e
+   `0006_fisso_pacchetti.sql`): a consumo Base 5,90 € al mese + 1 €, Professional 29,99 € + 0,60 €, Pro 80 € +
+   0,30 € a prenotazione, più l'1% dei pacchetti; fissi Base 39 €, Professional 79 €, Pro 149 € al mese. Per un
+   centro solo puoi farne di apposta (Centri → il centro → Modifica), dove cambi anche come paga.
 
 ## Prove
 

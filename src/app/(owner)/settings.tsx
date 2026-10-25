@@ -217,13 +217,16 @@ export default function OwnerSettings() {
       const seats = ty.group ? Number(ty.seats) : null;
       if (seats !== null && (!Number.isInteger(seats) || seats < 2 || seats > 50))
         return setErr(t('{lezione}: i posti della classe vanno da 2 a 50.', { lezione: ty.label }));
+      const options = ty.options.split(',').map((x) => x.trim()).filter(Boolean);
+      if (plan.maxOptions !== null && options.length > plan.maxOptions)
+        return setErr(t('{lezione}: il piano {piano} comprende fino a {max} opzioni per lezione.', { lezione: ty.label, piano: plan.label, max: plan.maxOptions }));
       typeRows.push({
         id: ty.id,
         label: ty.label.trim(),
         description: ty.description.trim(),
         duration_min: dur,
         price_cents: price,
-        options: ty.options.split(',').map((x) => x.trim()).filter(Boolean),
+        options,
         sort: i,
         active: ty.active,
         group_seats: seats,
@@ -266,7 +269,12 @@ export default function OwnerSettings() {
 
   // Nel programma per Windows i paragrafi stanno nel menu a sinistra e se ne vede uno alla volta.
   const open = useSections('settings', [
-    ...(licensingEnabled ? [{ id: 'licenza', title: t('Licenza') }] : []),
+    ...(licensingEnabled
+      ? [
+          { id: 'licenza', title: t('Licenza') },
+          { id: 'piano', title: t('Piano e abbonamento') },
+        ]
+      : []),
     { id: 'centro', title: t('Centro e logo') },
     { id: 'campi', title: t('Campi') },
     { id: 'trainer', title: t('Trainer') },
@@ -301,6 +309,12 @@ export default function OwnerSettings() {
         <>
           <Step title={t('Licenza')} />
           <LicensePanel />
+        </>
+      )}
+
+      {licensingEnabled && show('piano') && (
+        <>
+          <Step title={t('Piano e abbonamento')} />
           <SubscriptionPanel />
         </>
       )}
@@ -478,6 +492,11 @@ export default function OwnerSettings() {
             {t('Per togliere una lezione spegni "Prenotabile": i clienti non la vedono più, ma restano le prenotazioni già fatte.')}
           </Muted>
           <LimitNote kind="maxLessonTypes" count={activeTypes} what={t('lezioni prenotabili')} />
+          <LimitNote
+            kind="maxOptions"
+            count={Math.max(0, ...types.map((ty) => ty.options.split(',').filter((x) => x.trim()).length))}
+            what={t('opzioni per lezione')}
+          />
           {!plan.groups && (
             <Muted style={{ fontSize: 13 }}>
               {t('Le lezioni di gruppo, con più cani nella stessa classe, sono nel piano {piano}. Per passare a un piano superiore chiedi un nuovo codice di licenza.', { piano: planWith('groups') })}

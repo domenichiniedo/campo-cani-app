@@ -2,8 +2,11 @@
 // le funzioni passano i dati e le prove li controllano.
 
 export type Piano = 'base' | 'professional' | 'pro';
-export type Prezzi = Record<Piano, { canone_cents: number; tariffa_cents: number }>;
-export type Cambio = { piano: Piano; dal: string };
+/** Come paga il centro: canone + quota per prenotazione, oppure una cifra fissa al mese. */
+export type Formula = 'consumo' | 'fisso';
+/** pacchetti_bp: la quota sul prezzo dei pacchetti attivati, in centesimi di punto (100 = 1%). */
+export type Prezzi = Record<Piano, { canone_cents: number; tariffa_cents: number; fisso_cents: number; pacchetti_bp: number }>;
+export type Cambio = { piano: Piano; dal: string; formula?: Formula };
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -14,43 +17,55 @@ export function giorniDelMese(mese: string) {
   return Array.from({ length: n }, (_, i) => `${mese}-${pad(i + 1)}`);
 }
 
-/** Il piano di un giorno: l'ultimo cambio con data non successiva (i cambi vanno in ordine). */
-export function pianoDel(giorno: string, cambi: Cambio[], attuale: Piano): Piano {
-  let p: Piano | null = null;
-  for (const c of cambi) if (c.dal <= giorno) p = c.piano;
-  return p ?? cambi[0]?.piano ?? attuale;
+/** Piano e formula di un giorno: l'ultimo cambio con data non successiva (i cambi vanno in ordine). */
+export function pianoDel(giorno: string, cambi: Cambio[], attuale: Piano, formula: Formula = 'consumo'): { piano: Piano; formula: Formula } {
+  let c: Cambio | null = null;
+  for (const x of cambi) if (x.dal <= giorno) c = x;
+  c ??= cambi[0] ?? null;
+  return c ? { piano: c.piano, formula: c.formula ?? 'consumo' } : { piano: attuale, formula };
 }
 
-export type Conto = { canone_cents: number; prenotazioni: number; quote_cents: number; importo_cents: number };
+export type Conto = { canone_cents: number; prenotazioni: number; quote_cents: number; pacchetti_cents: number; importo_cents: number };
 
 /**
  * Canone e quote di un mese. Il canone si divide a giorni fra i piani avuti nel mese, contando solo dal giorno
- * di registrazione; ogni prenotazione paga la quota del piano del suo giorno. I prezzi fatti apposta per il
- * centro (non null) valgono al posto di quelli del piano.
+ * di registrazione; ogni prenotazione paga la quota del piano del suo giorno, e ogni pacchetto attivato una
+ * percentuale del suo prezzo. Nei giorni a prezzo fisso il canone è il fisso del piano e non ci sono quote.
+ * I prezzi fatti apposta per il centro (non null) valgono al posto di quelli del piano.
  */
 export function contoDelMese(a: {
   mese: string;
   dal: string;
   cambi: Cambio[];
   attuale: Piano;
+  formula?: Formula;
   prezzi: Prezzi;
   canone: number | null;
   tariffa: number | null;
+  fisso?: number | null;
   prenotazioni: Record<string, number>;
+  /** Prezzo dei pacchetti attivati ogni giorno, in centesimi. */
+  pacchetti?: Record<string, number>;
 }): Conto {
   const giorni = giorniDelMese(a.mese);
   let canone = 0;
   let quote = 0;
+  let pacchetti = 0;
   let n = 0;
   for (const g of giorni) {
-    const p = a.prezzi[pianoDel(g, a.cambi, a.attuale)];
-    if (g >= a.dal) canone += (a.canone ?? p.canone_cents) / giorni.length;
+    const d = pianoDel(g, a.cambi, a.attuale, a.formula);
+    const p = a.prezzi[d.piano];
+    const fisso = d.formula === 'fisso';
+    if (g >= a.dal) canone += (fisso ? (a.fisso ?? p.fisso_cents) : (a.canone ?? p.canone_cents)) / giorni.length;
     const k = a.prenotazioni[g] ?? 0;
     n += k;
+    if (fisso) continue;
     quote += k * (a.tariffa ?? p.tariffa_cents);
+    pacchetti += ((a.pacchetti?.[g] ?? 0) * p.pacchetti_bp) / 10000;
   }
   const c = Math.round(canone);
-  return { canone_cents: c, prenotazioni: n, quote_cents: quote, importo_cents: c + quote };
+  const pk = Math.round(pacchetti);
+  return { canone_cents: c, prenotazioni: n, quote_cents: quote, pacchetti_cents: pk, importo_cents: c + quote + pk };
 }
 
 /** Giorni per pagare dopo l'addebito del mese: poi la licenza scade e l'app del centro si blocca. */
@@ -61,6 +76,24 @@ export function scadenzaLicenza(oggi: string, giorni: number) {
   const [y, m] = oggi.split('-').map(Number);
   const d = new Date(Date.UTC(y, m, Math.max(1, giorni)));
   return d.toISOString().slice(0, 10);
+}
+
+/** I piani dal più piccolo al più grande. */
+export const PIANI_IN_ORDINE: Piano[] = ['base', 'professional', 'pro'];
+
+/** Il piano `a` è più piccolo di `b`. */
+export const piuPiccolo = (a: Piano, b: Piano) => PIANI_IN_ORDINE.indexOf(a) < PIANI_IN_ORDINE.indexOf(b);
+
+/** Il primo giorno del mese dopo quello di `giorno`: da lì parte un piano più piccolo. */
+export function primoDelMeseDopo(giorno: string) {
+  const [y, m] = giorno.split('-').map(Number);
+  return new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
+}
+
+/** L'ultimo giorno del mese dopo quello di `giorno`: la fine del servizio con un mese di preavviso. */
+export function fineDelMeseDopo(giorno: string) {
+  const [y, m] = giorno.split('-').map(Number);
+  return new Date(Date.UTC(y, m + 1, 0)).toISOString().slice(0, 10);
 }
 
 /** Più `giorni` giorni a una data AAAA-MM-GG. */

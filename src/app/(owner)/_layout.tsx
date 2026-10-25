@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router/js-tabs';
 
 import { OwnerSidebar } from '@/components/owner-sidebar';
+import { PaymentRequest } from '@/components/pay-now';
 import { tabIcon } from '@/components/ui';
 import { t } from '@/lib/i18n';
 import { usePlan } from '@/lib/plans';
@@ -11,24 +12,27 @@ export default function OwnerLayout() {
   const c = useColors();
   const plan = usePlan();
   return (
-    <Tabs
-      // Nel programma per Windows le pagine stanno in un menu a sinistra, con i loro paragrafi.
-      tabBar={sectionMenu ? (props) => <OwnerSidebar {...props} /> : undefined}
-      screenOptions={{
-        tabBarPosition: sectionMenu ? 'left' : 'bottom',
-        headerShown: false,
-        tabBarActiveTintColor: c.accent,
-        tabBarInactiveTintColor: c.muted,
-        // Altezza secondo il contenuto: con le scritte ingrandite del telefono le etichette non si tagliano.
-        tabBarStyle: { backgroundColor: c.surface, borderTopColor: c.line, height: 'auto', minHeight: 49 },
-      }}>
-      <Tabs.Screen name="index" options={{ title: t('Giorno'), tabBarIcon: tabIcon('◷') }} />
-      <Tabs.Screen name="week" options={{ title: t('Settimana'), tabBarIcon: tabIcon('▦') }} />
-      <Tabs.Screen name="hours" options={{ title: t('Orari'), tabBarIcon: tabIcon('◑') }} />
-      <Tabs.Screen name="stats" options={{ title: t('Incassi'), tabBarIcon: tabIcon('€'), href: plan.payments ? undefined : null }} />
-      <Tabs.Screen name="clients" options={{ title: t('Clienti'), tabBarIcon: tabIcon('☺') }} />
-      <Tabs.Screen name="trainers" options={{ title: t('Trainer'), tabBarIcon: tabIcon('✪'), href: plan.trainers ? undefined : null }} />
-      <Tabs.Screen name="settings" options={{ title: t('Impostazioni'), tabBarIcon: tabIcon('⚙') }} />
-    </Tabs>
+    <>
+      <PaymentRequest />
+      <Tabs
+        // Nel programma per Windows le pagine stanno in un menu a sinistra, con i loro paragrafi.
+        tabBar={sectionMenu ? (props) => <OwnerSidebar {...props} /> : undefined}
+        screenOptions={{
+          tabBarPosition: sectionMenu ? 'left' : 'bottom',
+          headerShown: false,
+          tabBarActiveTintColor: c.accent,
+          tabBarInactiveTintColor: c.muted,
+          // Altezza secondo il contenuto: con le scritte ingrandite del telefono le etichette non si tagliano.
+          tabBarStyle: { backgroundColor: c.surface, borderTopColor: c.line, height: 'auto', minHeight: 49 },
+        }}>
+        <Tabs.Screen name="index" options={{ title: t('Giorno'), tabBarIcon: tabIcon('◷') }} />
+        <Tabs.Screen name="week" options={{ title: t('Settimana'), tabBarIcon: tabIcon('▦') }} />
+        <Tabs.Screen name="hours" options={{ title: t('Orari'), tabBarIcon: tabIcon('◑') }} />
+        <Tabs.Screen name="stats" options={{ title: t('Incassi'), tabBarIcon: tabIcon('€'), href: plan.payments ? undefined : null }} />
+        <Tabs.Screen name="clients" options={{ title: t('Clienti'), tabBarIcon: tabIcon('☺') }} />
+        <Tabs.Screen name="trainers" options={{ title: t('Trainer'), tabBarIcon: tabIcon('✪'), href: plan.trainers ? undefined : null }} />
+        <Tabs.Screen name="settings" options={{ title: t('Impostazioni'), tabBarIcon: tabIcon('⚙') }} />
+      </Tabs>
+    </>
   );
 }
