@@ -29,8 +29,11 @@ export type AdminCentre = {
   piano: 'base' | 'professional' | 'pro';
   stato: 'mandato' | 'progetto' | 'avvio' | 'database' | 'chiavi' | 'licenza' | 'pronto' | 'errore';
   errore: string;
-  tariffa_cents: number;
-  stripe_metodo: string | null;
+  /** Prezzi fatti apposta per il centro; null = quelli del piano. */
+  tariffa_cents: number | null;
+  canone_cents: number | null;
+  /** IBAN da cui il centro paga, per riconoscere i suoi bonifici. */
+  iban: string;
   stripe_conto: string | null;
   stripe_attivo: boolean;
   scade: string | null;
@@ -43,13 +46,39 @@ export type Charge = {
   centro: string;
   mese: string;
   prenotazioni: number;
+  canone_cents: number;
   importo_cents: number;
   stato: 'da_fare' | 'zero' | 'inviato' | 'pagato' | 'non_pagato';
   fattura: string | null;
   errore: string;
+  /** Entro questo giorno va pagato, poi l'app del centro si blocca. */
+  scadenza: string | null;
+  causale: string;
+  pagato_il: string | null;
 };
 
-export type AdminData = { oggi: string; centri: AdminCentre[]; addebiti: Charge[] };
+export type PlanRow = { piano: AdminCentre['piano']; canone_cents: number; tariffa_cents: number };
+
+/** Il tuo conto: IBAN per i bonifici dei centri e collegamento in sola lettura con Enable Banking. */
+export type Bank = {
+  bonifico_iban: string;
+  bonifico_intestatario: string;
+  banca: string;
+  paese: string;
+  tipo: 'personal' | 'business';
+  iban: string;
+  valido_fino: string | null;
+  ultimo_controllo: string | null;
+  errore: string;
+  collegata: boolean;
+  /** Ci sono i segreti di Enable Banking sul gestore. */
+  abilitata: boolean;
+};
+
+/** Un bonifico in entrata con "K9" o di un centro che non paga nessun addebito: da abbinare a mano. */
+export type Movement = { id: string; data: string; importo_cents: number; iban: string; nome: string; causale: string; centro: string | null };
+
+export type AdminData = { oggi: string; centri: AdminCentre[]; addebiti: Charge[]; piani: PlanRow[]; banca: Bank; movimenti: Movement[] };
 
 // Accesso: nella demo basta una qualsiasi email e password.
 let demoIn = false;

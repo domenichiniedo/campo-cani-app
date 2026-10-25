@@ -6,6 +6,7 @@
 //
 //   node tools/nuova-prova.mjs --campo "Prova Le Querce" --email titolare@lequerce.it [--regione eu-central-1] [--org <id>]
 //   node tools/nuova-prova.mjs --ref abcdefghijklmnopqrst --campo ... --email ...   (progetto già creato su supabase.com)
+//   node tools/nuova-prova.mjs --ref abcdefghijklmnopqrst   (prova già preparata: aggiunge solo le migrazioni nuove)
 //
 // Stampa l'URL del progetto e la publishable key (mai la secret key); in GitHub Actions li scrive anche
 // nelle uscite del passo (url, chiave) per costruire l'APK.
@@ -24,8 +25,13 @@ const fail = (msg) => {
 const o = {};
 const list = process.argv.slice(2);
 for (let i = 0; i < list.length; i++) if (list[i].startsWith('--')) o[list[i].slice(2)] = list[++i];
-if (!o.campo?.trim()) fail('Indica il nome della prova con --campo "Nome".');
-if (!o.email?.includes('@')) fail("Indica l'email del proprietario con --email: con quella si iscrive ed entra come proprietario.");
+// Con un progetto già preparato (--ref) nome ed email si possono omettere: si aggiungono solo le migrazioni nuove.
+const needNames = () => {
+  if (!o.campo?.trim()) fail('Indica il nome della prova con --campo "Nome".');
+  if (!o.email?.includes('@')) fail("Indica l'email del proprietario con --email: con quella si iscrive ed entra come proprietario.");
+};
+if (!o.ref) needNames();
+else if (o.email && !o.email.includes('@')) fail("L'email del proprietario non è valida.");
 const token = process.env.SUPABASE_ACCESS_TOKEN ?? '';
 if (!token) fail('Manca il token di Supabase (supabase.com → Account → Access Tokens): su GitHub va nel secret SUPABASE_ACCESS_TOKEN.');
 
@@ -91,8 +97,9 @@ if (pronto) {
     step(`Aggiungo ${m.file}…`);
     await api('POST', `/projects/${ref}/database/query`, { query: m.sql });
   }
-  await api('POST', `/projects/${ref}/database/query`, { query: `select public.set_owner_email(${sql(o.email.trim().toLowerCase())});` });
+  if (o.email) await api('POST', `/projects/${ref}/database/query`, { query: `select public.set_owner_email(${sql(o.email.trim().toLowerCase())});` });
 } else {
+  needNames();
   step('Preparo il database (tutte le migrazioni)…');
   await api('POST', `/projects/${ref}/database/query`, {
     query: `${migrationsSql()}\nselect public.set_owner_email(${sql(o.email.trim().toLowerCase())});\nupdate public.settings set field_name = ${sql(o.campo.trim())} where id = 1;`,
@@ -128,8 +135,8 @@ if (!pub?.api_key?.startsWith('sb_publishable_')) fail('Non trovo la publishable
 
 if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `url=${url}\nchiave=${pub.api_key}\n`);
 console.log(`
-Database della prova pronto: ${o.campo.trim()}
+Database della prova pronto${o.campo ? `: ${o.campo.trim()}` : ''}
 URL:            ${url}
 Publishable key: ${pub.api_key}
-Il proprietario si iscrive dall'app con ${o.email.trim().toLowerCase()} ed entra già come proprietario.
+${o.email ? `Il proprietario si iscrive dall'app con ${o.email.trim().toLowerCase()} ed entra già come proprietario.` : ''}
 `);

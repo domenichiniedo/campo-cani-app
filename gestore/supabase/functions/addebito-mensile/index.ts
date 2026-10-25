@@ -1,16 +1,17 @@
-// Il primo del mese conta le prenotazioni del mese prima di ogni centro e le addebita con Stripe Billing:
-// una fattura Stripe (prenotazioni × tariffa) pagata in automatico con il mandato SEPA del centro, che la riceve
-// anche per email. Si contano solo le prenotazioni non disdette pagate al campo o con bonifico al centro: quelle pagate online
-// (quando si accenderanno) avranno la tua parte trattenuta direttamente da Stripe.
+// Il primo del mese fa il conto del mese prima di ogni centro: canone del piano (diviso a giorni se il piano è
+// cambiato o il centro si è registrato a metà mese) più la quota per ogni prenotazione non disdetta pagata al campo
+// o con bonifico al centro. Quelle pagate online (quando si accenderanno) avranno la tua parte trattenuta da Stripe.
+// Il centro vede l'addebito nell'app (Impostazioni → Licenza) con IBAN, causale e codice QR, e lo paga con un
+// bonifico istantaneo sul tuo conto: controlla-bonifici lo trova nei movimenti e rinnova la licenza.
+// Se non arriva entro la scadenza (il giorno GIORNI_PER_PAGARE del mese, 3 di solito) la licenza scade e l'app
+// del centro si blocca finché il pagamento non arriva.
 // La chiama pg_cron il primo del mese con x-webhook-secret. Per rifare un mese: body {"mese": "AAAA-MM"}.
 // Si può rilanciare senza paura: un centro già addebitato per quel mese viene saltato.
 
-import { allungaLicenza } from '../_shared/addebiti.ts';
+import { allungaLicenza, cambi, prezzi } from '../_shared/addebiti.ts';
 import { daCron, db, json, messaggio, oggi, type Centro } from '../_shared/comune.ts';
+import { causale, contoDelMese, giorniPerPagare, scadenzaLicenza, type Prezzi } from '../_shared/costi.ts';
 import { managementApi } from '../_shared/supabase-api.ts';
-import { stripe } from '../_shared/stripe.ts';
-
-const MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
 
 const meseDopo = (mese: string) => {
   const [y, m] = mese.split('-').map(Number);
@@ -22,58 +23,57 @@ const mesePrima = (mese: string) => {
 };
 const euro = (cents: number) => (cents / 100).toFixed(2).replace('.', ',');
 
-async function addebita(c: Centro, mese: string) {
+async function addebita(c: Centro, mese: string, listino: Prezzi) {
   const { data: fatto } = await db.from('addebiti').select('id, stato').eq('centro', c.id).eq('mese', mese).maybeSingle();
   if (fatto && fatto.stato !== 'da_fare') return `già fatto (${fatto.stato})`;
 
-  const [{ n }] = (await managementApi('POST', `/projects/${c.progetto}/database/query`, {
-    query: `select count(*)::int as n from public.bookings where status = 'active' and pay in ('onsite', 'transfer') and day >= '${mese}-01' and day < '${meseDopo(mese)}-01';`,
-  })) as { n: number }[];
-  const importo = n * c.tariffa_cents;
-  const { data: a, error } = await db
+  const righe = (await managementApi('POST', `/projects/${c.progetto}/database/query`, {
+    query: `select day::text as g, count(*)::int as n from public.bookings where status = 'active' and pay in ('onsite', 'transfer') and day >= '${mese}-01' and day < '${meseDopo(mese)}-01' group by day;`,
+  })) as { g: string; n: number }[];
+  const conto = contoDelMese({
+    mese,
+    dal: oggi(new Date(c.creato)),
+    cambi: await cambi(c.id),
+    attuale: c.piano,
+    prezzi: listino,
+    canone: c.canone_cents,
+    tariffa: c.tariffa_cents,
+    prenotazioni: Object.fromEntries(righe.map((r) => [r.g.slice(0, 10), r.n])),
+  });
+  const importo = conto.importo_cents;
+  const { error } = await db
     .from('addebiti')
-    .upsert({ centro: c.id, mese, prenotazioni: n, importo_cents: importo, stato: importo ? 'da_fare' : 'zero' }, { onConflict: 'centro,mese' })
-    .select('id')
-    .single();
+    .upsert(
+      {
+        centro: c.id,
+        mese,
+        prenotazioni: conto.prenotazioni,
+        canone_cents: conto.canone_cents,
+        importo_cents: importo,
+        stato: importo ? 'inviato' : 'zero',
+        scadenza: scadenzaLicenza(`${mese}-01`, giorniPerPagare()),
+        causale: causale(c.codice, mese),
+      },
+      { onConflict: 'centro,mese' },
+    );
   if (error) throw new Error(error.message);
   if (!importo) {
     await allungaLicenza(c);
-    return 'nessuna prenotazione';
+    return 'niente da pagare';
   }
-  if (!c.stripe_cliente || !c.stripe_metodo) throw new Error('Il centro non ha un mandato SEPA: addebito da fare a mano.');
-
-  const [y, m] = mese.split('-').map(Number);
-  const descrizione = `Prenotazioni di ${MESI[m - 1]} ${y}: ${n} × ${euro(c.tariffa_cents)} €`;
-  // Le chiavi di idempotenza evitano doppioni se la funzione si interrompe e si rilancia.
-  const fattura = await stripe(
-    'POST',
-    '/invoices',
-    {
-      customer: c.stripe_cliente,
-      collection_method: 'charge_automatically',
-      default_payment_method: c.stripe_metodo,
-      auto_advance: true,
-      currency: 'eur',
-      description: `K9 Manager – ${c.campo}`,
-      metadata: { centro: c.id, mese },
-    },
-    `fattura-${a.id}`,
-  );
-  await stripe('POST', '/invoiceitems', { customer: c.stripe_cliente, invoice: fattura.id, amount: importo, currency: 'eur', description: descrizione }, `voce-${a.id}`);
-  await stripe('POST', `/invoices/${fattura.id}/finalize`, { auto_advance: true }, `chiudi-${a.id}`);
-  await db.from('addebiti').update({ stato: 'inviato', fattura: fattura.id, errore: '' }).eq('id', a.id);
-  return `${n} prenotazioni, ${euro(importo)} €`;
+  return `${conto.prenotazioni} prenotazioni, ${euro(importo)} €`;
 }
 
 Deno.serve(async (req) => {
   if (!daCron(req)) return json({ errore: 'Non autorizzato.' }, 401);
   const body = await req.json().catch(() => ({}));
   const mese = /^\d{4}-\d{2}$/.test(body.mese ?? '') ? body.mese : mesePrima(oggi().slice(0, 7));
+  const listino = await prezzi();
   const { data } = await db.from('centri').select('*').eq('stato', 'pronto').order('creato');
   const esito: Record<string, string> = {};
   for (const c of (data ?? []) as Centro[]) {
     try {
-      esito[c.codice] = await addebita(c, mese);
+      esito[c.codice] = await addebita(c, mese, listino);
     } catch (e) {
       esito[c.codice] = `errore: ${messaggio(e)}`;
       await db.from('addebiti').update({ errore: messaggio(e) }).eq('centro', c.id).eq('mese', mese);

@@ -105,7 +105,7 @@ export function LicensePanel() {
           ? t('Codice del centro {id}: dallo a clienti e trainer. Licenza emessa il {data}.', { id: license.id, data: license.emessa.split('-').reverse().join('/') })
           : t('Licenza {id}, emessa il {data}.', { id: license.id, data: license.emessa.split('-').reverse().join('/') })}
         {auto
-          ? ` ${t("Si rinnova da sola ogni mese, quando l'addebito delle prenotazioni va a buon fine.")}`
+          ? ` ${t("Si rinnova da sola ogni mese, quando arriva il bonifico dell'abbonamento.")}`
           : days !== null && days <= 30 && days >= 0
             ? ` ${t('Mancano {n} giorni: chiedi il rinnovo.', { n: days })}`
             : ''}

@@ -1,0 +1,53 @@
+# A ogni PR unita (push su main) rifà le due app per Android con le novità e le ripubblica nelle Releases:
+#   - la demo con i dati di esempio, i 3 piani e le 4 entrate (proprietario, cliente, trainer, nuovo cliente):
+#     Releases → "Demo per Android" (K9Manager-Demo.apk);
+#   - l'app collegata al database della prova: prima aggiunge al database le migrazioni nuove (i dati restano),
+#     poi costruisce l'APK: Releases → "Prova di K9 Manager – <progetto>" (K9Manager-Prova.apk).
+# Il progetto della prova è PROVA_PROGETTO qui sotto (il codice in xxxx.supabase.co): per collegare un'altra prova
+# cambialo qui. Usa il secret SUPABASE_ACCESS_TOKEN, lo stesso di "Prova con database".
+# Si può lanciare anche a mano: Actions → Aggiorna le app → Run workflow.
+name: Aggiorna le app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Due PR unite di seguito: vale l'ultima, quella in corso si ferma.
+concurrency:
+  group: aggiorna-app
+  cancel-in-progress: true
+
+env:
+  PROVA_PROGETTO: jnysclqgutqetrxitlez
+
+jobs:
+  demo:
+    uses: ./.github/workflows/android-demo.yml
+
+  database:
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.prova.outputs.url }}
+      chiave: ${{ steps.prova.outputs.chiave }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: prova
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node tools/nuova-prova.mjs --ref "$PROVA_PROGETTO"
+
+  app:
+    needs: database
+    uses: ./.github/workflows/android.yml
+    with:
+      supabase_url: ${{ needs.database.outputs.url }}
+      supabase_key: ${{ needs.database.outputs.chiave }}
+      # Ogni aggiornamento sposta la fine della prova a 30 giorni da oggi.
+      giorni: '30'

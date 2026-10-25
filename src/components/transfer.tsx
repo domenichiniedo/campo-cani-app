@@ -37,31 +37,42 @@ function Line({ label, value, copy }: { label: string; value: string; copy?: str
   );
 }
 
-/** Dati del bonifico istantaneo per una lezione: QR da inquadrare con l'app della banca, IBAN, importo e causale. */
-export function TransferDetails({ booking, dog, cfg }: { booking: Pick<Booking, 'id' | 'day' | 'start_min' | 'price_cents'>; dog: string; cfg: TransferSettings }) {
-  const reason = transferReason(booking, dog);
+/** Dati di un bonifico istantaneo: QR da inquadrare con l'app della banca, beneficiario, IBAN, importo e causale. */
+export function TransferBox({ title, intro, holder, iban, cents, reason }: { title: string; intro: string; holder: string; iban: string; cents: number; reason: string }) {
   const qr = useMemo(() => {
     const q = qrcode(0, 'M');
-    q.addData(epcPayload(cfg.holder, cfg.iban, booking.price_cents, reason));
+    q.addData(epcPayload(holder, iban, cents, reason));
     q.make();
     return q.createDataURL(6, 4);
-  }, [cfg.holder, cfg.iban, booking.price_cents, reason]);
+  }, [holder, iban, cents, reason]);
 
   return (
     <Card>
-      <Body bold>{t('Paga con bonifico istantaneo')}</Body>
-      <Muted>
-        {t("Inquadra il codice con l'app della tua banca, oppure copia i dati. Scegli il bonifico istantaneo: il centro vede l'accredito in pochi secondi e segna la lezione come pagata.")}
-      </Muted>
+      <Body bold>{title}</Body>
+      <Muted>{intro}</Muted>
       <View style={{ alignItems: 'center', paddingVertical: 4 }}>
         <View style={{ backgroundColor: '#fff', padding: 6, borderRadius: 8 }}>
           <Image source={{ uri: qr }} style={{ width: 200, height: 200 }} accessibilityLabel={t('Codice QR del bonifico')} />
         </View>
       </View>
-      <Line label={t('Beneficiario')} value={cfg.holder} copy={cfg.holder} />
-      <Line label={t('IBAN')} value={formatIban(cfg.iban)} copy={cfg.iban} />
-      <Line label={t('Importo')} value={euro(booking.price_cents)} copy={(booking.price_cents / 100).toFixed(2).replace('.', ',')} />
+      <Line label={t('Beneficiario')} value={holder} copy={holder} />
+      <Line label={t('IBAN')} value={formatIban(iban)} copy={iban} />
+      <Line label={t('Importo')} value={euro(cents)} copy={(cents / 100).toFixed(2).replace('.', ',')} />
       <Line label={t('Causale')} value={reason} copy={reason} />
     </Card>
+  );
+}
+
+/** Dati del bonifico istantaneo per una lezione. */
+export function TransferDetails({ booking, dog, cfg }: { booking: Pick<Booking, 'id' | 'day' | 'start_min' | 'price_cents'>; dog: string; cfg: TransferSettings }) {
+  return (
+    <TransferBox
+      title={t('Paga con bonifico istantaneo')}
+      intro={t("Inquadra il codice con l'app della tua banca, oppure copia i dati. Scegli il bonifico istantaneo: il centro vede l'accredito in pochi secondi e segna la lezione come pagata.")}
+      holder={cfg.holder}
+      iban={cfg.iban}
+      cents={booking.price_cents}
+      reason={transferReason(booking, dog)}
+    />
   );
 }

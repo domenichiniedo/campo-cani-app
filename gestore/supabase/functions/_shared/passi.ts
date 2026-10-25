@@ -2,7 +2,8 @@
 // Ogni passo si può ripetere senza danni, così se uno fallisce il giro dopo riprova da lì.
 // A un centro già pronto aggiunge, una alla volta, le migrazioni uscite dopo (aggiornamenti dell'app).
 import type { Centro } from './comune.ts';
-import { fineMese, firmaLicenza } from './licenza.ts';
+import { giorniPerPagare, scadenzaLicenza } from './costi.ts';
+import { firmaLicenza } from './licenza.ts';
 import { MIGRAZIONI } from './migrazioni.ts';
 import { lit, type Api } from './supabase-api.ts';
 
@@ -118,7 +119,8 @@ export async function passo(c: Centro, a: Ambiente): Promise<Partial<Centro>> {
       return { url: `https://${c.progetto}.supabase.co`, chiave: pub.api_key, stato: 'licenza' };
     }
     case 'licenza':
-      return { ...(await rinnova(c, a, fineMese(a.oggi, 1))), stato: 'pronto' };
+      // Vale fino a pochi giorni dopo il primo addebito, il primo del mese dopo.
+      return { ...(await rinnova(c, a, scadenzaLicenza(a.oggi, giorniPerPagare()))), stato: 'pronto' };
     case 'pronto': {
       const m = MIGRAZIONI[c.migrazioni];
       if (!m) return {};
