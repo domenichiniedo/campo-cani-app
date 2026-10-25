@@ -40,7 +40,41 @@ env:
   EXPO_PUBLIC_GOOGLE_DESKTOP_SECRET: ${{ !inputs.demo && vars.GOOGLE_DESKTOP_SECRET || '' }}
 
 jobs:
+  # Prima la release, poi ogni sistema ci carica il suo file: niente artifact da passare fra un job e l'altro
+  # (lo spazio per gli artifact di GitHub ha un limite, le Releases no).
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.r.outputs.tag }}
+    steps:
+      - name: Controlla gli input
+        if: ${{ !inputs.demo }}
+        shell: bash
+        run: |
+          case "$EXPO_PUBLIC_GESTORE_URL" in https://*.supabase.co/functions/v1) ;; *) echo "::error::gestore_url deve essere https://xxxx.supabase.co/functions/v1"; exit 1;; esac
+          case "$EXPO_PUBLIC_GESTORE_KEY" in sb_publishable_*) ;; *) echo "::error::gestore_key deve essere la publishable key (sb_publishable_...), mai la secret key"; exit 1;; esac
+      - id: r
+        name: Prepara la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if [ -n "$EXPO_PUBLIC_PANNELLO_DEMO" ]; then
+            TAG=pannello-demo; TITLE="Demo di K9 Gestore"
+            NOTES="Demo del pannello K9 Gestore con centri e addebiti finti, senza server: entri con una email e una password qualsiasi. Le modifiche restano finché il programma è aperto."
+          else
+            TAG=pannello-gestore; TITLE="K9 Gestore"
+            NOTES="Il tuo pannello per tutti i centri registrati dall'app. Entri con l'utente del progetto gestore."
+          fi
+          NOTES="$NOTES
+
+          - Windows: scarica $NOME-Windows.exe e aprilo per installarlo.
+          - Mac: scarica $NOME-Mac.dmg, aprilo e trascina K9 Gestore in Applicazioni. La prima volta aprilo con clic destro → Apri."
+          gh release view $TAG >/dev/null 2>&1 || gh release create $TAG --prerelease --title "$TITLE" --notes "$NOTES"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
   windows:
+    needs: release
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,12 +85,6 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             desktop/package-lock.json
-      - name: Controlla gli input
-        if: ${{ !inputs.demo }}
-        shell: bash
-        run: |
-          case "$EXPO_PUBLIC_GESTORE_URL" in https://*.supabase.co/functions/v1) ;; *) echo "::error::gestore_url deve essere https://xxxx.supabase.co/functions/v1"; exit 1;; esac
-          case "$EXPO_PUBLIC_GESTORE_KEY" in sb_publishable_*) ;; *) echo "::error::gestore_key deve essere la publishable key (sb_publishable_...), mai la secret key"; exit 1;; esac
       - run: npm ci
       - run: npm ci
         working-directory: desktop
@@ -65,13 +93,15 @@ jobs:
       - run: npm run dist -- -c.appId=$APP_ID -c.productName="K9 Gestore" -c.nsis.shortcutName="K9 Gestore" -c.win.artifactName=$NOME-Windows.exe
         shell: bash
         working-directory: desktop
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.NOME }}-Windows
-          path: desktop/release/${{ env.NOME }}-Windows.exe
-          if-no-files-found: error
+      - name: Carica nelle Releases
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload ${{ needs.release.outputs.tag }} desktop/release/$NOME-Windows.exe --clobber
 
   mac:
+    needs: release
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -91,34 +121,9 @@ jobs:
         working-directory: desktop
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.NOME }}-Mac
-          path: desktop/release/${{ env.NOME }}-Mac.dmg
-          if-no-files-found: error
-
-  pubblica:
-    needs: [windows, mac]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          merge-multiple: true
-      - name: Pubblica nelle Releases
+      - name: Carica nelle Releases
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: |
-          if [ -n "$EXPO_PUBLIC_PANNELLO_DEMO" ]; then
-            TAG=pannello-demo; TITLE="Demo di K9 Gestore"
-            NOTES="Demo del pannello K9 Gestore con centri e addebiti finti, senza server: entri con una email e una password qualsiasi. Le modifiche restano finché il programma è aperto."
-          else
-            TAG=pannello-gestore; TITLE="K9 Gestore"
-            NOTES="Il tuo pannello per tutti i centri registrati dall'app. Entri con l'utente del progetto gestore."
-          fi
-          NOTES="$NOTES
-
-          - Windows: scarica $NOME-Windows.exe e aprilo per installarlo.
-          - Mac: scarica $NOME-Mac.dmg, aprilo e trascina K9 Gestore in Applicazioni. La prima volta aprilo con clic destro → Apri."
-          gh release view $TAG >/dev/null 2>&1 || gh release create $TAG --prerelease --title "$TITLE" --notes "$NOTES"
-          gh release upload $TAG $NOME-Windows.exe $NOME-Mac.dmg --clobber
+        run: gh release upload ${{ needs.release.outputs.tag }} desktop/release/$NOME-Mac.dmg --clobber

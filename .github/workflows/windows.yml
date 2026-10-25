@@ -95,8 +95,12 @@ jobs:
         if: ${{ env.EXPO_PUBLIC_PROVA_FINO }}
         shell: bash
         working-directory: desktop
+      # Lo spazio per gli artifact di GitHub ha un limite: se è pieno la build va avanti lo stesso e il file esce
+      # nelle Releases (che non contano nel limite).
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
+          retention-days: 7
           name: ${{ inputs.demo && 'K9Manager-Windows-Demo' || env.EXPO_PUBLIC_PROVA_FINO && 'K9Manager-Prova-Windows' || 'K9Manager-Windows' }}
           path: desktop/release/*.exe
           if-no-files-found: error
