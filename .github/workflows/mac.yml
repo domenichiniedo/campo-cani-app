@@ -70,8 +70,12 @@ jobs:
           screencapture -x schermata-mac.png || true
           kill -0 $!
           kill $!
+      # Lo spazio per gli artifact di GitHub ha un limite: se è pieno la build va avanti lo stesso e il file esce
+      # nelle Releases (che non contano nel limite).
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
+          retention-days: 7
           name: ${{ env.DEMO == 'true' && 'K9Manager-Mac-Demo' || 'K9Manager-Mac' }}
           path: |
             desktop/release/*.dmg
