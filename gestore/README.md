@@ -61,6 +61,10 @@ al centro con la carta (Nexi) contano nel conto del mese come quelle pagate al c
 
 ## Come si accende (una volta sola)
 
+**Per provare tutto il giro** non serve niente di questo: **Actions → Prova generale** accende da solo un gestore di
+prova, senza SMTP, Twilio né banca (vedi il README principale, punto 12). Lo riconosce il segreto `PROVA=1`: i centri si
+preparano anche senza SMTP e Twilio, e chi si iscrive entra subito. Nel gestore vero non metterlo.
+
 Tutti i comandi si lanciano **sul tuo computer**, nella cartella del progetto. Nessuna chiave segreta va
 in chat, nell'app o su GitHub.
 

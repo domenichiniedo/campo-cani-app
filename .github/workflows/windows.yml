@@ -13,6 +13,9 @@
 # Prova a tempo collegata a un database (come la prova per Android): supabase_url, supabase_key
 # (publishable) e giorni. Esce come "K9 Manager Prova", accanto alla demo, nella release della prova
 # "prova-xxxx" (file K9Manager-Prova-Windows.exe). La lancia anche "Prova con database".
+#
+# Prova generale (la lancia "Prova generale"): gestore_url e chiave_server al posto del database. Esce come
+# "K9 Prova generale" nella release "prova-generale" (file K9Manager-ProvaGenerale-Windows.exe).
 name: App per Windows
 
 on:
@@ -31,6 +34,12 @@ on:
       giorni:
         description: Prova - giorni di prova (0 = senza scadenza)
         default: '0'
+      gestore_url:
+        description: Prova generale - indirizzo delle funzioni del gestore (https://xxxx.supabase.co/functions/v1)
+        required: false
+      chiave_server:
+        description: Prova generale - chiave pubblica del server per le licenze
+        required: false
   # La usano "Prova con database" (la prova) e "Aggiorna le app" (demo e prova, a ogni PR unita).
   workflow_call:
     inputs:
@@ -46,6 +55,12 @@ on:
       giorni:
         type: string
         default: '3'
+      gestore_url:
+        type: string
+        default: ''
+      chiave_server:
+        type: string
+        default: ''
   push:
     tags: ['v*']
   pull_request:
@@ -57,6 +72,9 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    env:
+      EXPO_PUBLIC_GESTORE_URL: ${{ !inputs.demo && inputs.gestore_url || '' }}
+      EXPO_PUBLIC_LICENSE_SERVER_KEY: ${{ !inputs.demo && inputs.chiave_server || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -71,7 +89,7 @@ jobs:
         working-directory: desktop
       # Prova: scadenza a N giorni da oggi (ora italiana), come su Android.
       - name: Scadenza della prova
-        if: ${{ !inputs.demo && inputs.supabase_url && inputs.giorni != '0' && inputs.giorni != '' }}
+        if: ${{ !inputs.demo && (inputs.supabase_url || inputs.gestore_url) && inputs.giorni != '0' && inputs.giorni != '' }}
         shell: bash
         env:
           GIORNI: ${{ inputs.giorni }}
@@ -83,20 +101,25 @@ jobs:
       - run: npm run web
         working-directory: desktop
         env:
-          EXPO_PUBLIC_SUPABASE_URL: ${{ inputs.demo && 'https://demo.supabase.co' || inputs.supabase_url || vars.EXPO_PUBLIC_SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ inputs.demo && 'demo' || inputs.supabase_key || vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-          # Accesso con Google (vedi README, "Accesso con Google"): vuote = niente pulsante.
-          EXPO_PUBLIC_GOOGLE_DESKTOP_CLIENT_ID: ${{ !inputs.demo && vars.GOOGLE_DESKTOP_CLIENT_ID || '' }}
-          EXPO_PUBLIC_GOOGLE_DESKTOP_SECRET: ${{ !inputs.demo && vars.GOOGLE_DESKTOP_SECRET || '' }}
+          # Con il gestore niente database nella build: lo dà la licenza di ogni centro.
+          EXPO_PUBLIC_SUPABASE_URL: ${{ inputs.demo && 'https://demo.supabase.co' || env.EXPO_PUBLIC_GESTORE_URL == '' && (inputs.supabase_url || vars.EXPO_PUBLIC_SUPABASE_URL) || '' }}
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ inputs.demo && 'demo' || env.EXPO_PUBLIC_GESTORE_URL == '' && (inputs.supabase_key || vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY) || '' }}
+          # Accesso con Google (vedi README, "Accesso con Google"): vuote = niente pulsante. Non nella prova generale.
+          EXPO_PUBLIC_GOOGLE_DESKTOP_CLIENT_ID: ${{ !inputs.demo && env.EXPO_PUBLIC_GESTORE_URL == '' && vars.GOOGLE_DESKTOP_CLIENT_ID || '' }}
+          EXPO_PUBLIC_GOOGLE_DESKTOP_SECRET: ${{ !inputs.demo && env.EXPO_PUBLIC_GESTORE_URL == '' && vars.GOOGLE_DESKTOP_SECRET || '' }}
       - if: ${{ inputs.demo }}
         run: node demo/inject.js
         working-directory: desktop
       - run: npm run dist
-        if: ${{ !env.EXPO_PUBLIC_PROVA_FINO }}
+        if: ${{ !env.EXPO_PUBLIC_PROVA_FINO && !env.EXPO_PUBLIC_GESTORE_URL }}
         working-directory: desktop
       # La prova è un programma a parte: si installa accanto alla demo e all'app vera.
       - run: npm run dist -- -c.appId=it.campocani.provavera -c.productName="K9 Manager Prova" -c.nsis.shortcutName="K9 Manager Prova"
-        if: ${{ env.EXPO_PUBLIC_PROVA_FINO }}
+        if: ${{ env.EXPO_PUBLIC_PROVA_FINO && !env.EXPO_PUBLIC_GESTORE_URL }}
+        shell: bash
+        working-directory: desktop
+      - run: npm run dist -- -c.appId=it.campocani.provagenerale -c.productName="K9 Prova generale" -c.nsis.shortcutName="K9 Prova generale"
+        if: ${{ env.EXPO_PUBLIC_GESTORE_URL }}
         shell: bash
         working-directory: desktop
       # Lo spazio per gli artifact di GitHub ha un limite: se è pieno la build va avanti lo stesso e il file esce
@@ -105,7 +128,7 @@ jobs:
         continue-on-error: true
         with:
           retention-days: 7
-          name: ${{ inputs.demo && 'K9Manager-Windows-Demo' || env.EXPO_PUBLIC_PROVA_FINO && 'K9Manager-Prova-Windows' || 'K9Manager-Windows' }}
+          name: ${{ inputs.demo && 'K9Manager-Windows-Demo' || env.EXPO_PUBLIC_GESTORE_URL && 'K9Manager-ProvaGenerale-Windows' || env.EXPO_PUBLIC_PROVA_FINO && 'K9Manager-Prova-Windows' || 'K9Manager-Windows' }}
           path: desktop/release/*.exe
           if-no-files-found: error
       # Release fissa "demo-windows": il link per scaricare la demo resta sempre lo stesso.
@@ -120,7 +143,7 @@ jobs:
             --title "Demo per Windows" --notes "Demo del programma K9 Manager per Windows, con i dati di esempio e senza database. Scarica K9Manager-Windows-Demo.exe e aprilo per installarlo."
           gh release upload demo-windows K9Manager-Windows-Demo.exe --clobber
       # Prova: nella stessa release della prova per Android, una per ogni database.
-      - if: ${{ env.EXPO_PUBLIC_PROVA_FINO }}
+      - if: ${{ env.EXPO_PUBLIC_PROVA_FINO && !env.EXPO_PUBLIC_GESTORE_URL }}
         name: Pubblica la prova nelle Releases
         shell: bash
         env:
@@ -138,3 +161,13 @@ jobs:
           gh release view $TAG >/dev/null 2>&1 || gh release create $TAG --prerelease --title "$TITLE" --notes "$NOTES"
           gh release edit $TAG --title "$TITLE" --notes "$NOTES"
           gh release upload $TAG K9Manager-Prova-Windows.exe --clobber
+      # Prova generale: nella release della prova generale, accanto all'APK (le note le scrive "App per Android").
+      - if: ${{ env.EXPO_PUBLIC_GESTORE_URL }}
+        name: Pubblica la prova generale nelle Releases
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp desktop/release/*.exe K9Manager-ProvaGenerale-Windows.exe
+          gh release view prova-generale >/dev/null 2>&1 || gh release create prova-generale --prerelease --title "Prova generale di K9 Manager" --notes "La prova di tutto il giro: un centro si registra dall'app e il gestore gli prepara il database da solo."
+          gh release upload prova-generale K9Manager-ProvaGenerale-Windows.exe --clobber

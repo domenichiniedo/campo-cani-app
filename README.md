@@ -462,6 +462,36 @@ Per allungare la prova rilancia il workflow con gli stessi dati e altri giorni, 
 sopra quello vecchio. Con **giorni 0** esce l'app senza scadenza (`K9Manager.apk`, Releases → **App per Android**).
 Quando la prova è finita puoi mettere in pausa o cancellare il progetto in Supabase.
 
+## 12. Prova generale: tutto il giro, dalla registrazione del centro
+
+Come sarà davvero: un centro si registra dall'app (**Registra il tuo centro**), il gestore gli prepara il database da
+solo, il proprietario entra, dà il codice del centro (K9-XXXXXX) a clienti e trainer, e poi prenotazioni, pagamenti al
+centro e il conto del mese del gestore.
+
+Serve solo il secret `SUPABASE_ACCESS_TOKEN` del punto 11. Poi **Actions → Prova generale → Run workflow** con la tua
+email. In una ventina di minuti il workflow accende il gestore su Supabase (progetto "K9 Gestore": tabelle, funzioni,
+chiave delle licenze, orari, il tuo utente) e costruisce:
+
+- **Releases → Prova generale di K9 Manager**: `K9Manager-ProvaGenerale.apk` (sul telefono si chiama "K9 Prova
+  generale" e sta accanto alle altre) e `K9Manager-ProvaGenerale-Windows.exe`;
+- **Releases → K9 Gestore**: il pannello per Windows e Mac. Entri con la tua email e la password che trovi nel
+  riepilogo dell'esecuzione (Actions → Prova generale → l'esecuzione → Summary).
+
+La prova in pratica:
+
+1. Dall'app: **Registra il tuo centro**, con l'email del proprietario. In 3-5 minuti il centro è pronto (lo vedi anche
+   nel pannello, Centri).
+2. Il proprietario si iscrive con quella email ed entra già come proprietario; imposta campi, lezioni e orari.
+3. Clienti e trainer installano lo stesso APK, scrivono il codice del centro (o aprono il link di invito) e si iscrivono.
+4. Prenotazioni e pagamenti al centro come sempre. Nel pannello, **Piani e addebiti → Addebita adesso** fa subito il
+   conto del mese; il centro lo vede in Impostazioni → Piano e abbonamento, e tu lo segni con **Segna pagato**.
+
+È una prova: chi si iscrive entra subito, senza codice per email né SMS, e i bonifici non si leggono dalla banca (l'IBAN
+che vedono i centri è d'esempio, lo cambi dal pannello). Il piano gratuito di Supabase tiene due progetti attivi, il
+gestore e il centro: per questo il workflow mette in pausa la prova del punto 11, che si riaccende da supabase.com con i
+suoi dati. Per registrare un secondo centro cancella prima su supabase.com il progetto del primo. Dopo ogni PR unita la
+prova generale si aggiorna da sola. Il gestore vero, per i centri veri, si accende come dice `gestore/README.md`.
+
 ## Cosa fa l'app
 
 **Cliente**

@@ -10,6 +10,9 @@
 # non si sovrascrivono) o "App per Android" (K9Manager.apk). Con il repository privato il file si scarica solo
 # con il tuo account GitHub: a chi prova l'app mandalo tu (WhatsApp, email).
 # Mai la chiave segreta di Supabase: quella publishable è fatta per stare nell'app.
+# Con gestore_url (lo passa "Prova generale") l'app non ha un database suo: c'è "Registra il tuo centro" e ogni centro
+# entra con il suo codice. Esce come "K9 Prova generale" in Releases → "Prova generale di K9 Manager"
+# (K9Manager-ProvaGenerale.apk).
 name: App per Android
 
 on:
@@ -24,18 +27,30 @@ on:
       giorni:
         description: Giorni di prova (0 = senza scadenza)
         default: '3'
+      gestore_url:
+        description: Prova generale - indirizzo delle funzioni del gestore (https://xxxx.supabase.co/functions/v1)
+        required: false
+      chiave_server:
+        description: Prova generale - chiave pubblica del server per le licenze
+        required: false
   # Lo usa anche "Prova con database", dopo aver creato il progetto Supabase.
   workflow_call:
     inputs:
       supabase_url:
         type: string
-        required: true
+        default: ''
       supabase_key:
         type: string
-        required: true
+        default: ''
       giorni:
         type: string
         default: '3'
+      gestore_url:
+        type: string
+        default: ''
+      chiave_server:
+        type: string
+        default: ''
   # Nelle PR che lo cambiano si costruisce solo per provarlo, con un database finto, e non si pubblica.
   pull_request:
     paths: ['.github/workflows/android.yml', 'mobile-demo/build.mjs']
@@ -47,25 +62,39 @@ jobs:
   android:
     runs-on: ubuntu-latest
     env:
-      EXPO_PUBLIC_SUPABASE_URL: ${{ github.event_name == 'pull_request' && 'https://prova-pr.supabase.co' || inputs.supabase_url || vars.EXPO_PUBLIC_SUPABASE_URL }}
-      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ github.event_name == 'pull_request' && 'sb_publishable_pr' || inputs.supabase_key || vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      # Con il gestore niente database nella build: lo dà la licenza di ogni centro.
+      EXPO_PUBLIC_SUPABASE_URL: ${{ github.event_name == 'pull_request' && 'https://prova-pr.supabase.co' || inputs.gestore_url == '' && (inputs.supabase_url || vars.EXPO_PUBLIC_SUPABASE_URL) || '' }}
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ github.event_name == 'pull_request' && 'sb_publishable_pr' || inputs.gestore_url == '' && (inputs.supabase_key || vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY) || '' }}
+      EXPO_PUBLIC_GESTORE_URL: ${{ inputs.gestore_url }}
+      EXPO_PUBLIC_LICENSE_SERVER_KEY: ${{ inputs.chiave_server }}
       GIORNI: ${{ github.event_name == 'pull_request' && '3' || inputs.giorni }}
-      # Accesso con Google (vedi README, "Accesso con Google"): vuota = niente pulsante.
-      EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
+      # Accesso con Google (vedi README, "Accesso con Google"): vuota = niente pulsante. Non nella prova generale, che
+      # prepara i centri senza Google.
+      EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ inputs.gestore_url == '' && vars.GOOGLE_WEB_CLIENT_ID || '' }}
     steps:
       - uses: actions/checkout@v4
       - name: Database e scadenza
         run: |
-          case "$EXPO_PUBLIC_SUPABASE_URL" in https://*.supabase.co) ;; *) echo "::error::Manca l'indirizzo del progetto Supabase (https://xxxx.supabase.co)"; exit 1;; esac
-          case "$EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" in sb_publishable_*|eyJ*) ;; *) echo "::error::Manca la chiave publishable del progetto"; exit 1;; esac
-          case "$EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" in sb_secret_*) echo "::error::Questa è la chiave segreta: serve quella publishable"; exit 1;; esac
+          if [ -n "$EXPO_PUBLIC_GESTORE_URL" ]; then
+            case "$EXPO_PUBLIC_GESTORE_URL" in https://*.supabase.co/functions/v1) ;; *) echo "::error::gestore_url deve essere https://xxxx.supabase.co/functions/v1"; exit 1;; esac
+            [ ${#EXPO_PUBLIC_LICENSE_SERVER_KEY} -eq 43 ] || { echo "::error::Manca la chiave pubblica del server (chiave_server)"; exit 1; }
+          else
+            case "$EXPO_PUBLIC_SUPABASE_URL" in https://*.supabase.co) ;; *) echo "::error::Manca l'indirizzo del progetto Supabase (https://xxxx.supabase.co)"; exit 1;; esac
+            case "$EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" in sb_publishable_*|eyJ*) ;; *) echo "::error::Manca la chiave publishable del progetto"; exit 1;; esac
+            case "$EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" in sb_secret_*) echo "::error::Questa è la chiave segreta: serve quella publishable"; exit 1;; esac
+          fi
           case "$GIORNI" in ''|*[!0-9]*) echo "::error::giorni deve essere un numero"; exit 1;; esac
           if [ "$GIORNI" -gt 0 ]; then
             FINO=$(TZ=Europe/Rome date -d "+$GIORNI days" +%F)
             echo "EXPO_PUBLIC_PROVA_FINO=$FINO" >> $GITHUB_ENV
+            echo "Prova valida fino al $FINO compreso"
+          fi
+          if [ -n "$EXPO_PUBLIC_GESTORE_URL" ]; then
+            echo "APK=K9Manager-ProvaGenerale.apk" >> $GITHUB_ENV
+            echo "AAB=K9Manager-ProvaGenerale.aab" >> $GITHUB_ENV
+          elif [ "$GIORNI" -gt 0 ]; then
             echo "APK=K9Manager-Prova.apk" >> $GITHUB_ENV
             echo "AAB=K9Manager-Prova.aab" >> $GITHUB_ENV
-            echo "Prova valida fino al $FINO compreso"
           else
             echo "APK=K9Manager.apk" >> $GITHUB_ENV
             echo "AAB=K9Manager.aab" >> $GITHUB_ENV
@@ -89,7 +118,9 @@ jobs:
       - name: Nome dell'app
         working-directory: mobile-demo
         run: |
-          if [ -n "$EXPO_PUBLIC_PROVA_FINO" ]; then ID=it.campocani.provavera; NAME="K9 Manager Prova"; else ID=it.campocani.app; NAME="K9 Manager"; fi
+          # La prova generale ha un id suo: è quello che il gestore di prova mette nei link di invito (APP_ANDROID_ID).
+          if [ -n "$EXPO_PUBLIC_GESTORE_URL" ]; then ID=it.campocani.provagenerale; NAME="K9 Prova generale"
+          elif [ -n "$EXPO_PUBLIC_PROVA_FINO" ]; then ID=it.campocani.provavera; NAME="K9 Manager Prova"; else ID=it.campocani.app; NAME="K9 Manager"; fi
           sed -i "s/\"it.campocani.demo\"/\"$ID\"/; s/\"K9 Manager Demo\"/\"$NAME\"/" capacitor.config.json
           cat capacitor.config.json
       - run: npx cap add android
@@ -133,7 +164,15 @@ jobs:
         run: |
           # L'AAB per Google Play solo se è firmato con la chiave di caricamento.
           FILES="$APK"; [ -n "${UPLOAD_KEYSTORE:-}" ] && FILES="$APK $AAB"
-          if [ -n "$EXPO_PUBLIC_PROVA_FINO" ]; then
+          if [ -n "$EXPO_PUBLIC_GESTORE_URL" ]; then
+            TAG=prova-generale; TITLE="Prova generale di K9 Manager"
+            FINO=""; [ -n "$EXPO_PUBLIC_PROVA_FINO" ] && FINO=" Vale fino al $(echo $EXPO_PUBLIC_PROVA_FINO | awk -F- '{print $3"/"$2"/"$1}') compreso."
+            NOTES="La prova di tutto il giro, come sarà davvero: un centro si registra dall'app, il gestore gli prepara il database da solo e il centro dà il suo codice a clienti e trainer.$FINO
+
+          - Android: scarica K9Manager-ProvaGenerale.apk dal telefono e aprilo per installarlo. Si chiama \"K9 Prova generale\" e sta accanto alle altre.
+          - Windows (programma del proprietario): K9Manager-ProvaGenerale-Windows.exe.
+          - Il pannello del gestore: Releases → \"K9 Gestore\"."
+          elif [ -n "$EXPO_PUBLIC_PROVA_FINO" ]; then
             REF=$(echo "$EXPO_PUBLIC_SUPABASE_URL" | sed 's#https://##; s#\.supabase\.co.*##')
             TAG=prova-$REF; TITLE="Prova di K9 Manager – $REF"
             FINO=$(echo $EXPO_PUBLIC_PROVA_FINO | awk -F- '{print $3"/"$2"/"$1}')

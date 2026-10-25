@@ -78,7 +78,7 @@ Deno.test('preparazione di un centro, passo dopo passo', async () => {
 });
 
 Deno.test('conferma di email e cellulare: sempre accese, senza SMTP o Twilio il centro non si prepara', async () => {
-  const fai = async (smtp: Ambiente['smtp'], sms: Ambiente['sms']) => {
+  const fai = async (smtp: Ambiente['smtp'], sms: Ambiente['sms'], prova = false) => {
     let auth: Record<string, unknown> = {};
     const sql: string[] = [];
     const api: Ambiente['api'] = async (method, path, body) => {
@@ -90,10 +90,10 @@ Deno.test('conferma di email e cellulare: sempre accese, senza SMTP o Twilio il 
       }
       return [];
     };
-    const a: Ambiente = { api, seme: 'x', org: '', regione: '', oggi: '2026-10-23', password: () => '', smtp, sms };
+    const a: Ambiente = { api, seme: 'x', org: '', regione: '', oggi: '2026-10-23', password: () => '', smtp, sms, prova };
     const c = { id: 'c1', codice: 'K9-ABCDEF', campo: 'Le Querce', email: 't@q.it', stato: 'database', progetto: 'p', tentativi: 0, migrazioni: 0 } as unknown as Centro;
-    await passo(c, a);
-    return { auth, sms: sql.some((q) => q.includes('sms_check = true')) };
+    const p = await passo(c, a);
+    return { auth, p, sms: sql.some((q) => q.includes('sms_check = true')) };
   };
   for (const [smtp, sms] of [[null, SMS], [SMTP, null]] as const) {
     let errore = '';
@@ -106,6 +106,12 @@ Deno.test('conferma di email e cellulare: sempre accese, senza SMTP o Twilio il 
   uguale(acceso.auth.sms_autoconfirm, false);
   if (!String(acceso.auth.mailer_templates_confirmation_content).includes('{{ .Token }}')) throw new Error('manca il codice nella email');
   uguale(acceso.sms, true);
+  // Gestore di prova: senza SMTP e Twilio si va avanti, chi si iscrive entra subito e il cellulare non si conferma.
+  const prova = await fai(null, null, true);
+  uguale(prova.p.stato, 'chiavi');
+  uguale(prova.auth.mailer_autoconfirm, true);
+  uguale(prova.auth.sms_provider, undefined);
+  uguale(prova.sms, false);
 });
 
 Deno.test('accesso con Google: con il client di Google si accende, senza no', async () => {
