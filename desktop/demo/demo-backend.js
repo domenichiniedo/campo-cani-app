@@ -450,6 +450,44 @@
   }
 
   // Carta con Nexi: nella demo il pagamento riesce subito, senza aprire la pagina di Nexi.
+  // Il gestore nella demo: registra un centro nuovo e lo "prepara" in pochi secondi invece che in minuti.
+  // La licenza arriva dalla pagina della demo (mobile-demo/index.html), che ha quelle firmate per la demo.
+  var CENTRO = 'campo-demo-centro-nuovo';
+  var PREZZI = { base: { canone_cents: 0, tariffa_cents: 100 }, professional: { canone_cents: 1900, tariffa_cents: 80 }, pro: { canone_cents: 3900, tariffa_cents: 60 } };
+  var PASSI = ['progetto', 'avvio', 'database', 'chiavi', 'licenza'];
+  function gestore(fn, a) {
+    if (fn === 'centro' && a.prezzi) return json(200, { piani: PREZZI });
+    if (fn === 'registra-centro') {
+      var campo = String(a.campo || '').trim(), email = String(a.email || '').trim().toLowerCase();
+      if (campo.length < 2) return json(400, { errore: 'Scrivi il nome del centro.' });
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(400, { errore: 'Email non valida.' });
+      if (!PREZZI[a.piano]) return json(400, { errore: 'Scegli il piano.' });
+      var codice = 'K9-' + Array.from({ length: 6 }, function () { return 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.random() * 31 | 0]; }).join('');
+      try { localStorage.setItem(CENTRO, JSON.stringify({ codice: codice, campo: campo, email: email, piano: a.piano, inizio: Date.now() })); } catch (e) {}
+      // Come il gestore vero: nome del campo e titolare (chi si iscrive con questa email è il proprietario).
+      db.settings[0].field_name = campo;
+      if (!db.owner_emails.some(function (x) { return x.email === email; })) db.owner_emails.push({ email: email });
+      save();
+      return json(200, { codice: codice });
+    }
+    if (fn === 'centro') {
+      var c = null;
+      try { c = JSON.parse(localStorage.getItem(CENTRO) || 'null'); } catch (e) {}
+      var codice2 = String(a.codice || '').trim().toUpperCase();
+      if (!/^K9-[A-Z0-9]{6}$/.test(codice2)) return json(400, { errore: 'Codice del centro non valido.' });
+      if (!c || c.codice !== codice2) return json(404, { errore: 'Nessun centro con questo codice.' });
+      var passo = Math.floor((Date.now() - c.inizio) / 3000);
+      if (passo < PASSI.length) return json(200, { stato: PASSI[passo], campo: c.campo, licenza: null });
+      var licenze = {};
+      try { licenze = JSON.parse(localStorage.getItem('campo-demo-licenze') || '{}'); } catch (e) {}
+      try { localStorage.setItem('campo-cani-demo-piano', c.piano); } catch (e) {}
+      // Come fa la pagina della demo quando cambi piano: anche il database tiene la licenza nuova.
+      if (licenze[c.piano] && db.settings[0].license_code !== licenze[c.piano]) { db.settings[0].license_code = licenze[c.piano]; save(); }
+      return json(200, { stato: 'pronto', campo: c.campo, licenza: licenze[c.piano] || null });
+    }
+    return json(404, { errore: 'Funzione sconosciuta.' });
+  }
+
   function nexi(headers, a) {
     var p = me(headers);
     if (!p) return json(401, { error: 'Accedi di nuovo.' });
@@ -858,6 +896,7 @@
     if (path.indexOf('/rest/v1/rpc/') === 0) return rpc(path.slice(13), headers, body || {});
     if (path.indexOf('/rest/v1/') === 0) return rest(method, path.slice(9), u.searchParams, headers, body);
     if (path === '/functions/v1/nexi') return nexi(headers, body || {});
+    if (path.indexOf('/functions/v1/gestore/') === 0) return gestore(path.slice(22), body || {});
     // Nella demo Fatture in Cloud e l'invio del report per email non sono collegati.
     if (path === '/functions/v1/report-mensile') return json(500, { error: 'Mancano RESEND_API_KEY o REPORT_FROM nei Secrets di Supabase' });
     if (path.indexOf('/functions/v1/') === 0) return json(500, { error: 'Manca il secret FIC_ACCESS_TOKEN' });
