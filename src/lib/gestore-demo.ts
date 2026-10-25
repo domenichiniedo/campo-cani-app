@@ -276,6 +276,13 @@ export async function demoCall<T>(azione: string, b: Record<string, unknown>): P
     case 'sospendi':
       set({ sospeso: !!b.sospeso });
       break;
+    case 'password': {
+      // Nella demo non cambia niente: torna solo la password, scritta o inventata.
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(b.email ?? '').trim())) throw new Error("Scrivi l'email di chi deve entrare.");
+      const password = String(b.password ?? '') || Math.random().toString(36).slice(2, 14);
+      if (password.length < 8) throw new Error('La password deve avere almeno 8 caratteri.');
+      return { fatto: true, password, ruolo: String(b.email).trim().toLowerCase() === c?.email ? 'owner' : 'client' } as T;
+    }
     case 'riprova':
       set({ stato: 'avvio', errore: '' });
       // Nella demo la preparazione finisce da sola dopo qualche secondo.

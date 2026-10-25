@@ -7,6 +7,7 @@ import { daAndroid, intentAndroid, linkPlay } from './invito.ts';
 import { fineMese, firmaLicenza } from './licenza.ts';
 import { MIGRAZIONI } from './migrazioni.ts';
 import { passo, type Ambiente } from './passi.ts';
+import { cambiaPassword, passwordNonValida, passwordNuova } from './password.ts';
 
 const uguale = (a: unknown, b: unknown) => {
   if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(`atteso ${JSON.stringify(b)}, trovato ${JSON.stringify(a)}`);
@@ -323,4 +324,24 @@ Deno.test('Paga ora: il bonifico istantaneo se la banca lo ha, se no il SEPA', a
   uguale(tipoBonifico([{ payment_type: 'BULK_SEPA', currencies: ['EUR'] }, { payment_type: 'SEPA', currencies: ['EUR'] }]), 'SEPA');
   uguale(tipoBonifico([{ payment_type: 'DOMESTIC', currencies: ['SEK'] }]), null);
   uguale(tipoBonifico(undefined), null);
+});
+
+Deno.test('cambio password dal pannello: solo la nuova, e chi era dentro esce', async () => {
+  const sql: string[] = [];
+  const api: Ambiente['api'] = async (_m, path, body) => {
+    uguale(path, '/projects/abcdefghijklmnopqrst/database/query');
+    const q = (body as { query: string }).query;
+    sql.push(q);
+    return q.includes("'mario@x.it'") ? [{ trovati: 1, ruolo: 'trainer' }] : [{ trovati: 0, ruolo: null }];
+  };
+  uguale(await cambiaPassword(api, 'abcdefghijklmnopqrst', ' Mario@X.it ', "pass'word1"), 'trainer');
+  if (!sql[0].includes("crypt('pass''word1'") || !sql[0].includes('delete from auth.sessions')) throw new Error(sql[0]);
+  await cambiaPassword(api, 'abcdefghijklmnopqrst', 'nessuno@x.it', 'password1').then(
+    () => { throw new Error('doveva fallire'); },
+    (e) => uguale(e.message, "In questo centro non c'è nessuno con questa email."),
+  );
+  uguale(passwordNonValida('corta'), 'La password deve avere almeno 8 caratteri.');
+  const p = passwordNuova();
+  uguale(p.length, 12);
+  uguale(passwordNonValida(p), null);
 });
