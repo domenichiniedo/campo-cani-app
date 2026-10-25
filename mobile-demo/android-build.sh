@@ -31,8 +31,9 @@ grep -q 'targetSdkVersion = 36' android/variables.gradle || { echo "::error::Il 
 )
 npx cap sync android
 
-# I link di invito dei centri (campocaniapp://attiva?codice=..., anche dal QR code) aprono l'app vera; la demo no.
-if [ ! -f www/demo-backend.js ]; then
+# I link di invito dei centri (campocaniapp://attiva?codice=..., anche dal QR code) aprono l'app vera; la demo e il
+# pannello del gestore (EXPO_PUBLIC_PANNELLO=1) no.
+if [ ! -f www/demo-backend.js ] && [ "${EXPO_PUBLIC_PANNELLO:-}" != 1 ]; then
   python3 - android/app/src/main/AndroidManifest.xml <<'PY'
 import sys
 p = sys.argv[1]

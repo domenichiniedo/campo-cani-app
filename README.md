@@ -78,8 +78,9 @@ centro, e gli stessi client valgono per tutti i centri. Si prepara **una volta s
      e un **client secret**.
    - **Android**, nome pacchetto `it.campocani.app`, impronta SHA-1
      `02:B3:E4:2E:B2:A9:A1:47:C6:3A:F3:4F:42:8B:0E:6A:EB:8A:9B:02` (è la firma di `mobile-demo/demo-debug.keystore`).
-   - **Android** di nuovo, uguale ma con pacchetto `it.campocani.provavera` (le prove con database), e un altro con
-     `it.campocani.provagenerale` (la prova generale).
+   - **Android** di nuovo, uguale ma con pacchetto `it.campocani.provavera` (le prove con database), un altro con
+     `it.campocani.provagenerale` (la prova generale) e uno con `it.campocani.gestore` (il pannello K9 Gestore sul
+     telefono).
    - **App desktop**, "K9 Manager computer": ti dà un altro **ID client** e un **client secret** (per Google quello delle
      app desktop non è segreto: può stare nel programma).
 3. **GitHub → Settings → Secrets and variables → Actions → Variables**: `GOOGLE_WEB_CLIENT_ID` (ID del client web),

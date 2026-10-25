@@ -1,6 +1,6 @@
 # Costruisce "K9 Gestore", il tuo pannello per tutti i centri registrati dall'app: centri, addebiti,
-# licenze, statistiche. Esce per Windows e Mac in GitHub → Releases → "K9 Gestore" (K9Gestore-Windows.exe
-# e K9Gestore-Mac.dmg). Si installa accanto a K9 Manager, senza toccarlo.
+# licenze, statistiche. Esce per Windows, Mac e Android in GitHub → Releases → "K9 Gestore" (K9Gestore-Windows.exe,
+# K9Gestore-Mac.dmg e K9Gestore-Android.apk, da installare sul telefono). Si installa accanto a K9 Manager, senza toccarlo.
 #
 # Demo con centri e addebiti finti, senza server: Run workflow con "demo" spuntato. Esce in Releases →
 # "Demo di K9 Gestore" (K9Gestore-Demo-Windows.exe e K9Gestore-Demo-Mac.dmg).
@@ -81,7 +81,8 @@ jobs:
           NOTES="$NOTES
 
           - Windows: scarica $NOME-Windows.exe e aprilo per installarlo.
-          - Mac: scarica $NOME-Mac.dmg, aprilo e trascina K9 Gestore in Applicazioni. La prima volta aprilo con clic destro → Apri."
+          - Mac: scarica $NOME-Mac.dmg, aprilo e trascina K9 Gestore in Applicazioni. La prima volta aprilo con clic destro → Apri.
+          - Android: scarica $NOME-Android.apk dal telefono e aprilo per installarlo."
           gh release view $TAG >/dev/null 2>&1 || gh release create $TAG --prerelease --title "$TITLE" --notes "$NOTES"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
@@ -139,3 +140,47 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: gh release upload ${{ needs.release.outputs.tag }} desktop/release/$NOME-Mac.dmg --clobber
+
+  # Lo stesso pannello come app per il telefono, costruita come l'app Android dei centri (mobile-demo).
+  android:
+    needs: release
+    runs-on: ubuntu-latest
+    env:
+      APP_VERA: '1'
+      APK: ${{ inputs.demo && 'K9Gestore-Demo-Android.apk' || 'K9Gestore-Android.apk' }}
+      AAB: K9Gestore-Android.aab
+      # Google sul telefono usa il client web (vedi gestore/README.md): vuota = solo email e password.
+      EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ !inputs.demo && vars.GOOGLE_WEB_CLIENT_ID || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm install
+        working-directory: mobile-demo
+      - run: npm run web
+        working-directory: mobile-demo
+      - name: Nome dell'app
+        working-directory: mobile-demo
+        run: |
+          NAME="K9 Gestore"; [ -n "$EXPO_PUBLIC_PANNELLO_DEMO" ] && NAME="K9 Gestore Demo"
+          sed -i "s/\"it.campocani.demo\"/\"$APP_ID\"/; s/\"K9 Manager Demo\"/\"$NAME\"/" capacitor.config.json
+          sed -i "s#<title>K9 Manager</title>#<title>$NAME</title>#" www/index.html
+          cat capacitor.config.json
+      - run: npx cap add android
+        working-directory: mobile-demo
+      # Firmato con la chiave della demo, come le altre app da installare a mano: le versioni nuove vanno sopra le vecchie.
+      - run: ./android-build.sh
+        working-directory: mobile-demo
+      - name: Carica nelle Releases
+        working-directory: mobile-demo
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload ${{ needs.release.outputs.tag }} "$APK" --clobber

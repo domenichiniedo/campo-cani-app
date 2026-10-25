@@ -181,11 +181,20 @@ in chat, nell'app o su GitHub.
    del centro.
 
 8. **Il pannello.** Actions → "Pannello del gestore" → Run workflow, con l'indirizzo del passo 7 e la
-   publishable key del progetto gestore. Lo scarichi da Releases → "K9 Gestore".
+   publishable key del progetto gestore. Lo scarichi da Releases → "K9 Gestore": `K9Gestore-Windows.exe`,
+   `K9Gestore-Mac.dmg` e `K9Gestore-Android.apk` (dal telefono: scaricalo e aprilo per installarlo).
+
+   **Password dimenticata**: nella schermata di accesso c'è "Password dimenticata?". Ti arriva un codice per email, lo
+   scrivi con la password nuova ed entri: non serve rilanciare nessuna action. Serve che il progetto del gestore mandi
+   le email: "Prova generale" lo prepara da sola con i secret `SMTP_USER` e `SMTP_PASS`; per un gestore fatto a mano
+   metti l'SMTP in Authentication → Emails → SMTP Settings e, nel modello "Reset password", `{{ .Token }}` al posto del
+   link. Da dentro il pannello la password si cambia in **Il tuo accesso**.
 
    **Entrare con Google** (facoltativo): nel progetto del gestore, in Authentication → Sign In / Providers → Google,
    attivalo con gli stessi client dell'app (ID web e, dopo una virgola, ID desktop; secret del client web), e nelle
    Variables di GitHub metti `GOOGLE_DESKTOP_CLIENT_ID` e `GOOGLE_DESKTOP_SECRET` prima di costruire il pannello.
+   Sul telefono il pannello usa `GOOGLE_WEB_CLIENT_ID` e il client Android con pacchetto `it.campocani.gestore` (README
+   principale, "Accesso con Google"). "Prova generale" accende Google nel progetto del gestore da sola.
    Entra chiunque abbia un account Google, ma il pannello risponde solo alle email in `AMMINISTRATORI`.
 
 9. **I prezzi.** Nel pannello, sezione **Piani e addebiti**: per Base, Professional e Pro il canone al mese, la quota
