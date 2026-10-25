@@ -7,6 +7,9 @@
 # Facoltativo, per la sezione "App e versioni" del pannello: il secret GESTORE_GITHUB_TOKEN, un token fine-grained di
 # GitHub solo per questo repository con i permessi Actions (Read and write) e Contents (Read-only). Il workflow lo
 # copia nei segreti del gestore come GITHUB_TOKEN.
+# Per le email con il codice (password dimenticata, conferma dell'email): i secret SMTP_USER e SMTP_PASS. Con Gmail
+# SMTP_USER è il tuo indirizzo e SMTP_PASS una "password per le app" (myaccount.google.com/apppasswords); per un altro
+# servizio aggiungi SMTP_HOST (e SMTP_PORT se non è 587). Senza, Supabase manda solo un link che nell'app non funziona.
 #
 # Actions → Prova generale → Run workflow, con la tua email. In una ventina di minuti:
 #   - il gestore acceso su Supabase (progetto "K9 Gestore"), con le funzioni, gli orari e il tuo utente: la password è
@@ -70,6 +73,10 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           GESTORE_GITHUB_TOKEN: ${{ secrets.GESTORE_GITHUB_TOKEN }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
           EMAIL: ${{ inputs.email }}
           PAUSA: ${{ github.event_name == 'workflow_dispatch' && inputs.pausa_prova_vecchia && env.PROVA_PROGETTO || '' }}
           NUOVA: ${{ inputs.nuova_password && 'si' || '' }}

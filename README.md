@@ -494,7 +494,14 @@ suoi dati. Per registrare un secondo centro cancella prima su supabase.com il pr
 Per la sezione **App e versioni** del pannello (le app da scaricare e i pulsanti per rifarle) crea su github.com →
 Settings → Developer settings → Fine-grained tokens un token solo per questo repository, con i permessi Actions (Read and
 write) e Contents (Read-only), salvalo nei secrets del repository come `GESTORE_GITHUB_TOKEN` e rilancia la prova
-generale: lo copia lei nel gestore. Dopo ogni PR unita la
+generale: lo copia lei nel gestore.
+
+Per **Password dimenticata** e la conferma dell'email serve un SMTP che mandi il codice: senza, Supabase manda solo un
+link che nell'app non funziona. Con Gmail: attiva la verifica in due passaggi, crea una password per le app su
+<https://myaccount.google.com/apppasswords> e salva nei secrets del repository `SMTP_USER` (il tuo indirizzo Gmail) e
+`SMTP_PASS` (la password per le app, 16 lettere). Per un altro servizio aggiungi `SMTP_HOST` (e `SMTP_PORT` se non è 587).
+Poi rilancia la prova generale: mette l'SMTP nel gestore e nei centri già pronti. Da allora chi si iscrive con email e
+password conferma l'email con un codice. Dopo ogni PR unita la
 prova generale si aggiorna da sola. Il gestore vero, per i centri veri, si accende come dice `gestore/README.md`.
 
 ## Cosa fa l'app
