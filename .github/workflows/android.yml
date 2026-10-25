@@ -112,7 +112,9 @@ jobs:
       # Sempre la stessa firma e un numero di versione che cresce: la versione nuova si installa sopra la vecchia.
       - name: Firma e versione
         run: |
-          sed -i 's/versionCode [0-9]*/versionCode ${{ github.run_number }}/' mobile-demo/android/app/build.gradle
+          # I minuti dal 1970: crescono sempre, chiunque lanci la build. Con il numero dell'esecuzione no:
+          # lanciata da "Aggiorna le app" valeva il suo numero (più basso) e il telefono rifiutava l'aggiornamento.
+          sed -i "s/versionCode [0-9]*/versionCode $(( $(date +%s) / 60 ))/" mobile-demo/android/app/build.gradle
           cat >> mobile-demo/android/app/build.gradle <<'GRADLE'
 
           android.signingConfigs.debug.storeFile = rootProject.file('../demo-debug.keystore')
