@@ -137,6 +137,9 @@ function createWindow(link) {
   win.loadURL(pageFor(link));
 }
 
+// Una finestra sola per programma. Il blocco va col nome del programma (app.getName()), che viene dal
+// package.json impacchettato: le build di K9 Gestore e delle prove lo cambiano con -c.extraMetadata.productName,
+// se no avrebbero lo stesso nome di K9 Manager e non si aprirebbero insieme a lui.
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
