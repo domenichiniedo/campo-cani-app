@@ -4,15 +4,5 @@
   "webDir": "www",
   "android": {
     "adjustMarginsForEdgeToEdge": "auto"
-  },
-  "plugins": {
-    "SocialLogin": {
-      "providers": {
-        "google": true,
-        "facebook": false,
-        "apple": true,
-        "twitter": false
-      }
-    }
   }
 }

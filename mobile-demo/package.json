@@ -10,6 +10,6 @@
     "@capacitor/android": "7.6.9",
     "@capacitor/cli": "7.6.9",
     "@capacitor/core": "7.6.9",
-    "@capgo/capacitor-social-login": "7.20.0"
+    "@capgo/capacitor-social-login": "7.19.1"
   }
 }

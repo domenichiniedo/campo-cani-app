@@ -90,8 +90,6 @@ jobs:
           if [ -n "$EXPO_PUBLIC_PROVA_FINO" ]; then ID=it.campocani.provavera; NAME="K9 Manager Prova"; else ID=it.campocani.app; NAME="K9 Manager"; fi
           sed -i "s/\"it.campocani.demo\"/\"$ID\"/; s/\"K9 Manager Demo\"/\"$NAME\"/" capacitor.config.json
           cat capacitor.config.json
-      # Accesso con Google: il plugin SocialLogin tiene solo Google (in capacitor.config.json; "apple" resta acceso
-      # perché porta androidx.browser 1.9, che serve anche a Google: spento, la compilazione non trova la versione).
       - run: npx cap add android
         working-directory: mobile-demo
       # Come nella demo: l'app fra la barra di stato e i tasti in basso.
