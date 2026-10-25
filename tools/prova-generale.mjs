@@ -14,7 +14,9 @@
 //      pubblica resta nel suo database (tabella chiave_server) per le build dell'app;
 //   5. scrive i segreti delle funzioni: TOKEN_SUPABASE, WEBHOOK_SECRET (nuovo a ogni giro), AMMINISTRATORI, PROVA=1
 //      (i centri si preparano senza SMTP e Twilio) e APP_ANDROID_ID dell'app della prova; con GESTORE_GITHUB_TOKEN
-//      (secret del repository) anche GITHUB_TOKEN e GITHUB_REPO, per la sezione "App e versioni" del pannello;
+//      (secret del repository) anche GITHUB_TOKEN e GITHUB_REPO, per la sezione "App e versioni" del pannello; con
+//      SMTP_USER e SMTP_PASS (per esempio Gmail con una password per le app) anche l'SMTP, che manda i codici per email
+//      (password dimenticata, conferma dell'email): i centri nuovi lo prendono da soli, a quelli già pronti lo mette qui;
 //   6. un IBAN di prova per i bonifici, se non ne hai messo uno dal pannello, e gli orari di pg_cron;
 //   7. il tuo utente per il pannello (--email): la password, nuova, solo nel riepilogo del workflow.
 // Le funzioni le carica poi il workflow (npx supabase functions deploy).
@@ -154,6 +156,17 @@ if (!segreti.has('LICENZA_SERVER_PRIVATA') || !riga) {
   riga = { pubblica };
 }
 
+// L'SMTP per le email con il codice (senza, Supabase manda solo un link che nell'app non si apre).
+const smtp = process.env.SMTP_USER && process.env.SMTP_PASS
+  ? {
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: process.env.SMTP_PORT || '587',
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    }
+  : null;
+
 // 5. I segreti delle funzioni.
 const webhook = randomBytes(24).toString('base64url');
 const admin = soloSeEsiste ? null : email;
@@ -171,7 +184,36 @@ await api('POST', `/projects/${ref}/secrets`, [
         { name: 'GITHUB_REPO', value: process.env.GITHUB_REPOSITORY || 'domenichiniedo/campo-cani-app' },
       ]
     : []),
+  ...(smtp
+    ? [
+        { name: 'SMTP_HOST', value: smtp.host },
+        { name: 'SMTP_PORT', value: smtp.port },
+        { name: 'SMTP_USER', value: smtp.user },
+        { name: 'SMTP_PASS', value: smtp.pass },
+        { name: 'SMTP_FROM', value: smtp.from },
+      ]
+    : []),
 ]);
+
+// Ai centri già pronti l'SMTP e le email con il codice, come li prepara il gestore (passi.ts, passo database).
+if (smtp) {
+  for (const c of await query('select progetto, campo from public.centri where progetto is not null;')) {
+    step(`Email con il codice per "${c.campo}"…`);
+    await api('PATCH', `/projects/${c.progetto}/config/auth`, {
+      mailer_autoconfirm: false,
+      smtp_host: smtp.host,
+      smtp_port: smtp.port,
+      smtp_user: smtp.user,
+      smtp_pass: smtp.pass,
+      smtp_admin_email: smtp.from,
+      smtp_sender_name: c.campo,
+      mailer_subjects_recovery: 'Il codice per la nuova password',
+      mailer_templates_recovery_content: '<h2>Nuova password</h2>\n<p>Il tuo codice è: <strong>{{ .Token }}</strong></p>',
+      mailer_subjects_confirmation: 'Il codice per confermare la tua email',
+      mailer_templates_confirmation_content: `<h2>Benvenuto in ${c.campo.replace(/[<>&]/g, '')}</h2>\n<p>Il codice per confermare la tua email è: <strong>{{ .Token }}</strong></p>`,
+    });
+  }
+}
 
 // 6. IBAN di prova e orari.
 await query(`update public.banca set bonifico_iban = ${lit(IBAN_PROVA)}, bonifico_intestatario = 'Prova K9 Gestore' where id = 1 and bonifico_iban = '';`);
