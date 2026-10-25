@@ -48,6 +48,9 @@ jobs:
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ env.DEMO == 'true' && 'https://demo.supabase.co' || vars.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ env.DEMO == 'true' && 'demo' || vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          # Accesso con Google (vedi README, "Accesso con Google"): vuote = niente pulsante.
+          EXPO_PUBLIC_GOOGLE_DESKTOP_CLIENT_ID: ${{ env.DEMO != 'true' && vars.GOOGLE_DESKTOP_CLIENT_ID || '' }}
+          EXPO_PUBLIC_GOOGLE_DESKTOP_SECRET: ${{ env.DEMO != 'true' && vars.GOOGLE_DESKTOP_SECRET || '' }}
       - if: ${{ env.DEMO == 'true' }}
         run: node demo/inject.js
         working-directory: desktop

@@ -122,3 +122,23 @@ Deno.test('conferma di email e cellulare: con SMTP e Twilio si accende, senza no
   if (!String(acceso.auth.mailer_templates_confirmation_content).includes('{{ .Token }}')) throw new Error('manca il codice nella email');
   uguale(acceso.sms, true);
 });
+
+Deno.test('accesso con Google: con il client di Google si accende, senza no', async () => {
+  const fai = async (google: Ambiente['google']) => {
+    let auth: Record<string, unknown> = {};
+    const api: Ambiente['api'] = async (_method, path, body) => {
+      if (path.endsWith('/config/auth')) auth = body as Record<string, unknown>;
+      if (path.endsWith('/database/query') && (body as { query: string }).query.includes('to_regclass')) return [{ pronto: true }];
+      return [];
+    };
+    const a: Ambiente = { api, seme: 'x', org: '', regione: '', oggi: '2026-10-23', password: () => '', smtp: null, sms: null, google };
+    const c = { id: 'c1', codice: 'K9-ABCDEF', campo: 'Le Querce', email: 't@q.it', stato: 'database', progetto: 'p', tentativi: 0, migrazioni: 0 } as unknown as Centro;
+    await passo(c, a);
+    return auth;
+  };
+  uguale((await fai(null)).external_google_enabled, undefined);
+  const acceso = await fai({ id: 'web.apps.googleusercontent.com', segreto: 'GOCSPX-x', altri: 'desktop.apps.googleusercontent.com' });
+  uguale(acceso.external_google_enabled, true);
+  uguale(acceso.external_google_client_id, 'web.apps.googleusercontent.com');
+  uguale(acceso.external_google_additional_client_ids, 'desktop.apps.googleusercontent.com');
+});

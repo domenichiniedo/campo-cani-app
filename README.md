@@ -57,6 +57,39 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
 - Le email gratuite di Supabase sono poche all'ora. Quando i clienti diventano tanti, collega un servizio SMTP in
   **Authentication → Emails → SMTP Settings**.
 
+### Accesso con Google
+
+Clienti, trainer e proprietari possono entrare con il loro account Google (pulsante **Continua con Google**), nell'app
+Android, nel browser (anche iPhone) e nel programma per Windows e Mac. Chi entra con Google la prima volta non passa dal
+modulo di iscrizione: l'app gli chiede subito telefono, cani, fattura e consensi, poi l'SMS del cellulare se il centro
+lo usa. L'email non va confermata: l'ha già verificata Google. Chi è già iscritto con la stessa email entra nel suo
+account di sempre.
+
+L'app si fa dare da Google un "ID token" e lo passa a Supabase: non serve registrare su Google l'indirizzo di ogni
+centro, e gli stessi client valgono per tutti i centri. Si prepara **una volta sola**:
+
+1. **Google Cloud** (console.cloud.google.com): crea un progetto, per esempio "K9 Manager". In **Google Auth Platform →
+   Branding** metti nome dell'app, email di supporto e logo; in **Audience** scegli "Esterno" e poi **Pubblica l'app**
+   (finché è "In test" entrano solo gli utenti di prova che aggiungi tu). Gli scope sono quelli di base (email, profilo):
+   Google non chiede verifiche.
+2. In **Google Auth Platform → Clients → Create client** crea quattro client:
+   - **Applicazione web**, "K9 Manager web". In *Origini JavaScript autorizzate* metti gli indirizzi dove apri l'app
+     nel browser, per esempio `https://domenichiniedo.github.io` (niente URI di reindirizzamento). Ti dà un **ID client**
+     e un **client secret**.
+   - **Android**, nome pacchetto `it.campocani.app`, impronta SHA-1
+     `02:B3:E4:2E:B2:A9:A1:47:C6:3A:F3:4F:42:8B:0E:6A:EB:8A:9B:02` (è la firma di `mobile-demo/demo-debug.keystore`).
+   - **Android** di nuovo, uguale ma con pacchetto `it.campocani.provavera` (le prove con database).
+   - **App desktop**, "K9 Manager computer": ti dà un altro **ID client** e un **client secret** (per Google quello delle
+     app desktop non è segreto: può stare nel programma).
+3. **GitHub → Settings → Secrets and variables → Actions → Variables**: `GOOGLE_WEB_CLIENT_ID` (ID del client web),
+   `GOOGLE_DESKTOP_CLIENT_ID` e `GOOGLE_DESKTOP_SECRET` (quelli del client desktop). Poi ricostruisci app e programma
+   (Actions → App per Android, App per Windows, App per Mac). Per la versione web la variabile è
+   `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (vedi `.env.example`).
+4. **Ogni progetto Supabase** (lo fa da solo il gestore per i centri nuovi, vedi `gestore/README.md`): in
+   **Authentication → Sign In / Providers → Google** attivalo, in *Client IDs* metti l'ID del client web e, separato da
+   una virgola, quello del client desktop; in *Client Secret* il secret del client web. Lascia spento "Skip nonce
+   checks". Il pulsante compare solo nei centri dove Google è attivo.
+
 ## 2. Il tuo account da proprietario
 
 La password la scegli tu e non passa da nessun altro.

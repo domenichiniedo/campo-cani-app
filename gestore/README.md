@@ -75,10 +75,12 @@ in chat, nell'app o su GitHub.
    dei clienti e per il codice che conferma l'email all'iscrizione: senza un SMTP proprio Supabase non le manda e
    chi si iscrive entra subito), `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_MESSAGE_SERVICE_SID` (per il
    codice SMS che conferma il cellulare dei clienti nuovi; ogni SMS lo paghi a Twilio), `SENZA_MANDATO=si` (solo per
-   provare senza Stripe: il centro si prepara subito, senza mandato).
+   provare senza Stripe: il centro si prepara subito, senza mandato), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+   (client "Applicazione web" di Google) e `GOOGLE_ALTRI_CLIENT_ID` (il client "App desktop"): accendono l'accesso con
+   Google nei centri nuovi (vedi README principale, "Accesso con Google").
 
-   SMTP e Twilio valgono per i centri preparati dopo averli messi: a un centro già pronto si aggiungono a mano da
-   Supabase, come spiega il README principale (Email).
+   SMTP, Twilio e Google valgono per i centri preparati dopo averli messi: a un centro già pronto si aggiungono a mano
+   da Supabase, come spiega il README principale (Email e Accesso con Google).
 
    Il token di Supabase può creare progetti sul tuo account: tienilo solo qui. Ogni centro è un progetto,
    e oltre i 2 progetti gratuiti Supabase chiede il piano a pagamento.
@@ -117,6 +119,11 @@ in chat, nell'app o su GitHub.
 
 8. **Il pannello.** Actions → "Pannello del gestore" → Run workflow, con l'indirizzo del passo 7 e la
    publishable key del progetto gestore. Lo scarichi da Releases → "K9 Gestore".
+
+   **Entrare con Google** (facoltativo): nel progetto del gestore, in Authentication → Sign In / Providers → Google,
+   attivalo con gli stessi client dell'app (ID web e, dopo una virgola, ID desktop; secret del client web), e nelle
+   Variables di GitHub metti `GOOGLE_DESKTOP_CLIENT_ID` e `GOOGLE_DESKTOP_SECRET` prima di costruire il pannello.
+   Entra chiunque abbia un account Google, ma il pannello risponde solo alle email in `AMMINISTRATORI`.
 
 ## Prove
 

@@ -766,6 +766,12 @@ const dict: Record<string, string> = {
   'Il campo è chiuso in questo orario.': 'The field is closed at this time.',
   'Orario appena preso da un altro cliente. Scegline un altro.': 'This time was just taken by another client. Choose another.',
   'Funzione sconosciuta': 'Unknown function',
+  'Benvenuto!': 'Welcome!',
+  'Sei entrato con Google. Per prenotare il campo mancano pochi dati.': 'You signed in with Google. Just a few more details and you can book the field.',
+  'Completa l’iscrizione': 'Complete sign-up',
+  'Continua con Google': 'Continue with Google',
+  "Questo centro non ha ancora attivato l'accesso con Google.": "This centre hasn't enabled Google sign-in yet.",
+  'Accesso con Google non riuscito: {errore}': 'Google sign-in failed: {errore}',
 };
 
 export default dict;

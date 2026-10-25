@@ -3,10 +3,11 @@ import { useState } from 'react';
 import { Text } from 'react-native';
 
 import { EmailCode } from '@/components/email-code';
+import { GoogleButton } from '@/components/google-button';
 import { Button, Card, ErrorText, Field, H1, Muted, Screen } from '@/components/ui';
 import { ownerOnly } from '@/lib/edition';
 import { t } from '@/lib/i18n';
-import { errorText, supabase } from '@/lib/supabase';
+import { connection, errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
 
 export default function Login() {
@@ -58,6 +59,7 @@ export default function Login() {
           {t('Password dimenticata?')}
         </Link>
       </Card>
+      <GoogleButton client={supabase} url={connection().url} apiKey={connection().key} />
       {!ownerOnly && (
         <Card>
           <Text style={{ color: c.text, fontSize: 16, fontWeight: '700' }}>{t('Prima volta qui?')}</Text>

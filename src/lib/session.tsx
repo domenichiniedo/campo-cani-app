@@ -22,6 +22,8 @@ type Ctx = {
   isTrainer: boolean;
   /** Il trainer collegato all'account, se chi è entrato è un trainer. */
   myTrainer: Trainer | null;
+  /** Cliente entrato con Google senza passare dal modulo di iscrizione: mancano telefono, cani e consensi. */
+  needsSignup: boolean;
   needsTerms: boolean;
   /** Cliente che vuole la fattura ma non ha codice fiscale o indirizzo di fatturazione. */
   needsBilling: boolean;
@@ -101,9 +103,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const isOwner = profile?.role === 'owner';
   const isTrainer = profile?.role === 'trainer';
   const myTrainer = isTrainer ? (trainers.find((t) => t.id === myTrainerId) ?? null) : null;
+  // Chi si iscrive dal modulo accetta subito regolamento e privacy: senza nessun consenso vuol dire che è
+  // entrato la prima volta con Google e deve ancora completare l'iscrizione.
+  const needsSignup = !!session && !!profile && !isOwner && !isTrainer && profile.rules_ver === null && profile.privacy_ver === null;
   // Regolamento e dati di fatturazione servono ai clienti, non a proprietario e trainer.
   const needsTerms =
-    !!session && !!profile && !!settings && !isOwner && !isTrainer &&
+    !!session && !!profile && !!settings && !isOwner && !isTrainer && !needsSignup &&
     (profile.rules_ver !== settings.rules_ver || profile.privacy_ver !== settings.privacy_ver);
   const needsBilling = !!session && !!profile && !isOwner && !isTrainer && !billingOk(profile);
   const needsPhone = !!session && !!profile && !isOwner && !isTrainer && profile.phone_ok === false;
@@ -111,7 +116,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   return (
     <SessionContext.Provider
-      value={{ ready: authReady && dataReady, session, profile, settings, lessonTypes, fields, trainers, isOwner, isTrainer, myTrainer, needsTerms, needsBilling, needsPhone, logoUrl, refresh }}>
+      value={{ ready: authReady && dataReady, session, profile, settings, lessonTypes, fields, trainers, isOwner, isTrainer, myTrainer, needsSignup, needsTerms, needsBilling, needsPhone, logoUrl, refresh }}>
       {children}
     </SessionContext.Provider>
   );

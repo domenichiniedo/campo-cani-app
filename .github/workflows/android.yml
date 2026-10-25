@@ -50,6 +50,8 @@ jobs:
       EXPO_PUBLIC_SUPABASE_URL: ${{ github.event_name == 'pull_request' && 'https://prova-pr.supabase.co' || inputs.supabase_url || vars.EXPO_PUBLIC_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ github.event_name == 'pull_request' && 'sb_publishable_pr' || inputs.supabase_key || vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
       GIORNI: ${{ github.event_name == 'pull_request' && '3' || inputs.giorni }}
+      # Accesso con Google (vedi README, "Accesso con Google"): vuota = niente pulsante.
+      EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
     steps:
       - uses: actions/checkout@v4
       - name: Database e scadenza

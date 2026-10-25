@@ -20,7 +20,7 @@ import { trialEndText, useTrialOver } from '@/lib/trial';
 SplashScreen.preventAutoHideAsync();
 
 function Navigator() {
-  const { ready, session, profile, isOwner, isTrainer, needsTerms, needsBilling, needsPhone } = useSession();
+  const { ready, session, profile, isOwner, isTrainer, needsSignup, needsTerms, needsBilling, needsPhone } = useSession();
   const plan = usePlan();
   // Cambiando lingua tutte le schermate si ridisegnano.
   const l = useLang();
@@ -42,16 +42,19 @@ function Navigator() {
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
-      <Stack.Protected guard={signedIn && needsTerms}>
+      <Stack.Protected guard={signedIn && needsSignup}>
+        <Stack.Screen name="welcome" />
+      </Stack.Protected>
+      <Stack.Protected guard={signedIn && !needsSignup && needsTerms}>
         <Stack.Screen name="terms" />
       </Stack.Protected>
-      <Stack.Protected guard={signedIn && !needsTerms && needsPhone}>
+      <Stack.Protected guard={signedIn && !needsSignup && !needsTerms && needsPhone}>
         <Stack.Screen name="phone" />
       </Stack.Protected>
-      <Stack.Protected guard={signedIn && !needsTerms && !needsPhone && needsBilling}>
+      <Stack.Protected guard={signedIn && !needsSignup && !needsTerms && !needsPhone && needsBilling}>
         <Stack.Screen name="billing" />
       </Stack.Protected>
-      <Stack.Protected guard={signedIn && !needsTerms && !needsPhone && !needsBilling && !isOwner && !isTrainer}>
+      <Stack.Protected guard={signedIn && !needsSignup && !needsTerms && !needsPhone && !needsBilling && !isOwner && !isTrainer}>
         <Stack.Screen name="(client)" />
       </Stack.Protected>
       <Stack.Protected guard={signedIn && isTrainer}>
