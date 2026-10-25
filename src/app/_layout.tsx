@@ -20,7 +20,7 @@ import { trialEndText, useTrialOver } from '@/lib/trial';
 SplashScreen.preventAutoHideAsync();
 
 function Navigator() {
-  const { ready, session, profile, isOwner, isTrainer, needsTerms, needsBilling } = useSession();
+  const { ready, session, profile, isOwner, isTrainer, needsTerms, needsBilling, needsPhone } = useSession();
   const plan = usePlan();
   // Cambiando lingua tutte le schermate si ridisegnano.
   const l = useLang();
@@ -45,10 +45,13 @@ function Navigator() {
       <Stack.Protected guard={signedIn && needsTerms}>
         <Stack.Screen name="terms" />
       </Stack.Protected>
-      <Stack.Protected guard={signedIn && !needsTerms && needsBilling}>
+      <Stack.Protected guard={signedIn && !needsTerms && needsPhone}>
+        <Stack.Screen name="phone" />
+      </Stack.Protected>
+      <Stack.Protected guard={signedIn && !needsTerms && !needsPhone && needsBilling}>
         <Stack.Screen name="billing" />
       </Stack.Protected>
-      <Stack.Protected guard={signedIn && !needsTerms && !needsBilling && !isOwner && !isTrainer}>
+      <Stack.Protected guard={signedIn && !needsTerms && !needsPhone && !needsBilling && !isOwner && !isTrainer}>
         <Stack.Screen name="(client)" />
       </Stack.Protected>
       <Stack.Protected guard={signedIn && isTrainer}>

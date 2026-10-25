@@ -16,7 +16,7 @@ type Period = 'week' | 'month' | 'year';
 type Line = Pick<Booking, 'id' | 'user_id' | 'day' | 'price_cents' | 'pay' | 'paid' | 'lesson_type' | 'field_id' | 'trainer_id' | 'checked_in_at' | 'status'>;
 type Sold = Pick<ClientPackage, 'id' | 'name' | 'price_cents' | 'activated_at'>;
 
-const PAY: Record<Booking['pay'], string> = { onsite: tKey('Al campo'), online: tKey('Online'), package: tKey('Pacchetto') };
+const PAY: Record<Booking['pay'], string> = { onsite: tKey('Al campo'), online: tKey('Online'), package: tKey('Pacchetto'), transfer: tKey('Bonifico') };
 const PAGE = 1000;
 
 /** Primo e ultimo giorno del periodo che contiene il giorno dato. */

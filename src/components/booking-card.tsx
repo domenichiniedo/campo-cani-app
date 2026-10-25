@@ -10,6 +10,7 @@ import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
+import { transferRef } from '@/lib/transfer';
 import { fullName, PENALTY_REASONS } from '@/lib/types';
 
 /**
@@ -98,6 +99,14 @@ export function OwnerBookingCard({
             </Text>
           </Row>
         )}
+        {!!b.note && <Body style={{ fontSize: 14 }}>{t('Nota del cliente: {nota}', { nota: b.note })}</Body>}
+        {b.pay === 'transfer' && (
+          <Muted style={{ fontSize: 13 }}>
+            {b.paid
+              ? t('Pagata con bonifico (causale {codice})', { codice: transferRef(b) })
+              : t('Bonifico istantaneo da controllare: cerca la causale {codice}', { codice: transferRef(b) })}
+          </Muted>
+        )}
       </View>
       <Row>
         <Button
@@ -112,7 +121,8 @@ export function OwnerBookingCard({
         {b.pay === 'package' ? (
           <Badge tone="ok">{t('Dal pacchetto')}</Badge>
         ) : (
-          plan.payments && (
+          // Il bonifico si segna come pagato con ogni piano: solo il proprietario vede l'accredito.
+          (plan.payments || b.pay === 'transfer') && (
             <Button
               small
               kind="ghost"

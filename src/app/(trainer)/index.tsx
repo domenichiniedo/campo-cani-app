@@ -198,6 +198,7 @@ export default function TrainerLessons() {
               {fullName(b.profiles)} · {b.profiles?.phone}
             </Muted>
           </Row>
+          {!!b.note && <Body style={{ fontSize: 14 }}>{t('Nota del cliente: {nota}', { nota: b.note })}</Body>}
         </View>
         {(b.penalties ?? []).map((p) => (
           <Row key={p.id}>

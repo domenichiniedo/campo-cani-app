@@ -13,7 +13,7 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
    nel progetto apri **SQL Editor**, incolla tutto il file e premi **Run**. Crea in un colpo tabelle, regole di accesso,
    lezioni di partenza e spazi per logo e foto, e segna la tua email come quella del proprietario.
    `setup.sql` è solo per un progetto **nuovo**. Se il database esiste già, esegui solo le migrazioni nuove di
-   `supabase/migrations`, una volta ciascuna e in ordine (l'ultima è `0018_schede_valutazione.sql`).
+   `supabase/migrations`, una volta ciascuna e in ordine (l'ultima è `0020_nota_bonifico_conferme.sql`).
 3. In **Project Settings → API Keys** copia l'URL del progetto e la **Publishable key** (inizia con `sb_publishable_`).
    Non usare mai la Secret key nell'app.
 4. Copia il file `.env.example` in `.env.local` e incolla i due valori:
@@ -25,8 +25,27 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
 
 ### Email
 
-- **Conferma email.** In **Authentication → Sign In / Providers → Email** puoi tenere attiva "Confirm email": il cliente riceve
-  un link e poi accede. Se la spegni, entra subito dopo l'iscrizione.
+- **Conferma email.** In **Authentication → Sign In / Providers → Email** puoi tenere attiva "Confirm email": chi si
+  iscrive riceve un codice e lo scrive nell'app. In **Authentication → Emails → Confirm signup** sostituisci il testo con
+  qualcosa come:
+
+  ```
+  <h2>Benvenuto</h2>
+  <p>Il codice per confermare la tua email è: <strong>{{ .Token }}</strong></p>
+  ```
+
+  Se la spegni, il cliente entra subito dopo l'iscrizione.
+- **Conferma del cellulare con un SMS** (facoltativa). Serve un servizio SMS, per esempio Twilio (ogni SMS costa
+  qualche centesimo). In **Authentication → Sign In / Providers → Phone** attivalo, scegli Twilio, incolla Account SID,
+  Auth Token e Message Service SID, lascia attiva "Confirm phone" e come messaggio scrivi `Il tuo codice è {{ .Code }}`.
+  Poi nel **SQL Editor**:
+
+  ```sql
+  update public.settings set sms_check = true;
+  ```
+
+  Da quel momento chi si iscrive, prima di prenotare, conferma il cellulare con il codice ricevuto per SMS. Chi era già
+  iscritto non deve fare niente.
 - **Password dimenticata.** L'app chiede un codice, non un link. In **Authentication → Emails → Reset Password** sostituisci il
   testo con qualcosa come:
 

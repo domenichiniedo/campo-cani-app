@@ -2,7 +2,8 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { Badge, Body, Button, Card, Chips, ErrorText, H1, Muted, Row, Screen, Step } from '@/components/ui';
+import { TransferDetails } from '@/components/transfer';
+import { Badge, Body, Button, Card, Chips, ErrorText, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { addDays, cap, dayKey, euro, fromKey, hm, longDay, monthShort, slotDate, today, weekdayShort } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { usePlan } from '@/lib/plans';
@@ -10,7 +11,8 @@ import { useSession } from '@/lib/session';
 import { startsFor } from '@/lib/slots';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
-import { usable, type BusySlot, type ClassSlot, type ClientPackage, type Dog } from '@/lib/types';
+import { useTransfer } from '@/lib/transfer';
+import { usable, type Booking, type BusySlot, type ClassSlot, type ClientPackage, type Dog } from '@/lib/types';
 
 const DAYS_AHEAD = 21;
 
@@ -34,7 +36,13 @@ export default function Book() {
   const [option, setOption] = useState<string | null>(null);
   const [day, setDay] = useState<string | null>(null);
   const [start, setStart] = useState<number | null>(null);
-  const [pay, setPay] = useState<'onsite' | 'online'>('onsite');
+  const [pay, setPay] = useState<'onsite' | 'online' | 'transfer'>('onsite');
+  const [note, setNote] = useState('');
+  const transfer = useTransfer();
+  const canTransfer = !!transfer?.enabled;
+  const payNow = pay === 'transfer' && !canTransfer ? 'onsite' : pay;
+  // La lezione appena prenotata con bonifico, per mostrare subito i dati da pagare.
+  const [toPay, setToPay] = useState<{ booking: Booking; dog: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const [done, setDone] = useState<string | null>(null);
@@ -97,11 +105,29 @@ export default function Book() {
   const nWhen = manyFields ? '4' : '3';
   const nConfirm = manyFields ? '5' : '4';
 
+  // Testo e dati di pagamento dopo una prenotazione andata a buon fine.
+  function after(b: Booking, dogName: string) {
+    setPaidWith(
+      b.pay === 'package'
+        ? t('Lezione scalata dal pacchetto "{nome}".', { nome: pack?.name ?? '' })
+        : b.pay === 'transfer'
+          ? t('Paga con il bonifico qui sotto: trovi i dati anche in "Le mie lezioni".')
+          : b.pay === 'onsite'
+            ? t('Paghi al campo.')
+            : t('Pagamento online registrato.'),
+    );
+    setToPay(b.pay === 'transfer' && b.price_cents > 0 ? { booking: b, dog: dogName } : null);
+    setNote('');
+  }
+
+  // La nota parte solo col piano che la comprende.
+  const noteArg = plan.notes && note.trim() ? { p_note: note.trim() } : {};
+
   async function join() {
     if (!ready || !type || !cls || !dog) return;
     setErr('');
     setSaving(true);
-    const { error } = await supabase.rpc('join_class', { p_class: cls.id, p_dog: dog.id, p_pay: pay });
+    const { data, error } = await supabase.rpc('join_class', { p_class: cls.id, p_dog: dog.id, p_pay: payNow, ...noteArg });
     setSaving(false);
     if (error) {
       setErr(errorText(error));
@@ -109,7 +135,7 @@ export default function Book() {
       return;
     }
     const f = fields.find((x) => x.id === cls.field_id);
-    setPaidWith(pack ? t('Lezione scalata dal pacchetto "{nome}".', { nome: pack.name }) : pay === 'onsite' ? t('Paghi al campo.') : t('Pagamento online registrato.'));
+    after(data as Booking, dog.name);
     setDone(
       t('{lezione} per {cane}, {giorno} alle {ora}', {
         lezione: `${type.label}${cls.lesson_option ? ` · ${cls.lesson_option}` : ''}`,
@@ -127,14 +153,15 @@ export default function Book() {
     if (!ready || !field || !type || !day || start == null || !dog) return;
     setErr('');
     setSaving(true);
-    const { error } = await supabase.rpc('book_slot', {
+    const { data, error } = await supabase.rpc('book_slot', {
       p_field: field.id,
       p_dog: dog.id,
       p_type: type.id,
       p_option: option ?? '',
       p_day: day,
       p_start: start,
-      p_pay: pay,
+      p_pay: payNow,
+      ...noteArg,
     });
     setSaving(false);
     if (error) {
@@ -142,7 +169,7 @@ export default function Book() {
       load();
       return;
     }
-    setPaidWith(pack ? t('Lezione scalata dal pacchetto "{nome}".', { nome: pack.name }) : pay === 'onsite' ? t('Paghi al campo.') : t('Pagamento online registrato.'));
+    after(data as Booking, dog.name);
     setDone(
       t('{lezione} per {cane}, {giorno} alle {ora}', {
         lezione: `${type.label}${option ? ` · ${option}` : ''}`,
@@ -165,6 +192,7 @@ export default function Book() {
             {paidWith} {t('Puoi disdire fino a {ore} ore prima da "Le mie lezioni".', { ore: settings?.cancel_hours ?? 0 })}
           </Muted>
         </Card>
+        {toPay && transfer && <TransferDetails booking={toPay.booking} dog={toPay.dog} cfg={transfer} />}
         <Button title={t('Vedi le mie lezioni')} onPress={() => { setDone(null); router.push('/bookings'); }} />
         <Button title={t("Prenota un'altra lezione")} kind="ghost" onPress={() => setDone(null)} />
       </Screen>
@@ -411,13 +439,27 @@ export default function Book() {
               <Chips
                 items={[
                   { value: 'onsite', label: t('Pago al campo') },
+                  ...(canTransfer ? [{ value: 'transfer', label: t('Bonifico istantaneo') }] : []),
                   { value: 'online', label: t('Pago online'), disabled: !settings?.online_payments },
                 ]}
-                value={pay}
-                onChange={(v) => setPay(v as 'onsite' | 'online')}
+                value={payNow}
+                onChange={(v) => setPay(v as 'onsite' | 'online' | 'transfer')}
               />
             )}
+            {!pack && payNow === 'transfer' && (
+              <Muted style={{ fontSize: 13 }}>{t('Dopo la conferma ti mostriamo IBAN, importo e causale, con il QR per la tua banca.')}</Muted>
+            )}
             {!pack && !settings?.online_payments && <Muted style={{ fontSize: 12 }}>{t('Il pagamento online non è ancora attivo.')}</Muted>}
+            {plan.notes && (
+              <Field
+                label={t('Nota per il centro (se vuoi)')}
+                value={note}
+                onChangeText={setNote}
+                placeholder={t('Per esempio: il cane ha paura dei rumori, arrivo 5 minuti prima')}
+                multiline
+                maxLength={500}
+              />
+            )}
             <ErrorText>{err}</ErrorText>
             <Button title={t('Conferma prenotazione')} onPress={confirm} loading={saving} />
           </Card>

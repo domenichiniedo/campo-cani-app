@@ -2,8 +2,9 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 
 import { BillingFields } from '@/components/billing-fields';
+import { EmailCode } from '@/components/email-code';
 import { PhotoPicker, saveSignupPhoto } from '@/components/photo';
-import { Body, Button, Card, Check, Chips, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
+import { Button, Card, Check, Chips, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
 import { billingColumns, billingError, emptyBilling, type BillingDraft } from '@/lib/billing';
 import { isDayKey } from '@/lib/format';
 import { t } from '@/lib/i18n';
@@ -25,6 +26,8 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [photo, setPhoto] = useState<Picked | null>(null);
   const [billing, setBilling] = useState<BillingDraft>(emptyBilling);
+  // Codice fiscale e indirizzo servono solo a chi vuole la fattura.
+  const [wantsInvoice, setWantsInvoice] = useState(false);
   const [dogs, setDogs] = useState<DogDraft[]>([{ name: '', breed: '', birth: '' }]);
   const [rulesOk, setRulesOk] = useState(false);
   const [privacyOk, setPrivacyOk] = useState(false);
@@ -41,7 +44,7 @@ export default function Register() {
     setErr('');
     const cleanDogs = dogs.filter((d) => d.name.trim());
     if (!first.trim() || !last.trim() || !phone.trim()) return setErr(t('Inserisci nome, cognome e telefono.'));
-    const bErr = asTrainer ? null : billingError(billing);
+    const bErr = asTrainer || !wantsInvoice ? null : billingError(billing);
     if (bErr) return setErr(bErr);
     if (!asTrainer && !cleanDogs.length) return setErr(t('Inserisci almeno un cane.'));
     if (cleanDogs.some((d) => d.birth && !isDayKey(d.birth))) return setErr(t('Scrivi la data di nascita come AAAA-MM-GG, per esempio 2024-03-15.'));
@@ -65,7 +68,7 @@ export default function Register() {
           first_name: first.trim(),
           last_name: last.trim(),
           phone: phone.trim(),
-          ...(asTrainer ? {} : billingColumns(billing)),
+          ...(asTrainer ? {} : wantsInvoice ? { ...billingColumns(billing), doc_pref: 'invoice' } : { doc_pref: 'receipt' }),
           rules_ver: settings.rules_ver,
           privacy_ver: settings.privacy_ver,
           social_consent: !asTrainer && socialOk,
@@ -83,17 +86,22 @@ export default function Register() {
       await refresh();
     }
     setBusy(false);
-    // Se il progetto chiede la conferma dell'email non arriva una sessione: lo diciamo al cliente.
+    // Se il progetto chiede la conferma dell'email non arriva una sessione: serve il codice mandato per email.
     if (!data.session) setSent(true);
   }
 
   if (sent) {
     return (
       <Screen>
-        <H1>{t("Controlla l'email")}</H1>
-        <Body>{t("Ti abbiamo mandato un link a {email}. Aprilo per confermare l'iscrizione, poi accedi.", { email: email.trim() })}</Body>
-        {photo && <Muted>{t('La foto che hai scelto mettila dal tuo profilo, dopo il primo accesso.')}</Muted>}
-        <Button title={t("Vai all'accesso")} onPress={() => router.replace('/')} />
+        <H1>{t("Conferma l'email")}</H1>
+        <EmailCode
+          email={email.trim()}
+          onConfirmed={async (id) => {
+            if (photo) await saveSignupPhoto(id, photo);
+            await refresh();
+          }}
+        />
+        <Button title={t("Vai all'accesso")} kind="ghost" onPress={() => router.replace('/')} />
       </Screen>
     );
   }
@@ -138,9 +146,16 @@ export default function Register() {
 
       {!asTrainer && (
         <>
-          <Step n="3" title={t('Fatturazione')} />
+          <Step n="3" title={t('Fattura')} />
           <Card>
-            <BillingFields value={billing} onChange={setBilling} />
+            <Check value={wantsInvoice} onChange={setWantsInvoice}>
+              {t('Voglio la fattura per le lezioni e i pacchetti')}
+            </Check>
+            {wantsInvoice ? (
+              <BillingFields value={billing} onChange={setBilling} />
+            ) : (
+              <Muted style={{ fontSize: 13 }}>{t('Senza fattura non servono codice fiscale e indirizzo. Puoi chiederla anche dopo, dal Profilo.')}</Muted>
+            )}
           </Card>
 
           <Step n="4" title={dogs.length > 1 ? t('I tuoi cani') : t('Il tuo cane')} />

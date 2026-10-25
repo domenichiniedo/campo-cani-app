@@ -29,15 +29,28 @@ export default function Billing() {
     setBusy(false);
   }
 
+  async function noInvoice() {
+    setErr('');
+    setBusy(true);
+    const { error } = await supabase.from('profiles').update({ doc_pref: 'receipt' }).eq('id', profile!.id);
+    if (error) {
+      setBusy(false);
+      return setErr(errorText(error));
+    }
+    await refresh();
+    setBusy(false);
+  }
+
   return (
     <Screen>
       <H1>{t('Dati per la fattura')}</H1>
-      <Body>{t("Per continuare a prenotare servono il tuo codice fiscale e l'indirizzo di fatturazione.")}</Body>
+      <Body>{t("Hai chiesto la fattura: per riceverla servono il tuo codice fiscale e l'indirizzo di fatturazione.")}</Body>
       <Card accent>
         <BillingFields value={billing} onChange={setBilling} />
         <ErrorText>{err}</ErrorText>
         <Button title={t('Salva e continua')} onPress={save} loading={busy} />
       </Card>
+      <Button title={t('Non mi serve la fattura')} kind="ghost" onPress={noInvoice} />
       <Button title={t('Esci')} kind="ghost" onPress={() => supabase.auth.signOut()} />
     </Screen>
   );

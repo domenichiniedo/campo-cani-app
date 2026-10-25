@@ -37,6 +37,8 @@ export type Plan = {
   evals: boolean;
   /** Report mensile in Excel per email, l'ultimo venerdì del mese. */
   report: boolean;
+  /** Il cliente scrive una nota per il centro quando prenota. */
+  notes: boolean;
 };
 
 export const PLANS: Record<PlanId, Plan> = {
@@ -58,6 +60,7 @@ export const PLANS: Record<PlanId, Plan> = {
     groups: false,
     evals: false,
     report: false,
+    notes: false,
   },
   professional: {
     id: 'professional',
@@ -77,6 +80,7 @@ export const PLANS: Record<PlanId, Plan> = {
     groups: false,
     evals: false,
     report: false,
+    notes: true,
   },
   pro: {
     id: 'pro',
@@ -96,6 +100,7 @@ export const PLANS: Record<PlanId, Plan> = {
     groups: true,
     evals: true,
     report: true,
+    notes: true,
   },
 };
 

@@ -19,6 +19,8 @@ export type Ambiente = {
   password: () => string;
   /** SMTP per le email della password dimenticata; senza, Supabase non le manda ai clienti. */
   smtp: { host: string; port: string; user: string; pass: string; from: string } | null;
+  /** Twilio per il codice SMS che conferma il cellulare dei clienti; senza, il cellulare non si conferma. */
+  sms: { sid: string; token: string; servizio: string } | null;
 };
 
 // deno-lint-ignore no-explicit-any
@@ -57,9 +59,10 @@ export async function passo(c: Centro, a: Ambiente): Promise<Partial<Centro>> {
       ].join('\n\n');
       await query(sql);
       const migrazioni = MIGRAZIONI.length;
-      // Chi si iscrive entra subito, senza link di conferma via email (che nell'app non si potrebbe aprire).
+      // Con un SMTP proprio chi si iscrive conferma l'email con un codice (un link nell'app non si aprirebbe);
+      // senza, Supabase non manda email ai clienti ed entrano subito. Con Twilio confermano anche il cellulare.
       await a.api('PATCH', `/projects/${c.progetto}/config/auth`, {
-        mailer_autoconfirm: true,
+        mailer_autoconfirm: !a.smtp,
         ...(a.smtp
           ? {
               smtp_host: a.smtp.host,
@@ -70,9 +73,23 @@ export async function passo(c: Centro, a: Ambiente): Promise<Partial<Centro>> {
               smtp_sender_name: c.campo,
               mailer_subjects_recovery: 'Il codice per la nuova password',
               mailer_templates_recovery_content: '<h2>Nuova password</h2>\n<p>Il tuo codice è: <strong>{{ .Token }}</strong></p>',
+              mailer_subjects_confirmation: 'Il codice per confermare la tua email',
+              mailer_templates_confirmation_content: `<h2>Benvenuto in ${c.campo.replace(/[<>&]/g, '')}</h2>\n<p>Il codice per confermare la tua email è: <strong>{{ .Token }}</strong></p>`,
+            }
+          : {}),
+        ...(a.sms
+          ? {
+              external_phone_enabled: true,
+              sms_autoconfirm: false,
+              sms_provider: 'twilio',
+              sms_twilio_account_sid: a.sms.sid,
+              sms_twilio_auth_token: a.sms.token,
+              sms_twilio_message_service_sid: a.sms.servizio,
+              sms_template: 'Il tuo codice è {{ .Code }}',
             }
           : {}),
       });
+      if (a.sms) await query('update public.settings set sms_check = true where id = 1;');
       return { stato: 'chiavi', migrazioni };
     }
     case 'chiavi': {

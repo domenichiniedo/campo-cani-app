@@ -72,8 +72,13 @@ in chat, nell'app o su GitHub.
 
    Facoltativi: `REGIONE_SUPABASE` (predefinita eu-central-1), `MAX_CENTRI_AL_GIORNO` (20),
    `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` (per le email della password dimenticata
-   dei clienti: senza un SMTP proprio Supabase non le manda), `SENZA_MANDATO=si` (solo per provare senza
-   Stripe: il centro si prepara subito, senza mandato).
+   dei clienti e per il codice che conferma l'email all'iscrizione: senza un SMTP proprio Supabase non le manda e
+   chi si iscrive entra subito), `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_MESSAGE_SERVICE_SID` (per il
+   codice SMS che conferma il cellulare dei clienti nuovi; ogni SMS lo paghi a Twilio), `SENZA_MANDATO=si` (solo per
+   provare senza Stripe: il centro si prepara subito, senza mandato).
+
+   SMTP e Twilio valgono per i centri preparati dopo averli messi: a un centro già pronto si aggiungono a mano da
+   Supabase, come spiega il README principale (Email).
 
    Il token di Supabase può creare progetti sul tuo account: tienilo solo qui. Ogni centro è un progetto,
    e oltre i 2 progetti gratuiti Supabase chiede il piano a pagamento.
