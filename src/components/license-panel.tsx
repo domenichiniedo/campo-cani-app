@@ -1,10 +1,10 @@
-import * as Linking from 'expo-linking';
 import { useEffect, useState } from 'react';
 import { Share } from 'react-native';
 
+import { CentreQr } from '@/components/centre-qr';
 import { Badge, Body, Button, Card, ErrorText, Field, Muted, Row } from '@/components/ui';
 import { fromKey, today } from '@/lib/format';
-import { gestoreEnabled, isCentreCode } from '@/lib/gestore';
+import { gestoreEnabled, inviteLink, isCentreCode } from '@/lib/gestore';
 import { t } from '@/lib/i18n';
 import { licensingEnabled, longer, readLicense } from '@/lib/license';
 import { useLicense } from '@/lib/license-gate';
@@ -55,7 +55,9 @@ export function LicensePanel() {
   const days = license.scade ? Math.round((fromKey(license.scade).getTime() - today().getTime()) / 86400000) : null;
   // Un centro registrato dall'app ha il codice corto (K9-...), che non cambia ai rinnovi e si rinnova da solo.
   const auto = gestoreEnabled && isCentreCode(license.id);
-  const link = Linking.createURL('attiva', { queryParams: { codice: auto ? license.id : read() } });
+  // Il link (e il QR code) per i clienti: quello del gestore apre l'app o porta a scaricarla; senza gestore il link
+  // apre direttamente l'app, se c'è già.
+  const link = auto ? inviteLink(license.id) : `campocaniapp://attiva?codice=${encodeURIComponent(read())}`;
 
   async function renew() {
     setErr('');
@@ -82,62 +84,65 @@ export function LicensePanel() {
   }
 
   return (
-    <Card>
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Body bold>{license.campo}</Body>
-        {days === null ? (
-          <Badge tone="ok">{t('Senza scadenza')}</Badge>
-        ) : days < 0 ? (
-          <Badge tone="bad">{t('Scaduta')}</Badge>
-        ) : (
-          <Badge tone={days <= 30 ? 'warn' : 'ok'}>{t('Scade il {data}', { data: license.scade!.split('-').reverse().join('/') })}</Badge>
-        )}
-      </Row>
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Body>{t('Piano {piano}', { piano: plan.label })}</Body>
-        {clients !== null && (
-          <Badge tone={full ? 'bad' : 'ok'}>{plan.maxClients === null ? t('{n} clienti', { n: clients }) : t('{n} / {max} clienti', { n: clients, max: plan.maxClients })}</Badge>
-        )}
-      </Row>
-      {full && <Muted style={{ fontSize: 13 }}>{t('Hai raggiunto il limite del piano: i nuovi clienti non possono iscriversi. Chiedi un piano superiore.')}</Muted>}
-      <Muted style={{ fontSize: 13 }}>
-        {auto
-          ? t('Codice del centro {id}: dallo a clienti e trainer. Licenza emessa il {data}.', { id: license.id, data: license.emessa.split('-').reverse().join('/') })
-          : t('Licenza {id}, emessa il {data}.', { id: license.id, data: license.emessa.split('-').reverse().join('/') })}
-        {auto
-          ? ` ${t("Si rinnova da sola ogni mese, quando arriva il bonifico dell'abbonamento.")}`
-          : days !== null && days <= 30 && days >= 0
-            ? ` ${t('Mancano {n} giorni: chiedi il rinnovo.', { n: days })}`
-            : ''}
-      </Muted>
-      <Button
-        small
-        kind="ghost"
-        title={t('Manda il link di attivazione ai clienti')}
-        onPress={() =>
-          Share.share({
-            message: auto
-              ? t("Scarica l'app K9 Manager e attivala per {campo} con questo link: {link} (oppure scrivi il codice del centro {codice})", {
-                  campo: license.campo,
-                  link,
-                  codice: license.id,
-                })
-              : t("Scarica l'app K9 Manager e attivala per {campo} con questo link: {link}", { campo: license.campo, link }),
-          })
-        }
-      />
-      <Field
-        label={t('Nuovo codice (rinnovo o cambio piano)')}
-        value={code}
-        onChangeText={setCode}
-        placeholder="CC1...."
-        autoCapitalize="none"
-        autoCorrect={false}
-        multiline
-      />
-      <ErrorText>{err}</ErrorText>
-      {!!msg && <Muted>{msg}</Muted>}
-      <Button small title={t('Usa questo codice')} onPress={renew} loading={busy} disabled={!code.trim()} />
-    </Card>
+    <>
+      <Card>
+        <Row style={{ justifyContent: 'space-between' }}>
+          <Body bold>{license.campo}</Body>
+          {days === null ? (
+            <Badge tone="ok">{t('Senza scadenza')}</Badge>
+          ) : days < 0 ? (
+            <Badge tone="bad">{t('Scaduta')}</Badge>
+          ) : (
+            <Badge tone={days <= 30 ? 'warn' : 'ok'}>{t('Scade il {data}', { data: license.scade!.split('-').reverse().join('/') })}</Badge>
+          )}
+        </Row>
+        <Row style={{ justifyContent: 'space-between' }}>
+          <Body>{t('Piano {piano}', { piano: plan.label })}</Body>
+          {clients !== null && (
+            <Badge tone={full ? 'bad' : 'ok'}>{plan.maxClients === null ? t('{n} clienti', { n: clients }) : t('{n} / {max} clienti', { n: clients, max: plan.maxClients })}</Badge>
+          )}
+        </Row>
+        {full && <Muted style={{ fontSize: 13 }}>{t('Hai raggiunto il limite del piano: i nuovi clienti non possono iscriversi. Chiedi un piano superiore.')}</Muted>}
+        <Muted style={{ fontSize: 13 }}>
+          {auto
+            ? t('Codice del centro {id}: dallo a clienti e trainer. Licenza emessa il {data}.', { id: license.id, data: license.emessa.split('-').reverse().join('/') })
+            : t('Licenza {id}, emessa il {data}.', { id: license.id, data: license.emessa.split('-').reverse().join('/') })}
+          {auto
+            ? ` ${t("Si rinnova da sola ogni mese, quando arriva il bonifico dell'abbonamento.")}`
+            : days !== null && days <= 30 && days >= 0
+              ? ` ${t('Mancano {n} giorni: chiedi il rinnovo.', { n: days })}`
+              : ''}
+        </Muted>
+        <Button
+          small
+          kind="ghost"
+          title={t('Manda il link di attivazione ai clienti')}
+          onPress={() =>
+            Share.share({
+              message: auto
+                ? t("Scarica l'app K9 Manager e attivala per {campo} con questo link: {link} (oppure scrivi il codice del centro {codice})", {
+                    campo: license.campo,
+                    link,
+                    codice: license.id,
+                  })
+                : t("Scarica l'app K9 Manager e attivala per {campo} con questo link: {link}", { campo: license.campo, link }),
+            })
+          }
+        />
+        <Field
+          label={t('Nuovo codice (rinnovo o cambio piano)')}
+          value={code}
+          onChangeText={setCode}
+          placeholder="CC1...."
+          autoCapitalize="none"
+          autoCorrect={false}
+          multiline
+        />
+        <ErrorText>{err}</ErrorText>
+        {!!msg && <Muted>{msg}</Muted>}
+        <Button small title={t('Usa questo codice')} onPress={renew} loading={busy} disabled={!code.trim()} />
+      </Card>
+      <CentreQr campo={license.campo} link={link} code={auto ? license.id : null} />
+    </>
   );
 }

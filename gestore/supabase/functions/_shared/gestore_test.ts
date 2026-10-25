@@ -3,6 +3,7 @@ import nacl from 'npm:tweetnacl@1.0.3';
 
 import type { Centro } from './comune.ts';
 import { leggiFatturazione } from './fatturazione.ts';
+import { daAndroid, intentAndroid, linkPlay } from './invito.ts';
 import { fineMese, firmaLicenza } from './licenza.ts';
 import { MIGRAZIONI } from './migrazioni.ts';
 import { passo, type Ambiente } from './passi.ts';
@@ -252,4 +253,15 @@ Deno.test('dati per la fattura del centro', () => {
   uguale(errore({ ...buoni, codice_sdi: 'ABC' }), 'Il codice destinatario ha 7 lettere o cifre.');
   uguale(errore({ ...buoni, pec: 'non-una-pec' }), 'La PEC non è un indirizzo email valido.');
   uguale(errore(undefined as unknown as object), 'Scrivi la ragione sociale (o il nome della società o associazione).');
+});
+
+Deno.test('invito: su Android apre l\'app sul centro, se no Google Play con il codice', () => {
+  const play = linkPlay('it.campocani.app', 'K9-ABC234');
+  uguale(play, 'https://play.google.com/store/apps/details?id=it.campocani.app&referrer=codice%3DK9-ABC234');
+  uguale(
+    intentAndroid('it.campocani.app', 'K9-ABC234', play),
+    `intent://attiva?codice=K9-ABC234#Intent;scheme=campocaniapp;package=it.campocani.app;S.browser_fallback_url=${encodeURIComponent(play)};end`,
+  );
+  uguale(daAndroid('Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 Chrome/141 Mobile'), true);
+  uguale(daAndroid('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)'), false);
 });

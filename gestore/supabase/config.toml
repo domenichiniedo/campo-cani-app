@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.abbonamento]
 verify_jwt = false
+
+[functions.invito]
+verify_jwt = false

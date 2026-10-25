@@ -47,6 +47,7 @@ al centro con la carta (Nexi) contano nel conto del mese come quelle pagate al c
 | `banca` | pagina di ritorno dalla tua banca quando colleghi il conto |
 | `abbonamento` | piano, prezzi e cosa pagare, dall'app del proprietario; cambio di piano |
 | `pannello` | i dati e le azioni del pannello K9 Gestore |
+| `invito` | il link e il QR code che i centri danno ai clienti: su Android apre l'app già sul centro, o porta a scaricarla |
 
 ## Come si accende (una volta sola)
 
@@ -83,7 +84,8 @@ in chat, nell'app o su GitHub.
    anche chi entra con Google, conferma il cellulare; ogni SMS lo paghi a Twilio). Senza, il gestore non prepara i
    centri: nel pannello compare l'errore che dice cosa manca.
 
-   Facoltativi: `REGIONE_SUPABASE` (predefinita eu-central-1), `MAX_CENTRI_AL_GIORNO` (20), `GIORNI_PER_PAGARE` (3: entro
+   Facoltativi: `APP_ANDROID_ID` (predefinito it.campocani.app: l'app che apre il link di invito dei centri),
+   `APP_ANDROID_LINK` (dove si scarica l'app quando non c'è, al posto della pagina di Google Play), `REGIONE_SUPABASE` (predefinita eu-central-1), `MAX_CENTRI_AL_GIORNO` (20), `GIORNI_PER_PAGARE` (3: entro
    quel giorno del mese il bonifico deve arrivare, poi l'app del centro si blocca), `BANCA_IBAN` (se la banca ti fa
    scegliere più conti: quello da leggere), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
    (client "Applicazione web" di Google) e `GOOGLE_ALTRI_CLIENT_ID` (il client "App desktop"): accendono l'accesso con

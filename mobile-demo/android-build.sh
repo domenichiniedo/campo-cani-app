@@ -31,6 +31,26 @@ grep -q 'targetSdkVersion = 36' android/variables.gradle || { echo "::error::Il 
 )
 npx cap sync android
 
+# I link di invito dei centri (campocaniapp://attiva?codice=..., anche dal QR code) aprono l'app vera; la demo no.
+if [ ! -f www/demo-backend.js ]; then
+  python3 - android/app/src/main/AndroidManifest.xml <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+filtro = '''            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="campocaniapp" android:host="attiva" />
+            </intent-filter>
+
+        </activity>'''
+assert s.count('</activity>') == 1
+open(p, 'w').write(s.replace('        </activity>', filtro))
+PY
+  grep -q 'android:scheme="campocaniapp"' android/app/src/main/AndroidManifest.xml
+fi
+
 # Versione: il nome è quello di app.json (1.0.0), il numero sono i minuti dal 1970, che crescono sempre
 # chiunque lanci la build (Google Play rifiuta un numero già usato, il telefono uno più basso).
 VERSION=$(node -p "require('../app.json').expo.version")

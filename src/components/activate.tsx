@@ -13,7 +13,7 @@ import { useColors } from '@/lib/theme';
 /** Primo avvio dell'app venduta: si apre con il codice di licenza del centro. */
 export function Activate({ reason }: { reason: string }) {
   const c = useColors();
-  const { activate } = useLicense();
+  const { activate, centres } = useLicense();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -23,10 +23,10 @@ export function Activate({ reason }: { reason: string }) {
     SplashScreen.hideAsync();
   }, []);
 
-  async function submit() {
+  async function submit(given = code) {
     setBusy(true);
     setErr('');
-    const e = await activate(code);
+    const e = await activate(given);
     setBusy(false);
     if (e) setErr(e);
   }
@@ -60,8 +60,17 @@ export function Activate({ reason }: { reason: string }) {
               style={gestoreEnabled ? undefined : { minHeight: 90 }}
             />
             <ErrorText>{err || reason}</ErrorText>
-            <Button title={t('Attiva')} onPress={submit} loading={busy} disabled={!code.trim()} />
+            <Button title={t('Attiva')} onPress={() => submit()} loading={busy} disabled={!code.trim()} />
           </Card>
+          {centres.length > 0 && (
+            // Chi è già iscritto ad altri centri ci torna da qui, senza riscrivere il codice.
+            <Card>
+              <Body bold>{t('I tuoi centri')}</Body>
+              {centres.map((x) => (
+                <Button key={`${x.id}|${x.url}`} kind="ghost" title={x.campo} onPress={() => submit(x.code)} disabled={busy} />
+              ))}
+            </Card>
+          )}
           {gestoreEnabled && (
             <Card>
               <Body bold>{t('Hai un centro cinofilo?')}</Body>

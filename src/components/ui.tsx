@@ -20,6 +20,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LANGS, setLang, t, useLang } from '@/lib/i18n';
+import { licensingEnabled } from '@/lib/license';
+import { useLicense, type SavedCentre } from '@/lib/license-gate';
 import { useWhenActive } from '@/lib/refresh';
 import { useSession } from '@/lib/session';
 import { useColors } from '@/lib/theme';
@@ -63,6 +65,7 @@ function AutoRefresh({ onRefresh }: { onRefresh: () => void }) {
 function BrandBar() {
   const c = useColors();
   const { settings, logoUrl } = useSession();
+  const [centres, setCentres] = useState(false);
   return (
     <View style={[styles.brand, { backgroundColor: c.pitch }]}>
       <View style={[styles.logo, { backgroundColor: c.onPitch }]}>
@@ -72,16 +75,84 @@ function BrandBar() {
           <Text style={{ fontSize: 18, color: c.pitch, fontWeight: '900' }}>{(settings?.field_name ?? 'C').charAt(0)}</Text>
         )}
       </View>
-      <View style={{ flex: 1 }}>
-        <Text style={[CONDENSED, { color: c.onPitch, fontSize: 17 }]} numberOfLines={1}>
-          {settings?.field_name ?? t('Il tuo campo')}
-        </Text>
+      {/* Con le licenze il nome del centro apre i centri del dispositivo: si cambia centro o se ne aggiunge uno. */}
+      <Pressable
+        style={{ flex: 1 }}
+        disabled={!licensingEnabled}
+        onPress={() => setCentres(true)}
+        accessibilityRole={licensingEnabled ? 'button' : undefined}
+        accessibilityLabel={licensingEnabled ? t('I tuoi centri') : undefined}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={[CONDENSED, { color: c.onPitch, fontSize: 17, flexShrink: 1 }]} numberOfLines={1}>
+            {settings?.field_name ?? t('Il tuo campo')}
+          </Text>
+          {licensingEnabled && <Text style={{ color: c.onPitch, fontSize: 13, fontWeight: '800' }}>▾</Text>}
+        </View>
         <Text style={{ color: c.onPitchMuted, fontSize: 12, fontWeight: '600' }} numberOfLines={1}>
           {settings?.field_address || t('Centro cinofilo · IGP ed educazione')}
         </Text>
-      </View>
+      </Pressable>
       <LangMenu />
+      {centres && <CentreMenu onClose={() => setCentres(false)} />}
     </View>
+  );
+}
+
+/** I centri aperti su questo dispositivo: si passa a un altro, se ne aggiunge uno o se ne toglie uno. */
+function CentreMenu({ onClose }: { onClose: () => void }) {
+  const c = useColors();
+  const insets = useSafeAreaInsets();
+  const { license, centres, activate, addCentre, forget } = useLicense();
+  const [busy, setBusy] = useState('');
+  const [err, setErr] = useState('');
+  const current = (x: SavedCentre) => !!license && x.id === license.id && x.url === (license.url ?? '');
+
+  async function open(x: SavedCentre) {
+    if (current(x)) return onClose();
+    setErr('');
+    setBusy(x.code);
+    const e = await activate(x.code);
+    setBusy('');
+    if (e) setErr(e);
+    else onClose();
+  }
+
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={{ flex: 1 }} onPress={onClose}>
+        <View style={[styles.langMenu, { left: 12, right: undefined, maxWidth: 360, top: insets.top + 60, backgroundColor: c.surface, borderColor: c.line }]}>
+          <Text style={{ color: c.muted, fontSize: 12, fontWeight: '800', textTransform: 'uppercase', paddingHorizontal: 16, paddingVertical: 6 }}>{t('I tuoi centri')}</Text>
+          {centres.map((x) => (
+            <View key={`${x.id}|${x.url}`} style={[styles.langItem, current(x) && { backgroundColor: c.accentSoft }]}>
+              <Pressable accessibilityRole="button" onPress={() => open(x)} style={{ flex: 1 }} disabled={!!busy}>
+                <Text style={{ color: c.text, fontSize: 16, fontWeight: current(x) ? '800' : '500' }} numberOfLines={1}>
+                  {x.campo}
+                </Text>
+              </Pressable>
+              {busy === x.code ? (
+                <ActivityIndicator color={c.accent} />
+              ) : current(x) ? (
+                <Text style={{ color: c.accent, fontWeight: '800' }}>✓</Text>
+              ) : (
+                <Pressable accessibilityRole="button" accessibilityLabel={t('Togli {campo}', { campo: x.campo })} onPress={() => forget(x)} hitSlop={8}>
+                  <Text style={{ color: c.muted, fontWeight: '800' }}>✕</Text>
+                </Pressable>
+              )}
+            </View>
+          ))}
+          {!!err && <Text style={{ color: c.danger, paddingHorizontal: 16, paddingVertical: 6 }}>{err}</Text>}
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              onClose();
+              addCentre();
+            }}
+            style={styles.langItem}>
+            <Text style={{ color: c.accent, fontSize: 16, fontWeight: '800' }}>{t('+ Aggiungi un centro')}</Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    </Modal>
   );
 }
 

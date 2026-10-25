@@ -825,6 +825,16 @@ const dict: Record<string, string> = {
   'Scrivi il comune della sede.': 'Escribe el municipio de la sede.',
   'Il codice destinatario ha 7 lettere o cifre.': 'El código de destinatario tiene 7 letras o cifras.',
   'La PEC non è un indirizzo email valido.': 'La PEC no es una dirección de correo válida.',
+  'I tuoi centri': 'Tus centros',
+  "Prenota le lezioni con l'app K9 Manager": 'Reserva tus clases con la app K9 Manager',
+  "Inquadra il codice con la fotocamera del telefono: si apre l'app già collegata al centro. Se non hai ancora l'app ti porta a scaricarla: poi inquadralo di nuovo.": 'Escanea el código con la cámara del móvil: la app se abre ya conectada al centro. Si aún no tienes la app te lleva a descargarla: después vuelve a escanearlo.',
+  'QR code per i clienti': 'Código QR para los clientes',
+  "Appendilo al campo o mostralo dal telefono: chi lo inquadra apre l'app già collegata al tuo centro. Se non ha ancora l'app lo porta a scaricarla, poi basta inquadrarlo di nuovo.": 'Cuélgalo en el campo o muéstralo en el móvil: quien lo escanea abre la app ya conectada a tu centro. Si aún no tiene la app le lleva a descargarla, y luego basta con escanearlo de nuevo.',
+  'QR code del centro {campo}': 'Código QR de {campo}',
+  'Codice del centro: {codice}': 'Código del centro: {codice}',
+  'Stampa il QR code': 'Imprimir el código QR',
+  'Togli {campo}': 'Quitar {campo}',
+  '+ Aggiungi un centro': '+ Añadir un centro',
 };
 
 export default dict;
