@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 
-import { ChipField, chipOk, cleanChip, ConsentCard, DogCards, InvoiceCard, newDog, OptionalSection, SocialCheck, type DogDraft } from '@/components/signup-parts';
+import { ChipField, chipOk, ClientKindCard, cleanChip, ConsentCard, DogCards, newDog, OptionalSection, SocialCheck, type DogDraft } from '@/components/signup-parts';
 import { Body, Button, Card, ErrorText, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
-import { billingColumns, billingError, emptyBilling, type BillingDraft } from '@/lib/billing';
+import { docColumns, docError, emptyBilling, type BillingDraft, type ClientKind } from '@/lib/billing';
 import { isDayKey } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { usePlan } from '@/lib/plans';
@@ -31,6 +31,7 @@ export default function Welcome() {
   const [phone, setPhone] = useState(profile?.phone ?? '');
   const [billing, setBilling] = useState<BillingDraft>(emptyBilling);
   const [wantsInvoice, setWantsInvoice] = useState(false);
+  const [kind, setKind] = useState<ClientKind>('persona');
   // Chi ha già dei cani (messi dal centro) non deve riscriverli.
   const [hasDogs, setHasDogs] = useState<boolean | null>(null);
   const [dogs, setDogs] = useState<DogDraft[]>([newDog()]);
@@ -55,7 +56,7 @@ export default function Welcome() {
     setErr('');
     const cleanDogs = dogs.filter((d) => d.name.trim());
     if (!first.trim() || !last.trim() || !phone.trim()) return setErr(t('Inserisci nome, cognome e telefono.'));
-    const bErr = wantsInvoice ? billingError(billing) : null;
+    const bErr = docError(kind, wantsInvoice, billing);
     if (bErr) return setErr(bErr);
     if (askDogs && !cleanDogs.length) return setErr(t('Scrivi il nome del tuo cane.'));
     if (cleanDogs.some((d) => !chipOk(d.chip))) return setErr(t('Il microchip ha 15 cifre: controllalo o lascialo vuoto.'));
@@ -83,7 +84,7 @@ export default function Welcome() {
         last_name: last.trim(),
         phone: phone.trim(),
         social_consent: socialOk,
-        ...(wantsInvoice ? { ...billingColumns(billing), doc_pref: 'invoice' } : { doc_pref: 'receipt' }),
+        ...docColumns(kind, wantsInvoice, billing),
       })
       .eq('id', profile!.id);
     if (p.error) return fail(p.error);
@@ -122,6 +123,8 @@ export default function Welcome() {
         <Muted style={{ fontSize: 13 }}>{t('Email: {email}', { email: profile.email })}</Muted>
       </Card>
 
+      <ClientKindCard kind={kind} onKind={setKind} wants={wantsInvoice} onWants={setWantsInvoice} billing={billing} onBilling={setBilling} />
+
       <ConsentCard accepted={accepted} onAccepted={setAccepted} />
 
       <OptionalSection>
@@ -131,8 +134,6 @@ export default function Welcome() {
             <DogCards dogs={dogs} onChange={setDogs} extraOnly />
           </>
         )}
-        <Step title={t('Fattura')} />
-        <InvoiceCard wants={wantsInvoice} onWants={setWantsInvoice} billing={billing} onBilling={setBilling} />
         <SocialCheck value={socialOk} onChange={setSocialOk} />
       </OptionalSection>
 

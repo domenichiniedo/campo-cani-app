@@ -69,6 +69,12 @@ export type Profile = {
   billing_zip: string;
   billing_city: string;
   billing_province: string;
+  /** Persona (solo scontrino) o associazione/società (scontrino o fattura, con i dati qui sotto). */
+  client_kind: 'persona' | 'societa';
+  company_name: string;
+  vat_number: string;
+  sdi_code: string;
+  pec: string;
   /** Foto nello spazio "foto", messa dal cliente; null = iniziali. */
   photo_path: string | null;
   /** Consenso facoltativo a pubblicare foto e video sui social del centro, con la data dell'ultima scelta. */

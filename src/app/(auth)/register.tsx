@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { EmailCode } from '@/components/email-code';
 import { GoogleButton } from '@/components/google-button';
 import { PhotoPicker, saveSignupPhoto } from '@/components/photo';
-import { ChipField, chipOk, cleanChip, ConsentCard, DogCards, InvoiceCard, newDog, OptionalSection, SocialCheck, type DogDraft } from '@/components/signup-parts';
+import { ChipField, chipOk, ClientKindCard, cleanChip, ConsentCard, DogCards, newDog, OptionalSection, SocialCheck, type DogDraft } from '@/components/signup-parts';
 import { Button, Card, Chips, ErrorText, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
-import { billingColumns, billingError, emptyBilling, type BillingDraft } from '@/lib/billing';
+import { docColumns, docError, emptyBilling, type BillingDraft, type ClientKind } from '@/lib/billing';
 import { isDayKey } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import type { Picked } from '@/lib/images';
@@ -26,6 +26,8 @@ export default function Register() {
   const [billing, setBilling] = useState<BillingDraft>(emptyBilling);
   // Codice fiscale e indirizzo servono solo a chi vuole la fattura.
   const [wantsInvoice, setWantsInvoice] = useState(false);
+  // Persona (solo scontrino) o associazione/società (scontrino o fattura).
+  const [kind, setKind] = useState<ClientKind>('persona');
   const [dogs, setDogs] = useState<DogDraft[]>([newDog()]);
   // Regolamento e privacy in un solo consenso.
   const [accepted, setAccepted] = useState(false);
@@ -40,7 +42,7 @@ export default function Register() {
     setErr('');
     const cleanDogs = dogs.filter((d) => d.name.trim());
     if (!first.trim() || !last.trim() || !phone.trim()) return setErr(t('Inserisci nome, cognome e telefono.'));
-    const bErr = asTrainer || !wantsInvoice ? null : billingError(billing);
+    const bErr = asTrainer ? null : docError(kind, wantsInvoice, billing);
     if (bErr) return setErr(bErr);
     if (!asTrainer && !cleanDogs.length) return setErr(t('Scrivi il nome del tuo cane.'));
     if (cleanDogs.some((d) => !chipOk(d.chip))) return setErr(t('Il microchip ha 15 cifre: controllalo o lascialo vuoto.'));
@@ -65,7 +67,7 @@ export default function Register() {
           first_name: first.trim(),
           last_name: last.trim(),
           phone: phone.trim(),
-          ...(asTrainer ? {} : wantsInvoice ? { ...billingColumns(billing), doc_pref: 'invoice' } : { doc_pref: 'receipt' }),
+          ...(asTrainer ? {} : docColumns(kind, wantsInvoice, billing)),
           rules_ver: settings.rules_ver,
           privacy_ver: settings.privacy_ver,
           social_consent: !asTrainer && socialOk,
@@ -143,6 +145,10 @@ export default function Register() {
         )}
       </Card>
 
+      {!asTrainer && (
+        <ClientKindCard kind={kind} onKind={setKind} wants={wantsInvoice} onWants={setWantsInvoice} billing={billing} onBilling={setBilling} />
+      )}
+
       <ConsentCard accepted={accepted} onAccepted={setAccepted} />
 
       <OptionalSection>
@@ -159,8 +165,6 @@ export default function Register() {
           <>
             <Step title={dogs.length > 1 ? t('I tuoi cani') : t('Il tuo cane')} />
             <DogCards dogs={dogs} onChange={setDogs} extraOnly />
-            <Step title={t('Fattura')} />
-            <InvoiceCard wants={wantsInvoice} onWants={setWantsInvoice} billing={billing} onBilling={setBilling} />
             <SocialCheck value={socialOk} onChange={setSocialOk} />
           </>
         )}
