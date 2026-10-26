@@ -1,9 +1,9 @@
 import { supabase } from '@/lib/supabase';
-import type { Booking, GroupClass } from '@/lib/types';
+import type { Booking, Dog, GroupClass } from '@/lib/types';
 
 export type OwnerBooking = Booking & {
   profiles: { first_name: string; last_name: string; phone: string; photo_path: string | null } | null;
-  dogs: { name: string; breed: string; blocked: boolean } | null;
+  dogs: (Pick<Dog, 'name' | 'breed' | 'blocked'> & Partial<Pick<Dog, 'sex' | 'neutered' | 'goals' | 'chip'>>) | null;
   lesson_types: { label: string } | null;
   fields: { name: string } | null;
   trainers: { name: string } | null;
@@ -14,7 +14,7 @@ export type OwnerBooking = Booking & {
 export async function ownerBookings(from: string, to: string) {
   const { data, error } = await supabase
     .from('bookings')
-    .select('*, profiles(first_name, last_name, phone, photo_path), dogs(name, breed, blocked), lesson_types(label), fields(name), trainers(name), penalties(id)')
+    .select('*, profiles(first_name, last_name, phone, photo_path), dogs(*), lesson_types(label), fields(name), trainers(name), penalties(id)')
     .eq('status', 'active')
     .gte('day', from)
     .lte('day', to)

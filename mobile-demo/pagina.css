@@ -1,0 +1,9 @@
+/* Pagine pubbliche per Google Play e App Store: informativa privacy e cancellazione dell'account. */
+:root { --bg: #eef1ec; --surface: #ffffff; --text: #16211b; --muted: #5a675f; --line: #d7ddd4; --accent: #1d6b46; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0b110e; --surface: #141d18; --text: #e7eee9; --muted: #9aa9a0; --line: #26332c; --accent: #4fae7e; color-scheme: dark } }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 system-ui, -apple-system, Roboto, sans-serif; }
+main { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 26px; margin: 8px 0 4px; } h2 { font-size: 19px; margin: 28px 0 6px; }
+.muted { color: var(--muted); font-size: 14px; } a { color: var(--accent); }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 4px 16px; }
+img { width: 56px; height: 56px; border-radius: 12px; }

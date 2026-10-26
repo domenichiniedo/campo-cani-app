@@ -9,6 +9,8 @@ export type Settings = {
   close_min: number;
   cancel_hours: number;
   penalty_limit: number;
+  /** Penalità automatica se nessuno fa entrare il cane in campo (da 0023_cani.sql). */
+  noshow_penalty?: boolean;
   online_payments: boolean;
   /** Chi si iscrive conferma il cellulare con un codice SMS (serve un servizio SMS su Supabase). */
   sms_check: boolean;
@@ -69,6 +71,12 @@ export type Profile = {
   billing_zip: string;
   billing_city: string;
   billing_province: string;
+  /** Persona (solo scontrino) o associazione/società (scontrino o fattura, con i dati qui sotto). */
+  client_kind: 'persona' | 'societa';
+  company_name: string;
+  vat_number: string;
+  sdi_code: string;
+  pec: string;
   /** Foto nello spazio "foto", messa dal cliente; null = iniziali. */
   photo_path: string | null;
   /** Consenso facoltativo a pubblicare foto e video sui social del centro, con la data dell'ultima scelta. */
@@ -84,6 +92,14 @@ export type Dog = {
   name: string;
   breed: string;
   birth: string | null;
+  /** Numero di microchip, 15 cifre; vuoto se non c'è. */
+  chip: string;
+  /** La nota del cliente: obiettivi e situazione attuale del cane. */
+  goals: string;
+  /** M o F; vuoto se il cliente non l'ha detto. */
+  sex: '' | 'M' | 'F';
+  /** Sterilizzato; null se non detto. */
+  neutered: boolean | null;
   blocked: boolean;
   archived: boolean;
 };

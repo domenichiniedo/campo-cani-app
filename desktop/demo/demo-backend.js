@@ -77,7 +77,7 @@
       var look = looks[db.profiles.length % looks.length], photo = role === 'client' ? 'cliente-' + id + '-demo.svg' : null;
       if (photo) db.files['foto/' + photo] = avatar(look[0], look[1], look[2]);
       db.profiles.push({ id: id, first_name: first, last_name: last, phone: phone, email: email, role: role, photo_path: photo,
-        tax_code: cf || '', billing_street: cf ? 'Via Saragozza 15' : '', billing_zip: cf ? '40123' : '', billing_city: cf ? 'Bologna' : '', billing_province: cf ? 'BO' : '', doc_pref: id === 'c3' || (role === 'client' && !cf) ? 'receipt' : 'invoice', phone_ok: true, social_consent: role === 'client' && id !== 'c2' && db.profiles.length % 3 !== 0, social_consent_at: null, rules_ver: 1, privacy_ver: 1, rules_accepted_at: nowIso(), privacy_accepted_at: nowIso(), created_at: addDays(t, -40).toISOString() });
+        tax_code: cf || '', billing_street: cf ? 'Via Saragozza 15' : '', billing_zip: cf ? '40123' : '', billing_city: cf ? 'Bologna' : '', billing_province: cf ? 'BO' : '', client_kind: cf ? 'societa' : 'persona', company_name: cf ? 'Asd ' + last + ' Cinofili' : '', vat_number: '', sdi_code: '', pec: '', doc_pref: id === 'c3' || !cf ? 'receipt' : 'invoice', phone_ok: true, social_consent: role === 'client' && id !== 'c2' && db.profiles.length % 3 !== 0, social_consent_at: null, rules_ver: 1, privacy_ver: 1, rules_accepted_at: nowIso(), privacy_accepted_at: nowIso(), created_at: addDays(t, -40).toISOString() });
       db.passwords[email] = 'demo1234';
       var me0 = db.profiles[db.profiles.length - 1];
       if (me0.social_consent) me0.social_consent_at = me0.created_at;
@@ -89,7 +89,7 @@
     person('c1', 'Giulia', 'Rossi', '347 111 2233', 'cliente@demo.it', 'client', 'RSSGLI90C41A944Q');
     person('c2', 'Marco', 'Bianchi', '349 555 7788', 'marco@demo.it', 'client', 'BNCMRC85M12A944S');
     person('c3', 'Sara', 'Verdi', '338 222 4466', 'sara@demo.it', 'client', 'VRDSRA92E50A944C');
-    function dog(id, owner, name, breed, birth) { db.dogs.push({ id: id, owner_id: owner, name: name, breed: breed, birth: birth, blocked: false, archived: false }); }
+    function dog(id, owner, name, breed, birth) { db.dogs.push({ id: id, owner_id: owner, name: name, breed: breed, birth: birth, chip: '', goals: '', sex: '', neutered: null, blocked: false, archived: false }); }
     dog('d1', 'c1', 'Argo', 'Pastore tedesco', '2022-04-10');
     dog('d2', 'c1', 'Luna', 'Malinois', '2025-06-02');
     dog('d3', 'c2', 'Kira', 'Pastore belga', '2021-09-15');
@@ -387,7 +387,7 @@
     }
   }
   function defaults(table, row, who) {
-    var base = { dogs: { blocked: false, archived: false, breed: '', birth: null }, penalties: { created_at: nowIso() }, bookings: { created_at: nowIso() },
+    var base = { dogs: { blocked: false, archived: false, breed: '', birth: null, chip: '', goals: '', sex: '', neutered: null }, penalties: { created_at: nowIso() }, bookings: { created_at: nowIso() },
       fields: { address: '', sort: 0, active: true }, eval_forms: { sort: 0, active: true }, packages: { lesson_type: null, valid_days: null, sort: 0, active: true }, trainers: { lessons: [], sort: 0, active: true } }[table] || {};
     var r = Object.assign({}, base, row);
     if (pk(table)[0] === 'id' && r.id === undefined) r.id = uid();
@@ -622,6 +622,8 @@
 
   function rpc(name, headers, a) {
     if (name === 'client_count') return json(200, db.profiles.filter(function (p) { return p.role === 'client'; }).length);
+    // Nella demo le assenze non si contano da sole: i dati di esempio restano come sono.
+    if (name === 'penalize_no_shows') return json(200, 0);
     var who = me(headers);
     if (!who) return fail('Accesso richiesto', 401);
     var s = db.settings[0];
@@ -931,13 +933,13 @@
       if ((body.password || '').length < 8) return json(422, { code: 'weak_password', msg: 'Password should be at least 8 characters', message: 'Password should be at least 8 characters' });
       var d = body.data || {};
       var np = { id: uid(), first_name: d.first_name || '', last_name: d.last_name || '', phone: d.phone || '', email: email, role: 'client',
-        tax_code: d.tax_code || '', billing_street: d.billing_street || '', billing_zip: d.billing_zip || '', billing_city: d.billing_city || '', billing_province: d.billing_province || '', doc_pref: d.doc_pref === 'receipt' ? 'receipt' : 'invoice', phone_ok: !db.settings[0].sms_check, social_consent: !!d.social_consent, social_consent_at: d.social_consent ? nowIso() : null, rules_ver: d.rules_ver, privacy_ver: d.privacy_ver, rules_accepted_at: nowIso(), privacy_accepted_at: nowIso(), created_at: nowIso() };
+        tax_code: d.tax_code || '', billing_street: d.billing_street || '', billing_zip: d.billing_zip || '', billing_city: d.billing_city || '', billing_province: d.billing_province || '', client_kind: d.client_kind === 'societa' ? 'societa' : 'persona', company_name: d.company_name || '', vat_number: d.vat_number || '', sdi_code: d.sdi_code || '', pec: d.pec || '', doc_pref: d.client_kind === 'societa' && d.doc_pref === 'invoice' ? 'invoice' : 'receipt', phone_ok: !db.settings[0].sms_check, social_consent: !!d.social_consent, social_consent_at: d.social_consent ? nowIso() : null, rules_ver: d.rules_ver, privacy_ver: d.privacy_ver, rules_accepted_at: nowIso(), privacy_accepted_at: nowIso(), created_at: nowIso() };
       db.profiles.push(np);
       db.passwords[email] = body.password;
       // Come nel database vero: chi si iscrive con l'email di un trainer diventa trainer.
       db.trainer_accounts.forEach(function (x) { if (x.email === email && !x.user_id) { x.user_id = np.id; np.role = 'trainer'; } });
       if (db.owner_emails.some(function (x) { return x.email === email; })) np.role = 'owner';
-      (d.dogs || []).forEach(function (g) { db.dogs.push({ id: uid(), owner_id: np.id, name: g.name, breed: g.breed || '', birth: g.birth || null, blocked: false, archived: false }); });
+      (d.dogs || []).forEach(function (g) { db.dogs.push({ id: uid(), owner_id: np.id, name: g.name, breed: g.breed || '', birth: g.birth || null, chip: g.chip || '', goals: g.goals || '', sex: g.sex || '', neutered: g.neutered === true || g.neutered === false ? g.neutered : null, blocked: false, archived: false }); });
       save();
       return json(200, sessionFor(np));
     }

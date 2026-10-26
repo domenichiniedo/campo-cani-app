@@ -297,6 +297,25 @@ Deno.test('dati per la fattura del centro', () => {
   uguale(errore({ ...buoni, codice_sdi: 'ABC' }), 'Il codice destinatario ha 7 lettere o cifre.');
   uguale(errore({ ...buoni, pec: 'non-una-pec' }), 'La PEC non è un indirizzo email valido.');
   uguale(errore(undefined as unknown as object), 'Scrivi nome e cognome o la ragione sociale.');
+  // Registrazione dall'app: una persona dà nome e cognome, telefono e codice fiscale; un'associazione anche la sede.
+  const nuovo = (v: object) => {
+    const x = leggiFatturazione(v, true);
+    return 'errore' in x ? x.errore : '';
+  };
+  const persona = { tipo: 'persona', ragione_sociale: 'Mario Rossi', telefono: '333 1234567', codice_fiscale: 'rssmra80a01h501u' };
+  uguale(nuovo(persona), '');
+  uguale(nuovo({ ...persona, ragione_sociale: 'Mario' }), 'Scrivi nome e cognome.');
+  uguale(nuovo({ ...persona, telefono: '' }), 'Scrivi il numero di telefono.');
+  uguale(nuovo({ ...persona, codice_fiscale: '' }), 'Scrivi il codice fiscale.');
+  uguale(nuovo({ ...persona, codice_fiscale: '01234567897' }), 'Il codice fiscale di una persona ha 16 lettere e cifre.');
+  const asd = { ...buoni, tipo: 'associazione', telefono: '051 123456', codice_fiscale: '01234567897' };
+  uguale(nuovo(asd), '');
+  uguale(nuovo({ ...asd, indirizzo: '' }), 'Scrivi la sede: via e numero, CAP, comune e provincia.');
+  uguale(nuovo({ ...asd, codice_fiscale: '' }), 'Scrivi il codice fiscale.');
+  // Le app vecchie non mandano il tipo: basta il nome, come prima.
+  uguale(nuovo({ ragione_sociale: 'Mario Rossi' }), '');
+  // Nel pannello si correggono anche i centri di prima, senza telefono.
+  uguale('dati' in leggiFatturazione({ ...persona, telefono: '' }), true);
 });
 
 Deno.test('invito: su Android apre l\'app sul centro, se no Google Play con il codice', () => {

@@ -13,7 +13,7 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
    nel progetto apri **SQL Editor**, incolla tutto il file e premi **Run**. Crea in un colpo tabelle, regole di accesso,
    lezioni di partenza e spazi per logo e foto, e segna la tua email come quella del proprietario.
    `setup.sql` è solo per un progetto **nuovo**. Se il database esiste già, esegui solo le migrazioni nuove di
-   `supabase/migrations`, una volta ciascuna e in ordine (l'ultima è `0022_voto_lezioni.sql`).
+   `supabase/migrations`, una volta ciascuna e in ordine (l'ultima è `0024_clienti_societa.sql`).
 3. In **Project Settings → API Keys** copia l'URL del progetto e la **Publishable key** (inizia con `sb_publishable_`).
    Non usare mai la Secret key nell'app.
 4. Copia il file `.env.example` in `.env.local` e incolla i due valori:
@@ -78,8 +78,9 @@ centro, e gli stessi client valgono per tutti i centri. Si prepara **una volta s
      e un **client secret**.
    - **Android**, nome pacchetto `it.campocani.app`, impronta SHA-1
      `02:B3:E4:2E:B2:A9:A1:47:C6:3A:F3:4F:42:8B:0E:6A:EB:8A:9B:02` (è la firma di `mobile-demo/demo-debug.keystore`).
-   - **Android** di nuovo, uguale ma con pacchetto `it.campocani.provavera` (le prove con database), e un altro con
-     `it.campocani.provagenerale` (la prova generale).
+   - **Android** di nuovo, uguale ma con pacchetto `it.campocani.provavera` (le prove con database), un altro con
+     `it.campocani.provagenerale` (la prova generale) e uno con `it.campocani.gestore` (il pannello K9 Gestore sul
+     telefono).
    - **App desktop**, "K9 Manager computer": ti dà un altro **ID client** e un **client secret** (per Google quello delle
      app desktop non è segreto: può stare nel programma).
 3. **GitHub → Settings → Secrets and variables → Actions → Variables**: `GOOGLE_WEB_CLIENT_ID` (ID del client web),
@@ -167,17 +168,25 @@ Nella Play Console, per ogni app (demo `it.campocani.demo`, prova `it.campocani.
 1. Crea l'app e attiva la **firma delle app di Google Play**. Carica l'AAB in un test interno o chiuso.
 2. Con un account sviluppatore personale nuovo, Google chiede un **test chiuso con almeno 12 tester per 14 giorni**
    prima della produzione.
-3. **Norme sulla privacy**: un indirizzo web con l'informativa sui dati (chi è il titolare, quali dati, per cosa).
+3. **Norme sulla privacy**: un indirizzo web con l'informativa sui dati. C'è già, nel sito della demo web:
+   `https://domenichiniedo.github.io/campo-cani-app/privacy.html` (il file è `mobile-demo/privacy.html`: prima
+   sostituisci le parti tra [quadre] con nome, indirizzo ed email tuoi). Il sito deve essere pubblico.
 4. **Sicurezza dei dati**: l'app raccoglie nome, email, telefono, dati dei cani, prenotazioni e, se chiesti, dati di
    fatturazione. Servono per far funzionare l'app, non sono condivisi per pubblicità, viaggiano cifrati e l'utente
    può chiederne la cancellazione.
-5. **Cancellazione dell'account**: il cliente si cancella da solo dall'app (Profilo → Cancella il mio account). Per
-   la scheda di Google Play serve anche un indirizzo web dove chiedere la cancellazione.
+5. **Cancellazione dell'account**: clienti e trainer si cancellano da soli dall'app (Profilo → Cancella il mio
+   account). Per la scheda di Google Play serve anche un indirizzo web dove chiedere la cancellazione:
+   `https://domenichiniedo.github.io/campo-cani-app/cancella-account.html` (`mobile-demo/cancella-account.html`).
 6. **Accesso all'app**: la prova ha bisogno di un account per entrare. Dai ai revisori di Google un utente di prova,
    per esempio un cliente creato apposta. La demo non ne ha bisogno, perché si entra con il bottone Demo.
 7. Classificazione dei contenuti, pubblico di destinazione (adulti), nessuna pubblicità, categoria "Sport" o
    "Produttività".
 8. Scheda dello store: icona 512×512, immagine in evidenza 1024×500, almeno 2 schermate del telefono.
+
+Nell'app Android (e in quella per iPhone) il proprietario vede piano e conti, ma li paga, cambia piano o disdice dal
+programma per computer: Google Play e App Store non vogliono che un servizio digitale si paghi dentro l'app senza i
+loro sistemi di pagamento. Le lezioni dei clienti invece si pagano con Nexi anche nell'app: sono servizi al campo.
+Pubblica sugli store solo l'app vera (`it.campocani.app`): demo e prova restano negli APK delle Releases.
 
 ### Con EAS
 
@@ -504,14 +513,18 @@ link che nell'app non funziona. Con Gmail: attiva la verifica in due passaggi, c
 <https://myaccount.google.com/apppasswords> e salva nei secrets del repository `SMTP_USER` (il tuo indirizzo Gmail) e
 `SMTP_PASS` (la password per le app, 16 lettere). Per un altro servizio aggiungi `SMTP_HOST` (e `SMTP_PORT` se non è 587).
 Poi rilancia la prova generale: mette l'SMTP nel gestore e nei centri già pronti. Da allora chi si iscrive con email e
-password conferma l'email con un codice. Dopo ogni PR unita la
-prova generale si aggiorna da sola. Il gestore vero, per i centri veri, si accende come dice `gestore/README.md`.
+password conferma l'email con un codice. Dopo aver unito una PR lancia **Actions → Aggiorna le app → Run workflow**:
+aggiorna anche la prova generale. Nessuna action parte da sola a ogni commit, tranne i due controlli veloci delle PR
+(lingue e `setup.sql`). Il gestore vero, per i centri veri, si accende come dice `gestore/README.md`.
 
 ## Cosa fa l'app
 
 **Cliente**
-- Iscrizione con dati, codice fiscale (o partita IVA) e indirizzo di fatturazione, uno o più cani e consenso a
-  regolamento e privacy. Il codice fiscale viene controllato. Chi era iscritto prima completa i dati al primo accesso.
+- Iscrizione con un modulo corto: nome, cognome, telefono, email, password, nome del cane e un solo consenso a
+  regolamento e privacy. Del cane anche sesso, sterilizzazione, microchip (consigliato) e una nota su obiettivi e
+  situazione attuale. Il cliente sceglie se è una persona (solo scontrino) o un'associazione/società (scontrino o
+  fattura, con i dati della società). Foto, altri cani e consenso social sono facoltativi. Passo passo:
+  [docs/MANUALE.md](docs/MANUALE.md).
 - Prenota: cane, lezione e opzione (IGP: Pista, Obbedienza, Attacco; Educazione base: Cucciolo o Adulto), campo (se ce
   n'è più di uno), giorno, ora. Vede solo le mezz'ore aperte e non già occupate su quel campo.
 - Le mie lezioni, con disdetta fino al limite di ore deciso dal campo.
@@ -589,4 +602,7 @@ src/app/(owner)     schede del proprietario
 src/app/terms.tsx   nuovo consenso quando cambiano le regole
 src/lib             collegamento a Supabase, sessione, date, colori
 supabase/migrations database e regole di accesso
+docs                manuale d'uso, manuale tecnico e studio dei costi
 ```
+
+Manuali: [d'uso](docs/MANUALE.md), [tecnico](docs/MANUALE-TECNICO.md), [studio dei costi](docs/COSTI.md).

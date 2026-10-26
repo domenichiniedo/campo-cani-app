@@ -207,6 +207,35 @@ await api('POST', `/projects/${ref}/secrets`, [
     : []),
 ]);
 
+// Il progetto del gestore: "Password dimenticata?" del pannello manda un codice (serve l'SMTP: senza, Supabase manda
+// solo un link che il pannello non apre) e l'accesso al pannello con Google, con gli stessi client dell'app.
+if (smtp || google) {
+  step('Accesso al pannello: email con il codice e Google…');
+  await api('PATCH', `/projects/${ref}/config/auth`, {
+    ...(smtp
+      ? {
+          smtp_host: smtp.host,
+          smtp_port: smtp.port,
+          smtp_user: smtp.user,
+          smtp_pass: smtp.pass,
+          smtp_admin_email: smtp.from,
+          smtp_sender_name: 'K9 Gestore',
+          mailer_subjects_recovery: 'Il codice per la nuova password del pannello',
+          mailer_templates_recovery_content: '<h2>K9 Gestore</h2>\n<p>Il codice per la nuova password è: <strong>{{ .Token }}</strong></p>',
+        }
+      : {}),
+    ...(google
+      ? {
+          external_google_enabled: true,
+          external_google_client_id: google.id,
+          external_google_secret: google.segreto,
+          external_google_additional_client_ids: google.altri,
+        }
+      : {}),
+  });
+}
+if (!smtp) step('Niente "Password dimenticata?" nel pannello: mancano i secret SMTP_USER e SMTP_PASS.');
+
 // Ai centri già pronti l'SMTP e le email con il codice, come li prepara il gestore (passi.ts, passo database).
 if (smtp) {
   for (const c of await query('select progetto, campo from public.centri where progetto is not null;')) {
@@ -292,6 +321,6 @@ riepilogo(`## Gestore della prova generale
 
 - Progetto Supabase: **${nome}** (\`${ref}\`)
 - Indirizzo delle funzioni: \`${gestoreUrl}\`
-${admin ? `- Pannello K9 Gestore: entri con **${admin}**${password ? ` e la password **\`${password}\`** (cambiala quando vuoi da Supabase → Authentication → Users)` : ' e la password che hai già'}` : ''}
+${admin ? `- Pannello K9 Gestore: entri con **${admin}**${password ? ` e la password **\`${password}\`** (cambiala quando vuoi dal pannello, in "Il tuo accesso"; se la perdi usa "Password dimenticata?")` : ' e la password che hai già'}` : ''}
 `);
 console.log(`\nGestore pronto: ${gestoreUrl}`);

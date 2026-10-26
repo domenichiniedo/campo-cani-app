@@ -87,7 +87,7 @@ export function RegisterCentre({ onBack }: { onBack: () => void }) {
   async function submit() {
     setErr('');
     const i = normalizeIban(iban);
-    const fErr = centreBillingError(fattura);
+    const fErr = centreBillingError(fattura, true);
     if (fErr) return setErr(fErr);
     if (!i) return setErr(t("Scrivi l'IBAN da cui paghi il piano."));
     if (!isValidIban(i)) return setErr(t('IBAN non valido.'));
@@ -158,7 +158,7 @@ export function RegisterCentre({ onBack }: { onBack: () => void }) {
         </>
       )}
       <Muted style={{ fontSize: 13 }}>{t('Puoi cambiare piano e come paghi quando vuoi dalle Impostazioni.')}</Muted>
-      <Body bold>{t('Dati per la fattura')}</Body>
+      <Body bold>{t('Chi apre il centro')}</Body>
       <Muted style={{ fontSize: 13 }}>{t('Servono per la fattura del canone e delle prenotazioni.')}</Muted>
       <CentreBillingFields value={fattura} onChange={setFattura} />
       <Field

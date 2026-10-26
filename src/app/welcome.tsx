@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 
-import { ConsentCard, DogCards, InvoiceCard, newDog, type DogDraft } from '@/components/signup-parts';
+import { ChipField, chipOk, ClientKindCard, DogFacts, dogColumns, GoalsField, ConsentCard, DogCards, newDog, OptionalSection, SocialCheck, type DogDraft } from '@/components/signup-parts';
 import { Body, Button, Card, ErrorText, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
-import { billingColumns, billingError, emptyBilling, type BillingDraft } from '@/lib/billing';
+import { docColumns, docError, emptyBilling, type BillingDraft, type ClientKind } from '@/lib/billing';
 import { isDayKey } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { usePlan } from '@/lib/plans';
@@ -19,7 +19,7 @@ function googleName(meta: Record<string, unknown> | undefined) {
 
 /**
  * Chi entra la prima volta con Google ha l'account ma non è passato dal modulo di iscrizione:
- * qui mette telefono, cani, fattura e consensi. Poi, se il centro lo chiede, conferma il cellulare via SMS.
+ * qui mette telefono, il nome del cane e il consenso; fattura, altri cani e social sono facoltativi. Poi, se il centro lo chiede, conferma il cellulare via SMS.
  * L'email non va confermata: Google l'ha già verificata.
  */
 export default function Welcome() {
@@ -31,11 +31,11 @@ export default function Welcome() {
   const [phone, setPhone] = useState(profile?.phone ?? '');
   const [billing, setBilling] = useState<BillingDraft>(emptyBilling);
   const [wantsInvoice, setWantsInvoice] = useState(false);
+  const [kind, setKind] = useState<ClientKind>('persona');
   // Chi ha già dei cani (messi dal centro) non deve riscriverli.
   const [hasDogs, setHasDogs] = useState<boolean | null>(null);
   const [dogs, setDogs] = useState<DogDraft[]>([newDog()]);
-  const [rulesOk, setRulesOk] = useState(false);
-  const [privacyOk, setPrivacyOk] = useState(false);
+  const [accepted, setAccepted] = useState(false);
   const [socialOk, setSocialOk] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -56,11 +56,12 @@ export default function Welcome() {
     setErr('');
     const cleanDogs = dogs.filter((d) => d.name.trim());
     if (!first.trim() || !last.trim() || !phone.trim()) return setErr(t('Inserisci nome, cognome e telefono.'));
-    const bErr = wantsInvoice ? billingError(billing) : null;
+    const bErr = docError(kind, wantsInvoice, billing);
     if (bErr) return setErr(bErr);
-    if (askDogs && !cleanDogs.length) return setErr(t('Inserisci almeno un cane.'));
+    if (askDogs && !cleanDogs.length) return setErr(t('Scrivi il nome del tuo cane.'));
+    if (cleanDogs.some((d) => !chipOk(d.chip))) return setErr(t('Il microchip ha 15 cifre: controllalo o lascialo vuoto.'));
     if (cleanDogs.some((d) => d.birth && !isDayKey(d.birth))) return setErr(t('Scrivi la data di nascita come AAAA-MM-GG, per esempio 2024-03-15.'));
-    if (!rulesOk || !privacyOk) return setErr(t('Per iscriverti devi accettare il regolamento e l’informativa privacy.'));
+    if (!accepted) return setErr(t('Per iscriverti devi accettare il regolamento e l’informativa privacy.'));
     if (!settings) return setErr(t('Impossibile leggere il regolamento. Controlla la connessione.'));
 
     setBusy(true);
@@ -83,14 +84,14 @@ export default function Welcome() {
         last_name: last.trim(),
         phone: phone.trim(),
         social_consent: socialOk,
-        ...(wantsInvoice ? { ...billingColumns(billing), doc_pref: 'invoice' } : { doc_pref: 'receipt' }),
+        ...docColumns(kind, wantsInvoice, billing),
       })
       .eq('id', profile!.id);
     if (p.error) return fail(p.error);
     if (askDogs) {
       const d = await supabase
         .from('dogs')
-        .insert(cleanDogs.map((x) => ({ owner_id: profile!.id, name: x.name.trim(), breed: x.breed.trim(), birth: x.birth || null })));
+        .insert(cleanDogs.map((x) => ({ owner_id: profile!.id, ...dogColumns(x) })));
       if (d.error) return fail(d.error);
     }
     // Per ultimi i consensi: da qui in poi l'iscrizione è completa e il layout porta avanti.
@@ -100,33 +101,43 @@ export default function Welcome() {
     setBusy(false);
   }
 
+  const setDogName = (n: string) => setDogs(dogs.map((d, i) => (i === 0 ? { ...d, name: n } : d)));
+
   return (
     <Screen>
       <H1>{t('Benvenuto!')}</H1>
       <Body>{t('Sei entrato con Google. Per prenotare il campo mancano pochi dati.')}</Body>
 
-      <Step n="1" title={t('I tuoi dati')} />
       <Card>
         <Row>
           <Field label={t('Nome')} value={first} onChangeText={setFirst} autoComplete="given-name" style={{ flex: 1, minWidth: 140 }} />
           <Field label={t('Cognome')} value={last} onChangeText={setLast} autoComplete="family-name" style={{ flex: 1, minWidth: 140 }} />
         </Row>
         <Field label={t('Telefono')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" />
+        {askDogs && (
+          <>
+            <Field label={t('Nome del cane')} value={dogs[0].name} onChangeText={setDogName} />
+            <DogFacts sex={dogs[0].sex} neutered={dogs[0].neutered} onChange={(p) => setDogs(dogs.map((d, i) => (i === 0 ? { ...d, ...p } : d)))} />
+            <ChipField value={dogs[0].chip} onChange={(chip) => setDogs(dogs.map((d, i) => (i === 0 ? { ...d, chip } : d)))} />
+            <GoalsField value={dogs[0].goals} onChange={(goals) => setDogs(dogs.map((d, i) => (i === 0 ? { ...d, goals } : d)))} />
+          </>
+        )}
         <Muted style={{ fontSize: 13 }}>{t('Email: {email}', { email: profile.email })}</Muted>
       </Card>
 
-      <Step n="2" title={t('Fattura')} />
-      <InvoiceCard wants={wantsInvoice} onWants={setWantsInvoice} billing={billing} onBilling={setBilling} />
+      <ClientKindCard kind={kind} onKind={setKind} wants={wantsInvoice} onWants={setWantsInvoice} billing={billing} onBilling={setBilling} />
 
-      {askDogs && (
-        <>
-          <Step n="3" title={dogs.length > 1 ? t('I tuoi cani') : t('Il tuo cane')} />
-          <DogCards dogs={dogs} onChange={setDogs} />
-        </>
-      )}
+      <ConsentCard accepted={accepted} onAccepted={setAccepted} />
 
-      <Step n={askDogs ? '4' : '3'} title={t('Consensi')} />
-      <ConsentCard rules={rulesOk} onRules={setRulesOk} privacy={privacyOk} onPrivacy={setPrivacyOk} social={socialOk} onSocial={setSocialOk} />
+      <OptionalSection>
+        {askDogs && (
+          <>
+            <Step title={dogs.length > 1 ? t('I tuoi cani') : t('Il tuo cane')} />
+            <DogCards dogs={dogs} onChange={setDogs} extraOnly />
+          </>
+        )}
+        <SocialCheck value={socialOk} onChange={setSocialOk} />
+      </OptionalSection>
 
       <ErrorText>{err}</ErrorText>
       <Button title={t('Completa l’iscrizione')} onPress={submit} loading={busy} disabled={hasDogs === null} />

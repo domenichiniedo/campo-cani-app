@@ -13,6 +13,10 @@ import {
   adminDemo,
   adminKey,
   adminSignedIn,
+  adminChangePassword,
+  adminEmail,
+  adminResetPassword,
+  adminSendReset,
   adminSignIn,
   adminSignOut,
   adminUrl,
@@ -117,6 +121,7 @@ function Login() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [forgot, setForgot] = useState(false);
 
   async function submit() {
     setBusy(true);
@@ -125,6 +130,8 @@ function Login() {
     setBusy(false);
     if (e) setErr(e);
   }
+
+  if (forgot) return <Forgot email={email} onBack={() => setForgot(false)} />;
 
   return (
     <Screen header={false}>
@@ -139,6 +146,7 @@ function Login() {
         <Field label="Password" value={password} onChangeText={setPassword} secureTextEntry onSubmitEditing={submit} />
         <ErrorText>{err}</ErrorText>
         <Button title="Entra" onPress={submit} loading={busy} disabled={!email.includes('@') || !password} />
+        <Button title="Password dimenticata?" kind="ghost" small onPress={() => setForgot(true)} />
       </Card>
       {/* Con Google entra chiunque abbia un account, ma il pannello risponde solo agli AMMINISTRATORI. */}
       {!adminDemo && <GoogleButton client={admin} url={adminUrl} apiKey={adminKey} />}
@@ -146,10 +154,110 @@ function Login() {
   );
 }
 
+/** Password dimenticata: un codice all'email, poi la password nuova. Si entra subito, senza rilanciare action. */
+function Forgot(p: { email: string; onBack: () => void }) {
+  const [email, setEmail] = useState(p.email);
+  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  async function send() {
+    setErr('');
+    setBusy(true);
+    const e = await adminSendReset(email.trim());
+    setBusy(false);
+    if (e) return setErr(e);
+    setSent(true);
+  }
+
+  async function save() {
+    setErr('');
+    setBusy(true);
+    const e = await adminResetPassword(email.trim(), code.trim(), password);
+    setBusy(false);
+    // Se va bene la sessione è già aperta e il pannello passa da solo ai centri.
+    if (e) setErr(e);
+  }
+
+  return (
+    <Screen header={false}>
+      <H1>Nuova password</H1>
+      {!sent ? (
+        <Card>
+          <Muted>{"Scrivi l'email con cui entri nel pannello: ti mandiamo un codice per scegliere una password nuova."}</Muted>
+          <Field label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+          <ErrorText>{err}</ErrorText>
+          <Button title="Mandami il codice" onPress={send} loading={busy} disabled={!email.includes('@')} />
+        </Card>
+      ) : (
+        <Card>
+          <Muted>{`Abbiamo mandato un codice a ${email.trim()}. Scrivilo qui con la password nuova (almeno 8 caratteri).`}</Muted>
+          <Field label="Codice ricevuto" value={code} onChangeText={setCode} keyboardType="number-pad" autoComplete="one-time-code" />
+          <Field label="Password nuova" value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" onSubmitEditing={save} />
+          <ErrorText>{err}</ErrorText>
+          <Button title="Salva ed entra" onPress={save} loading={busy} disabled={!code.trim() || !password} />
+          <Button title="Rimanda il codice" kind="ghost" small onPress={send} disabled={busy} />
+        </Card>
+      )}
+      <Muted style={{ fontSize: 13 }}>
+        Il codice arriva solo se il progetto del gestore manda le email (i secret SMTP_USER e SMTP_PASS di Prova generale). Se non
+        arriva, guarda anche nello spam.
+      </Muted>
+      <Button title="Torna all'accesso" kind="ghost" onPress={p.onBack} />
+    </Screen>
+  );
+}
+
+/** Il tuo accesso al pannello: con che email sei dentro e il cambio della password. */
+function AccountSection() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [again, setAgain] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    adminEmail().then(setEmail);
+  }, []);
+
+  async function save() {
+    setErr('');
+    setMsg('');
+    if (password !== again) return setErr('Le due password non sono uguali.');
+    setBusy(true);
+    const e = await adminChangePassword(password);
+    setBusy(false);
+    if (e) return setErr(e);
+    setPassword('');
+    setAgain('');
+    setMsg('Password cambiata: la prossima volta entri con quella nuova.');
+  }
+
+  return (
+    <>
+      <Card>
+        <Muted>{`Sei dentro come ${email || '…'}.`}</Muted>
+      </Card>
+      <Step title="Cambia la password" />
+      <Card>
+        <Field label="Password nuova (almeno 8 caratteri)" value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
+        <Field label="Ripeti la password nuova" value={again} onChangeText={setAgain} secureTextEntry autoComplete="new-password" onSubmitEditing={save} />
+        <ErrorText>{err}</ErrorText>
+        {!!msg && <Body>{msg}</Body>}
+        <Button title="Salva la password" onPress={save} loading={busy} disabled={!password || !again} />
+      </Card>
+      <Button title="Esci" kind="ghost" onPress={adminSignOut} />
+    </>
+  );
+}
+
 /** Addebiti non ancora pagati: mandati e in attesa, scaduti, o da rifare per un errore. */
 const owed = (charges: Charge[]) => charges.filter((a) => a.stato === 'inviato' || a.stato === 'non_pagato' || (a.stato === 'da_fare' && !!a.errore));
 
-type Section = 'centri' | 'database' | 'statistiche' | 'banca' | 'piani' | 'bonus' | 'app';
+type Section = 'centri' | 'database' | 'statistiche' | 'banca' | 'piani' | 'bonus' | 'app' | 'accesso';
 
 function Dashboard() {
   const c = useColors();
@@ -228,6 +336,7 @@ function Dashboard() {
     { value: 'piani', label: 'Piani e addebiti', icon: '⚙' },
     { value: 'bonus', label: 'Bonus', icon: '★' },
     { value: 'app', label: 'App e versioni', icon: '⇩' },
+    { value: 'accesso', label: 'Il tuo accesso', icon: '⚿' },
   ];
   const title = sections.find((s) => s.value === section)!.label;
 
@@ -310,6 +419,8 @@ function Dashboard() {
       {section === 'bonus' && <BonusSection d={d} onChange={load} />}
 
       {section === 'app' && <VersionsSection />}
+
+      {section === 'accesso' && <AccountSection />}
 
       {section === 'piani' && (
         <>

@@ -10,11 +10,11 @@ import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
-import { PENALTY_REASONS, type Booking, type GroupClass } from '@/lib/types';
+import { PENALTY_REASONS, type Booking, type Dog, type GroupClass } from '@/lib/types';
 
 type Lesson = Booking & {
   profiles: { first_name: string; last_name: string; phone: string; photo_path: string | null } | null;
-  dogs: { name: string; breed: string; blocked: boolean } | null;
+  dogs: (Pick<Dog, 'name' | 'breed' | 'blocked'> & Partial<Pick<Dog, 'sex' | 'neutered' | 'goals' | 'chip'>>) | null;
   lesson_types: { label: string } | null;
   fields: { name: string } | null;
   // Un solo diario per lezione: a seconda del server arriva come oggetto o come lista.
@@ -44,7 +44,7 @@ export default function TrainerLessons() {
     const [{ data, error }, cl] = await Promise.all([
       supabase
         .from('bookings')
-        .select('*, profiles(first_name, last_name, phone, photo_path), dogs(name, breed, blocked), lesson_types(label), fields(name), dog_notes(id), penalties(id, reason)')
+        .select('*, profiles(first_name, last_name, phone, photo_path), dogs(*), lesson_types(label), fields(name), dog_notes(id), penalties(id, reason)')
         .eq('trainer_id', myTrainer.id)
         .eq('status', 'active')
         .eq('day', day)

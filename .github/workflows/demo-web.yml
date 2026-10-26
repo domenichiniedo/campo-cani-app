@@ -10,11 +10,6 @@ name: Demo web per iPhone
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: ['src/**', 'assets/**', 'mobile-demo/**', 'desktop/demo/**', 'app.json', 'package-lock.json', '.github/workflows/demo-web.yml']
-  pull_request:
-    paths: ['mobile-demo/**', 'desktop/demo/**', '.github/workflows/demo-web.yml']
 
 permissions:
   contents: read

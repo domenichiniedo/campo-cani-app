@@ -22,11 +22,20 @@ type HeadBooking = Omit<OwnerBooking, 'trainers' | 'penalties'>;
  */
 export function BookingHead({ b, inClass, showField, badges, children }: { b: HeadBooking; inClass?: boolean; showField?: boolean; badges?: ReactNode; children?: ReactNode }) {
   const c = useColors();
+  // Sesso, sterilizzazione e la nota del cliente su obiettivi e situazione: servono al trainer prima della lezione.
+  const facts = [
+    b.dogs?.sex === 'M' ? t('maschio') : b.dogs?.sex === 'F' ? t('femmina') : '',
+    b.dogs?.neutered === true ? t('sterilizzato') : b.dogs?.neutered === false ? t('non sterilizzato') : '',
+  ].filter(Boolean);
   const dog = (
-    <Body bold>
-      {b.dogs?.name}
-      {b.dogs?.breed ? ` (${b.dogs.breed})` : ''}
-    </Body>
+    <View style={{ gap: 2 }}>
+      <Body bold>
+        {b.dogs?.name}
+        {b.dogs?.breed ? ` (${b.dogs.breed})` : ''}
+        {facts.length ? ` · ${facts.join(', ')}` : ''}
+      </Body>
+      {!!b.dogs?.goals && <Muted style={{ fontSize: 13 }}>{t('Obiettivi: {nota}', { nota: b.dogs.goals })}</Muted>}
+    </View>
   );
   return (
     <>

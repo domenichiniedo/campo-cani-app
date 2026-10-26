@@ -39,7 +39,9 @@ async function fic(path: string, body?: unknown) {
 /** Il documento come lo vuole Fatture in Cloud: prezzo IVA inclusa, già pagato. */
 export function ficDocument(inv: Invoice, vatId: number, paymentAccountId?: number) {
   const code = (inv.buyer_tax_code ?? '').toUpperCase();
-  const isVat = /^[0-9]{11}$/.test(code);
+  // Una società ha la partita IVA a parte (buyer_vat) e il suo codice fiscale; prima c'era solo un codice.
+  const vat = inv.buyer_vat ?? (/^[0-9]{11}$/.test(code) ? code : '');
+  const isVat = !!vat;
   const euros = inv.total_cents / 100;
   return {
     data: {
@@ -48,7 +50,10 @@ export function ficDocument(inv: Invoice, vatId: number, paymentAccountId?: numb
       entity: {
         name: inv.buyer_name,
         type: isVat ? 'company' : 'person',
-        ...(isVat ? { vat_number: code } : { tax_code: code }),
+        ...(isVat ? { vat_number: vat } : {}),
+        ...(code && code !== vat ? { tax_code: code } : {}),
+        ...(inv.buyer_sdi ? { ei_code: inv.buyer_sdi } : {}),
+        ...(inv.buyer_pec ? { certified_email: inv.buyer_pec } : {}),
         address_street: inv.buyer_street,
         address_postal_code: inv.buyer_zip,
         address_city: inv.buyer_city,

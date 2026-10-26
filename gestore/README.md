@@ -51,6 +51,7 @@ al centro con la carta (Nexi) contano nel conto del mese come quelle pagate al c
 | `supabase/migrations/0005_bonus.sql` | i bonus: codici da usare alla registrazione e crediti dei centri, scalati dai conti |
 | `supabase/migrations/0006_fisso_pacchetti.sql` | il prezzo fisso (Base 39 €, Professional 79 €, Pro 149 €), l'1% sui pacchetti, il piano più piccolo dal mese dopo e la disdetta |
 | `supabase/migrations/0007_lezioni.sql` | i bonifici delle lezioni che i clienti pagano dall'app |
+| `supabase/migrations/0008_persona_associazione.sql` | chi apre il centro: persona o associazione, e il suo telefono |
 | `registra-centro` | registrazione dall'app |
 | `centro` | stato di un centro dal codice e prezzi dei piani |
 | `prepara-centri` | crea e aggiorna i database dei centri, un passo alla volta (pg_cron ogni minuto) |
@@ -73,7 +74,7 @@ Tutti i comandi si lanciano **sul tuo computer**, nella cartella del progetto. N
 in chat, nell'app o su GitHub.
 
 1. **Progetto del gestore.** Su supabase.com crea un progetto nuovo, per esempio "K9 Gestore". Nel SQL
-   Editor esegui `gestore/supabase/migrations/0001_centri.sql`, poi `0002_bonifici_piani.sql`, `0003_fatturazione.sql`, `0004_prezzi.sql`, `0005_bonus.sql`, `0006_fisso_pacchetti.sql` e `0007_lezioni.sql`. In Authentication → Users → Add user crea
+   Editor esegui `gestore/supabase/migrations/0001_centri.sql`, poi `0002_bonifici_piani.sql`, `0003_fatturazione.sql`, `0004_prezzi.sql`, `0005_bonus.sql`, `0006_fisso_pacchetti.sql`, `0007_lezioni.sql` e `0008_persona_associazione.sql`. In Authentication → Users → Add user crea
    il tuo utente (email e password): con quello entri nel pannello.
 
 2. **Chiave del server per le licenze.**
@@ -180,11 +181,20 @@ in chat, nell'app o su GitHub.
    del centro.
 
 8. **Il pannello.** Actions → "Pannello del gestore" → Run workflow, con l'indirizzo del passo 7 e la
-   publishable key del progetto gestore. Lo scarichi da Releases → "K9 Gestore".
+   publishable key del progetto gestore. Lo scarichi da Releases → "K9 Gestore": `K9Gestore-Windows.exe`,
+   `K9Gestore-Mac.dmg` e `K9Gestore-Android.apk` (dal telefono: scaricalo e aprilo per installarlo).
+
+   **Password dimenticata**: nella schermata di accesso c'è "Password dimenticata?". Ti arriva un codice per email, lo
+   scrivi con la password nuova ed entri: non serve rilanciare nessuna action. Serve che il progetto del gestore mandi
+   le email: "Prova generale" lo prepara da sola con i secret `SMTP_USER` e `SMTP_PASS`; per un gestore fatto a mano
+   metti l'SMTP in Authentication → Emails → SMTP Settings e, nel modello "Reset password", `{{ .Token }}` al posto del
+   link. Da dentro il pannello la password si cambia in **Il tuo accesso**.
 
    **Entrare con Google** (facoltativo): nel progetto del gestore, in Authentication → Sign In / Providers → Google,
    attivalo con gli stessi client dell'app (ID web e, dopo una virgola, ID desktop; secret del client web), e nelle
    Variables di GitHub metti `GOOGLE_DESKTOP_CLIENT_ID` e `GOOGLE_DESKTOP_SECRET` prima di costruire il pannello.
+   Sul telefono il pannello usa `GOOGLE_WEB_CLIENT_ID` e il client Android con pacchetto `it.campocani.gestore` (README
+   principale, "Accesso con Google"). "Prova generale" accende Google nel progetto del gestore da sola.
    Entra chiunque abbia un account Google, ma il pannello risponde solo alle email in `AMMINISTRATORI`.
 
 9. **I prezzi.** Nel pannello, sezione **Piani e addebiti**: per Base, Professional e Pro il canone al mese, la quota

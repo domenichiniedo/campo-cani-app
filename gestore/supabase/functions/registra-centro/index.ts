@@ -33,8 +33,8 @@ Deno.serve(async (req) => {
   const iban = String(body.iban ?? '').toUpperCase().replace(/\s/g, '');
   if (!iban) return json({ errore: "Scrivi l'IBAN da cui paghi il piano." }, 400);
   if (!ibanValido(iban)) return json({ errore: 'IBAN non valido.' }, 400);
-  // Ragione sociale, partita IVA o codice fiscale, sede e SDI o PEC: per fatturargli canone e prenotazioni.
-  const fattura = leggiFatturazione(body.fattura);
+  // Persona (nome, telefono, codice fiscale) o associazione (tutti i dati): per fatturargli canone e prenotazioni.
+  const fattura = leggiFatturazione(body.fattura, true);
   if ('errore' in fattura) return json({ errore: fattura.errore }, 400);
   // Codice bonus (facoltativo): si controlla prima, così chi lo sbaglia lo corregge prima di registrarsi.
   const bonus = String(body.bonus ?? '').trim().toUpperCase();

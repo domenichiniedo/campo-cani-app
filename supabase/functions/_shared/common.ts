@@ -26,6 +26,10 @@ export type Doc = {
   buyer_zip: string | null;
   buyer_city: string | null;
   buyer_province: string | null;
+  /** Solo per le società: partita IVA, codice destinatario SDI e PEC. */
+  buyer_vat?: string | null;
+  buyer_sdi?: string | null;
+  buyer_pec?: string | null;
   description: string;
   total_cents: number;
   vat_rate: number;

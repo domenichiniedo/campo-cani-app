@@ -73,6 +73,7 @@ export default function OwnerSettings() {
   const [closeAt, setCloseAt] = useState(hm(settings?.close_min ?? 1200));
   const [cancelHours, setCancelHours] = useState(String(settings?.cancel_hours ?? 2));
   const [penaltyLimit, setPenaltyLimit] = useState(String(settings?.penalty_limit ?? 3));
+  const [noShow, setNoShow] = useState(settings?.noshow_penalty ?? true);
   const [rules, setRules] = useState(settings?.rules ?? '');
   const [privacy, setPrivacy] = useState(settings?.privacy ?? '');
   const [types, setTypes] = useState<TypeDraft[]>([]);
@@ -243,6 +244,7 @@ export default function OwnerSettings() {
         close_min: cl,
         cancel_hours: ch,
         penalty_limit: pl,
+        noshow_penalty: noShow,
         rules,
         privacy,
       })
@@ -426,6 +428,10 @@ export default function OwnerSettings() {
               <Field label={t('Disdetta fino a (ore prima)')} value={cancelHours} onChangeText={setCancelHours} keyboardType="number-pad" style={{ flex: 1, minWidth: 140 }} />
               <Field label={t('Sospendi alla penalità n° (0 = mai)')} value={penaltyLimit} onChangeText={setPenaltyLimit} keyboardType="number-pad" style={{ flex: 1, minWidth: 140 }} />
             </Row>
+            <Toggle label={t('Penalità automatica se il cane non entra in campo')} value={noShow} onChange={setNoShow} />
+            <Muted style={{ fontSize: 13 }}>
+              {t('Un\'ora dopo la fine della lezione, se né tu né il trainer avete fatto entrare il cane, il cliente ha la penalità "Assenza senza disdetta". Se è un errore la togli dalla scheda del cliente.')}
+            </Muted>
           </Card>
         </>
       )}

@@ -5,6 +5,8 @@
 //   - programma per Windows: non ha la condivisione, ma copia l'immagine, la salva e apre WhatsApp.
 import { Platform, Share } from 'react-native';
 
+import { t } from '@/lib/i18n';
+
 type Capacitor = { isNativePlatform?: () => boolean; nativePromise: (plugin: string, method: string, options?: object) => Promise<unknown> };
 
 const w = (Platform.OS === 'web' ? globalThis : {}) as { Capacitor?: Capacitor; navigator?: Navigator };
@@ -20,8 +22,8 @@ export const canPrint = Platform.OS === 'web' && !nativeApp && typeof window !==
 export const canCopyImage =
   Platform.OS === 'web' && !nativeApp && typeof ClipboardItem !== 'undefined' && typeof w.navigator?.clipboard?.write === 'function';
 
-/** Si può salvare l'immagine come file (sul telefono si salva dalla condivisione). */
-export const canSaveImage = Platform.OS === 'web' && !nativeApp && typeof document !== 'undefined';
+/** Si può salvare l'immagine come file: nel browser e nel programma con il download, nell'app Android nei Documenti. */
+export const canSaveImage = Platform.OS === 'web' && typeof document !== 'undefined';
 
 const toFile = (blob: Blob, name: string) => new File([blob], name, { type: blob.type || 'image/png' });
 
@@ -83,8 +85,15 @@ export async function copyImage(blob: Blob) {
   await w.navigator!.clipboard.write([new ClipboardItem({ [blob.type || 'image/png']: blob })]);
 }
 
-/** Salva l'immagine nella cartella Download (o dove sceglie chi la salva). */
-export function saveImage(blob: Blob, name: string) {
+/**
+ * Salva l'immagine nella cartella Download (o dove sceglie chi la salva); nell'app Android nella cartella Documenti
+ * del telefono. Torna il messaggio da mostrare, se c'è.
+ */
+export async function saveImage(blob: Blob, name: string): Promise<string | void> {
+  if (capacitor) {
+    await capacitor.nativePromise('Filesystem', 'writeFile', { path: name, data: await base64(blob), directory: 'DOCUMENTS' });
+    return t('Immagine salvata nella cartella Documenti del telefono: {nome}', { nome: name });
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

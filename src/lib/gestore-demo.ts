@@ -62,9 +62,11 @@ function vat(i: number) {
 
 function billing(campo: string, i: number): CentreBilling {
   const sede = SEDI[i];
-  if (!sede) return { ragione_sociale: '', partita_iva: '', codice_fiscale: '', indirizzo: '', cap: '', comune: '', provincia: '', codice_sdi: '', pec: '' };
+  if (!sede) return { tipo: 'persona', telefono: '', ragione_sociale: '', partita_iva: '', codice_fiscale: '', indirizzo: '', cap: '', comune: '', provincia: '', codice_sdi: '', pec: '' };
   const asd = i % 3 === 2;
   return {
+    tipo: 'associazione',
+    telefono: `051 ${String(400000 + i * 1234)}`,
     ragione_sociale: asd ? `Asd ${campo}` : `${campo} Srl`,
     partita_iva: asd ? '' : vat(i),
     codice_fiscale: vat(i),

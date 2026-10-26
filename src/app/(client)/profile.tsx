@@ -1,16 +1,15 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
-import { BillingFields } from '@/components/billing-fields';
 import { PhotoEditor } from '@/components/photo';
+import { ChipField, chipOk, ClientKindCard, DogFacts, dogColumns, dogLine, GoalsField, newDog as emptyDog, type DogDraft } from '@/components/signup-parts';
 import { Badge, Body, Button, Card, Check, ConfirmButton, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
-import { billingColumns, billingError, billingFromProfile } from '@/lib/billing';
+import { billingFromProfile, docColumns, docError, type ClientKind } from '@/lib/billing';
 import { euro, isDayKey, shortDate } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { invoiceTitle, rulesLines, type Dog, type Invoice, type Penalty } from '@/lib/types';
-import { usePlan } from '@/lib/plans';
 
 export default function Profile() {
   const { profile, settings, lessonTypes, refresh } = useSession();
@@ -18,11 +17,13 @@ export default function Profile() {
   const [last, setLast] = useState(profile?.last_name ?? '');
   const [phone, setPhone] = useState(profile?.phone ?? '');
   const [billing, setBilling] = useState(billingFromProfile(profile));
-  const plan = usePlan();
-  const [docPref, setDocPref] = useState(profile?.doc_pref ?? 'invoice');
+  const [kind, setKind] = useState<ClientKind>(profile?.client_kind ?? 'persona');
+  const [wantsInvoice, setWantsInvoice] = useState(profile?.client_kind === 'societa' && profile.doc_pref === 'invoice');
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [penalties, setPenalties] = useState<Penalty[]>([]);
-  const [newDog, setNewDog] = useState({ name: '', breed: '', birth: '' });
+  const [newDog, setNewDog] = useState<DogDraft>(emptyDog);
+  // I dettagli di un cane già iscritto che il cliente sta cambiando, per cane.
+  const [edits, setEdits] = useState<Record<string, DogDraft>>({});
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [deleteErr, setDeleteErr] = useState('');
   const [socialErr, setSocialErr] = useState('');
@@ -62,14 +63,13 @@ export default function Profile() {
 
   async function saveMe() {
     if (!profile) return;
-    // Chi non vuole la fattura può lasciare vuoti codice fiscale e indirizzo; se li scrive devono essere giusti.
-    const blank = !Object.values(billing).some((v) => v.trim());
-    const bErr = docPref === 'receipt' && blank ? null : billingError(billing);
+    // Solo un'associazione o società che vuole la fattura deve dare i suoi dati.
+    const bErr = docError(kind, wantsInvoice, billing);
     if (bErr) return setErr(bErr);
     setErr('');
     const { error } = await supabase
       .from('profiles')
-      .update({ first_name: first.trim(), last_name: last.trim(), phone: phone.trim(), doc_pref: docPref, ...(blank ? {} : billingColumns(billing)) })
+      .update({ first_name: first.trim(), last_name: last.trim(), phone: phone.trim(), ...docColumns(kind, wantsInvoice, billing) })
       .eq('id', profile.id);
     if (error) return setErr(errorText(error));
     setMsg(t('Dati salvati.'));
@@ -79,12 +79,35 @@ export default function Profile() {
   async function addDog() {
     if (!profile || !newDog.name.trim()) return;
     if (newDog.birth && !isDayKey(newDog.birth)) return setErr(t('Scrivi la data di nascita come AAAA-MM-GG.'));
+    if (!chipOk(newDog.chip)) return setErr(t('Il microchip ha 15 cifre: controllalo o lascialo vuoto.'));
     setErr('');
     const { error } = await supabase
       .from('dogs')
-      .insert({ owner_id: profile.id, name: newDog.name.trim(), breed: newDog.breed.trim(), birth: newDog.birth || null });
+      .insert({ owner_id: profile.id, ...dogColumns(newDog) });
     if (error) return setErr(errorText(error));
-    setNewDog({ name: '', breed: '', birth: '' });
+    setNewDog(emptyDog());
+    load();
+  }
+
+  const draftOf = (d: Dog): DogDraft => ({
+    name: d.name,
+    breed: d.breed,
+    birth: d.birth ?? '',
+    chip: d.chip,
+    goals: d.goals,
+    sex: d.sex,
+    neutered: d.neutered === null ? '' : d.neutered ? 'si' : 'no',
+  });
+
+  async function saveDog(id: string) {
+    const x = edits[id];
+    if (!x) return;
+    if (!chipOk(x.chip)) return setErr(t('Il microchip ha 15 cifre: controllalo o lascialo vuoto.'));
+    setErr('');
+    const { chip, goals, sex, neutered } = dogColumns(x);
+    const { error } = await supabase.from('dogs').update({ chip, goals, sex, neutered }).eq('id', id);
+    if (error) return setErr(errorText(error));
+    setEdits(({ [id]: _, ...rest }) => rest);
     load();
   }
 
@@ -119,21 +142,11 @@ export default function Profile() {
         </Row>
         <Field label={t('Telefono')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
         <Muted>{t('Email: {email}', { email: profile?.email ?? '' })}</Muted>
-        <Check value={docPref === 'invoice'} onChange={(v) => setDocPref(v ? 'invoice' : 'receipt')}>
-          {t('Voglio la fattura per le lezioni e i pacchetti')}
-        </Check>
-        {docPref === 'invoice' ? (
-          <BillingFields value={billing} onChange={setBilling} />
-        ) : (
-          <Muted style={{ fontSize: 13 }}>
-            {plan.invoices
-              ? t('Senza fattura ricevi lo scontrino: codice fiscale e indirizzo non servono.')
-              : t('Senza fattura non servono codice fiscale e indirizzo.')}
-          </Muted>
-        )}
         {!!msg && <Muted>{msg}</Muted>}
         <Button title={t('Salva')} onPress={saveMe} small />
       </Card>
+      <ClientKindCard kind={kind} onKind={setKind} wants={wantsInvoice} onWants={setWantsInvoice} billing={billing} onBilling={setBilling} />
+      <Button title={t('Salva')} onPress={saveMe} small kind="ghost" />
 
       <Step title={t('I tuoi cani')} />
       {dogs.map((d) => {
@@ -144,9 +157,26 @@ export default function Profile() {
               <Body bold>{d.name}</Body>
               {d.blocked ? <Badge tone="bad">{t('Sospeso')}</Badge> : own.length > 0 && <Badge tone="warn">{t('{n} penalità', { n: own.length })}</Badge>}
             </Row>
-            <Muted>
-              {[d.breed, d.birth && t('nato il {data}', { data: shortDate(d.birth) })].filter(Boolean).join(' · ') || t('Nessun dettaglio')}
-            </Muted>
+            <Muted>{dogLine(d, (day) => t('nato il {data}', { data: shortDate(day) })) || t('Nessun dettaglio')}</Muted>
+            {!!d.goals && <Muted style={{ fontSize: 13 }}>{d.goals}</Muted>}
+            {edits[d.id] ? (
+              <>
+                <DogFacts sex={edits[d.id].sex} neutered={edits[d.id].neutered} onChange={(p) => setEdits({ ...edits, [d.id]: { ...edits[d.id], ...p } })} />
+                <ChipField value={edits[d.id].chip} onChange={(chip) => setEdits({ ...edits, [d.id]: { ...edits[d.id], chip } })} />
+                <GoalsField value={edits[d.id].goals} onChange={(goals) => setEdits({ ...edits, [d.id]: { ...edits[d.id], goals } })} />
+                <Row>
+                  <Button title={t('Salva')} small onPress={() => saveDog(d.id)} />
+                  <Button title={t('Annulla')} small kind="ghost" onPress={() => setEdits(({ [d.id]: _, ...rest }) => rest)} />
+                </Row>
+              </>
+            ) : (
+              <Button
+                title={d.chip ? t('Cambia i dettagli') : t('Aggiungi microchip e dettagli')}
+                small
+                kind="ghost"
+                onPress={() => setEdits({ ...edits, [d.id]: draftOf(d) })}
+              />
+            )}
             {own.map((p) => (
               <Muted key={p.id} style={{ fontSize: 13 }}>
                 {shortDate(p.created_at)}: {t(p.reason)}
@@ -161,6 +191,9 @@ export default function Profile() {
         <Field label={t('Nome')} value={newDog.name} onChangeText={(v) => setNewDog({ ...newDog, name: v })} />
         <Field label={t('Razza')} value={newDog.breed} onChangeText={(v) => setNewDog({ ...newDog, breed: v })} />
         <Field label={t('Nato il (AAAA-MM-GG)')} value={newDog.birth} onChangeText={(v) => setNewDog({ ...newDog, birth: v })} placeholder="2024-03-15" />
+        <DogFacts sex={newDog.sex} neutered={newDog.neutered} onChange={(p) => setNewDog({ ...newDog, ...p })} />
+        <ChipField value={newDog.chip} onChange={(v) => setNewDog({ ...newDog, chip: v })} />
+        <GoalsField value={newDog.goals} onChange={(v) => setNewDog({ ...newDog, goals: v })} />
         <Button title={t('Aggiungi')} small kind="ghost" onPress={addDog} disabled={!newDog.name.trim()} />
       </Card>
       <ErrorText>{err}</ErrorText>
