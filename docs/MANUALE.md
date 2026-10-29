@@ -438,7 +438,8 @@ Le action che costruiscono le app **partono solo quando le lanci tu**: GitHub ‚Ü
 | --- | --- |
 | Aggiorna le app | dopo aver unito una PR: rif√† le app e aggiorna la prova generale |
 | App per Android, App per Windows, App per Mac | per avere una versione nuova di una sola app |
-| Demo per Android, Demo web per iPhone | per aggiornare le demo da far vedere |
+| Demo per Android | per aggiornare la demo per Android |
+| Sito web (web app e demo) | per pubblicare la web app e la demo web dopo una modifica |
 | Pannello del gestore | per avere K9 Gestore nuovo (Windows, Mac, Android) |
 | Prova con database | per una prova di qualche giorno per un centro |
 | Prova generale | per provare tutto il giro con il gestore di prova |

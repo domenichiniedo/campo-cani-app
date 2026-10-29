@@ -59,7 +59,8 @@ docs/                   i manuali e lo studio dei costi
 ## 2. Le tecnologie
 
 - **Expo (SDK 58) e React Native**, con **Expo Router**: lo stesso codice gira su Android, iPhone e nel browser.
-  L'app Android e la demo web usano la versione **web** esportata (`npx expo export -p web`), messa dentro
+  La web app (GitHub Pages, installabile come PWA con `mobile-demo/sw.js`), l'app Android e la demo web usano la
+  versione **web** esportata (`npx expo export -p web`), da sola o messa dentro
   **Capacitor** (Android) o **Electron** (Windows e Mac).
 - **Supabase** per ogni centro: database Postgres con le regole di accesso (RLS), account (email e password, Google),
   spazi per i file (logo e foto) e funzioni sul server (Deno).
@@ -411,7 +412,8 @@ Le action che costruiscono partono solo a mano (`workflow_dispatch`); App per Wi
 | --- | --- | --- |
 | `aggiorna-app.yml` | Aggiorna le app | rilancia le build e la prova generale dopo una PR unita |
 | `android.yml`, `windows.yml`, `mac.yml` | App per Android / Windows / Mac | le app vere o le prove |
-| `android-demo.yml`, `demo-web.yml` | Demo per Android, Demo web per iPhone | le demo |
+| `android-demo.yml` | Demo per Android | la demo per Android |
+| `demo-web.yml` | Sito web (web app e demo) | la web app installabile (`/app/`) e la demo web, su GitHub Pages |
 | `pannello.yml` | Pannello del gestore | K9 Gestore per Windows, Mac e Android |
 | `prova-database.yml`, `prova-generale.yml` | Prova con database, Prova generale | le prove con Supabase vero |
 | `pulizia-releases.yml` | Pulizia delle Releases | toglie le versioni vecchie |

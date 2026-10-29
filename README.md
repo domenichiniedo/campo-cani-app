@@ -127,6 +127,27 @@ npx expo start
 
 Sul telefono installa **Expo Go** (App Store o Play Store) e inquadra il QR code che compare nel terminale.
 
+### Web app nel browser
+
+La stessa app gira anche nel browser, su telefono e computer, senza store: è una web app installabile (PWA).
+
+1. La prima volta accendi GitHub Pages: **Settings → Pages → Build and deployment → Source: GitHub Actions** (con il
+   repository privato GitHub Pages richiede GitHub Pro; il sito è comunque pubblico).
+2. **Actions → Sito web (web app e demo) → Run workflow**. Usa il database delle variabili
+   `EXPO_PUBLIC_SUPABASE_URL` ed `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (come l'app per Android), oppure quello che
+   scrivi negli input; con `gestore_url` e `chiave_server` ogni centro entra con il suo codice. Rilancialo dopo ogni
+   modifica dell'app per pubblicare la versione nuova.
+3. L'app è su **https://domenichiniedo.github.io/campo-cani-app/app/** (la demo resta su
+   https://domenichiniedo.github.io/campo-cani-app/). Per installarla: su iPhone Safari → **Condividi → Aggiungi alla
+   schermata Home**; su Android e computer Chrome o Edge → **Installa app** (menu ⋮ o icona nella barra
+   dell'indirizzo). Si apre a tutto schermo con l'icona di K9 Manager e si aggiorna da sola.
+
+Nel browser il proprietario paga il piano direttamente (come nel programma per computer). Per l'accesso con Google
+aggiungi `https://domenichiniedo.github.io` alle origini autorizzate (vedi *Accesso con Google*). Lo scontrino con il
+registratore al campo (Wi-Fi) invece si stampa solo dall'app installata (punto 6).
+
+Per provarla sul tuo computer: `npx expo start --web`.
+
 ## 4. Pubblicare sugli store
 
 ### Google Play
@@ -430,10 +451,8 @@ trainer e per cambiare piano. I dati restano solo su quel telefono o computer.
   `K9Manager-Prova.apk` in Releases → **Prova Pro per Android**: piano Pro fisso, dati di esempio, niente pagamenti online.
   Tre giorni dopo la prima apertura su quel telefono l'app si blocca. È un'app a parte, quindi può stare accanto alla demo.
 - **iPhone (e qualunque browser)**: la demo web su https://domenichiniedo.github.io/campo-cani-app/. In Safari
-  **Condividi → Aggiungi alla schermata Home** e si apre a tutto schermo come un'app. Si aggiorna da sola a ogni
-  modifica dell'app su main (Actions → **Demo web per iPhone**). La prima volta va acceso GitHub Pages: **Settings →
-  Pages → Build and deployment → Source: GitHub Actions**. Con il repository privato GitHub Pages richiede GitHub Pro;
-  il sito della demo è comunque pubblico.
+  **Condividi → Aggiungi alla schermata Home** e si apre a tutto schermo come un'app. Si aggiorna con
+  Actions → **Sito web (web app e demo)**, che pubblica anche la web app vera (punto 3, *Web app nel browser*).
 - **Windows e Mac**: punto 8, versione demo (Releases → **Demo per Windows** e **Demo per Mac**).
 
 ## 11. Prova di 3 giorni con dati condivisi (Android)

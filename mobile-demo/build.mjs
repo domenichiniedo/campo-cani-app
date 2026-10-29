@@ -55,7 +55,9 @@ cpSync(join(root, 'assets/images/icon.png'), join(www, 'icon.png'));
 for (const f of ['privacy.html', 'cancella-account.html', 'pagina.css']) cpSync(join(import.meta.dirname, f), join(www, f));
 if (real) {
   // L'app vera si apre direttamente, senza il finto database.
-  writeFileSync(join(www, 'index.html'), readFileSync(join(import.meta.dirname, 'app.html'), 'utf8').replace('<script src="demo-backend.js"></script>\n', ''));
+  let page = readFileSync(join(import.meta.dirname, 'app.html'), 'utf8').replace('<script src="demo-backend.js"></script>\n', '');
+  if (process.env.APP_WEB === '1') page = webApp(page, entry);
+  writeFileSync(join(www, 'index.html'), page);
   console.log(`App pronta in ${www}`);
   process.exit(0);
 }
@@ -67,3 +69,41 @@ writeFileSync(join(www, 'index.html'), page);
 // Manifest per "Aggiungi alla schermata Home" su iPhone e Android.
 cpSync(join(import.meta.dirname, 'manifest.webmanifest'), join(www, 'manifest.webmanifest'));
 console.log(`Demo pronta in ${www}`);
+
+// APP_WEB=1 (Actions → Sito web): l'app vera da usare nel browser, installabile come app (PWA) dal telefono e dal
+// computer. Indirizzi assoluti (DEMO_BASE_URL), così la stessa pagina fa anche da 404.html di GitHub Pages: chi
+// ricarica su /app/qualcosa riapre l'app su quella schermata.
+function webApp(page, entry) {
+  const base = (process.env.DEMO_BASE_URL ?? '').replace(/\/+$/, '');
+  const manifest = {
+    name: 'K9 Manager',
+    short_name: 'K9 Manager',
+    lang: 'it',
+    id: `${base}/`,
+    start_url: `${base}/`,
+    scope: `${base}/`,
+    display: 'standalone',
+    background_color: '#123a2b',
+    theme_color: '#123a2b',
+    icons: [{ src: `${base}/icon.png`, sizes: '1024x1024', type: 'image/png', purpose: 'any' }],
+  };
+  writeFileSync(join(www, 'manifest.webmanifest'), JSON.stringify(manifest, null, 2));
+  // Ogni versione ha la sua cache: a ogni aggiornamento del sito le pagine vecchie se ne vanno.
+  writeFileSync(join(www, 'sw.js'), readFileSync(join(import.meta.dirname, 'sw.js'), 'utf8').replace('k9-web', `k9-web-${entry.replace(/\.js$/, '')}`));
+  const head = [
+    `<meta name="theme-color" content="#123a2b" />`,
+    `<meta name="apple-mobile-web-app-capable" content="yes" />`,
+    `<meta name="mobile-web-app-capable" content="yes" />`,
+    `<meta name="apple-mobile-web-app-title" content="K9 Manager" />`,
+    `<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />`,
+    `<link rel="icon" href="${base}/icon.png" />`,
+    `<link rel="apple-touch-icon" href="${base}/icon.png" />`,
+    `<link rel="manifest" href="${base}/manifest.webmanifest" />`,
+    `<script>if ('serviceWorker' in navigator) addEventListener('load', function () { navigator.serviceWorker.register('${base}/sw.js', { scope: '${base}/' }).catch(function () {}); });</script>`,
+  ].join('\n');
+  page = page.replace('<title>K9 Manager</title>', `<title>K9 Manager</title>\n${head}`).replace('<script src="app.js"', `<script src="${base}/app.js"`);
+  // Fuori dall'app (un indirizzo sbagliato del sito) la 404 riporta alla pagina principale del sito.
+  const guard = `<script>(function () { var p = location.pathname; if (p.indexOf('${base}/') === 0) return; var home = '/' + (p.split('/')[1] || ''); if (home !== '/' && p !== home + '/') location.replace(home + '/'); })();</script>`;
+  writeFileSync(join(www, '404.html'), page.replace('<meta charset="utf-8" />', `<meta charset="utf-8" />\n${guard}`));
+  return page;
+}
