@@ -1,15 +1,34 @@
-# Demo web, da aprire su iPhone (o qualunque telefono e computer) in Safari, senza installare nulla:
-# l'app vera con i dati di esempio, salvati solo sul telefono, e il bottone "Demo" per cambiare persona.
-# Indirizzo: https://domenichiniedo.github.io/campo-cani-app/
-# Su iPhone: Condividi → Aggiungi alla schermata Home, e si apre a tutto schermo come un'app.
+# Sito web su GitHub Pages, da aprire in qualunque browser (iPhone, Android, computer) senza installare nulla:
+#   https://domenichiniedo.github.io/campo-cani-app/      la demo, con i dati di esempio e il bottone "Demo"
+#   https://domenichiniedo.github.io/campo-cani-app/app/  la web app vera, collegata al database del campo
+# Tutte e due si installano come un'app: su iPhone Safari → Condividi → Aggiungi alla schermata Home; su Android e
+# computer Chrome/Edge → Installa app. Si aprono a tutto schermo con l'icona di K9 Manager.
+#
+# La web app usa lo stesso database dell'app per Android: gli input qui sotto o, se vuoti, le variabili
+# EXPO_PUBLIC_SUPABASE_URL ed EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY in Settings → Secrets and variables → Actions →
+# Variables. Con gestore_url (e chiave_server) non ha un database suo: ogni centro entra con il suo codice. Senza
+# nessuno dei due il sito ha solo la demo. Mai la chiave segreta di Supabase.
 #
 # Serve GitHub Pages: Settings → Pages → Build and deployment → Source: "GitHub Actions"
 # (con il repository privato GitHub Pages richiede GitHub Pro). Il sito è pubblico.
-# Partenza: a mano (Run workflow) e a ogni modifica dell'app su main. In una PR si prova solo a costruirla.
-name: Demo web per iPhone
+# Partenza: a mano (Run workflow).
+name: Sito web (web app e demo)
 
 on:
   workflow_dispatch:
+    inputs:
+      supabase_url:
+        description: Indirizzo del progetto Supabase (https://xxxx.supabase.co); vuoto = variabile del repository
+        required: false
+      supabase_key:
+        description: Chiave publishable del progetto (sb_publishable_...); vuoto = variabile del repository
+        required: false
+      gestore_url:
+        description: Con il gestore - indirizzo delle funzioni (https://xxxx.supabase.co/functions/v1)
+        required: false
+      chiave_server:
+        description: Con il gestore - chiave pubblica del server per le licenze
+        required: false
 
 permissions:
   contents: read
@@ -30,17 +49,44 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: node mobile-demo/build.mjs
+      - name: Demo
+        run: |
+          node mobile-demo/build.mjs
+          mv mobile-demo/www site
         env:
           DEMO_BASE_URL: /campo-cani-app
-      # In una PR la demo si costruisce soltanto: niente artifact, che occuperebbe lo spazio limitato di GitHub.
+      - name: Web app
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ inputs.gestore_url == '' && (inputs.supabase_url || vars.EXPO_PUBLIC_SUPABASE_URL) || '' }}
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ inputs.gestore_url == '' && (inputs.supabase_key || vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY) || '' }}
+          EXPO_PUBLIC_GESTORE_URL: ${{ inputs.gestore_url }}
+          EXPO_PUBLIC_LICENSE_SERVER_KEY: ${{ inputs.chiave_server }}
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
+          APP_VERA: '1'
+          APP_WEB: '1'
+          DEMO_BASE_URL: /campo-cani-app/app
+        run: |
+          if [ -n "$EXPO_PUBLIC_GESTORE_URL" ]; then
+            case "$EXPO_PUBLIC_GESTORE_URL" in https://*.supabase.co/functions/v1) ;; *) echo "::error::gestore_url deve essere https://xxxx.supabase.co/functions/v1"; exit 1;; esac
+            [ ${#EXPO_PUBLIC_LICENSE_SERVER_KEY} -eq 43 ] || { echo "::error::Manca la chiave pubblica del server (chiave_server)"; exit 1; }
+          elif [ -z "$EXPO_PUBLIC_SUPABASE_URL" ]; then
+            echo "::warning::Nessun database (input o variabili EXPO_PUBLIC_SUPABASE_URL ed EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY): il sito ha solo la demo."
+            exit 0
+          else
+            case "$EXPO_PUBLIC_SUPABASE_URL" in https://*.supabase.co) ;; *) echo "::error::L'indirizzo del progetto Supabase deve essere https://xxxx.supabase.co"; exit 1;; esac
+            case "$EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" in sb_secret_*) echo "::error::Questa è la chiave segreta: serve quella publishable"; exit 1;; esac
+            case "$EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" in sb_publishable_*|eyJ*) ;; *) echo "::error::Manca la chiave publishable del progetto"; exit 1;; esac
+          fi
+          node mobile-demo/build.mjs
+          mv mobile-demo/www site/app
+          # GitHub Pages apre 404.html per gli indirizzi che non sono file: chi ricarica su /app/qualcosa resta nell'app.
+          cp site/app/404.html site/404.html
+          echo "Web app: https://domenichiniedo.github.io/campo-cani-app/app/" >> $GITHUB_STEP_SUMMARY
       - uses: actions/upload-pages-artifact@v3
-        if: ${{ github.event_name != 'pull_request' }}
         with:
-          path: mobile-demo/www
+          path: site
 
   deploy:
-    if: ${{ github.event_name != 'pull_request' }}
     needs: build
     runs-on: ubuntu-latest
     environment:
