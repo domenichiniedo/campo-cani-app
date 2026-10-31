@@ -93,8 +93,11 @@ export function OwnerBookingCard({
   inClass?: boolean;
 }) {
   const c = useColors();
-  const { trainers } = useSession();
+  const { trainers, lessonTypes } = useSession();
   const plan = usePlan();
+  // Campo libero: niente trainer da assegnare.
+  const free = !!lessonTypes.find((lt) => lt.id === b.lesson_type)?.free_field;
+  const withTrainer = trainers.length > 0 && !inClass && !free;
   const [trainerOpen, setTrainerOpen] = useState(false);
   // Solo i trainer che seguono questo tipo di lezione (lista vuota = tutti).
   const fit = trainers.filter((t) => !t.lessons.length || t.lessons.includes(b.lesson_type));
@@ -118,7 +121,8 @@ export function OwnerBookingCard({
   return (
     <Card style={arrived ? { borderLeftWidth: 4, borderLeftColor: c.accent } : undefined}>
       <BookingHead b={b} inClass={inClass} showField={showField} badges={penalized && <Badge tone="bad">{t('Penalità')}</Badge>}>
-        {trainers.length > 0 && !inClass && (
+        {free && <Muted style={{ fontSize: 14, fontWeight: '700' }}>{t('Campo libero, senza trainer')}</Muted>}
+        {withTrainer && (
           <Row>
             {b.trainers && <Avatar name={b.trainers.name} path={trainers.find((t) => t.id === b.trainer_id)?.photo_path} size={24} />}
             <Text style={{ color: b.trainers ? c.accent : c.brassText, fontSize: 14, fontWeight: '700' }}>
@@ -161,7 +165,7 @@ export function OwnerBookingCard({
             />
           )
         )}
-        {trainers.length > 0 && !inClass && (
+        {withTrainer && (
           <Button small kind="ghost" title={b.trainers ? t('Cambia trainer') : t('Assegna trainer')} onPress={() => setTrainerOpen(!trainerOpen)} />
         )}
         <Button small kind="ghost" title={t('Penalità')} onPress={() => setPenaltyOpen(!penaltyOpen)} />

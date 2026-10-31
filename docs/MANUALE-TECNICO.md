@@ -44,7 +44,7 @@ src/app/                schermate (Expo Router: un file = una pagina)
 src/components/         pezzi di interfaccia riusati (moduli, schede, pannelli delle impostazioni, K9 Gestore)
 src/lib/                logica senza interfaccia: Supabase, sessione, licenze, piani, fatturazione, traduzioni
 src/locales/            traduzioni (en, de, es, fr); l'italiano è il testo del codice
-supabase/migrations/    il database di ogni centro, una migrazione per volta (0001 → 0024)
+supabase/migrations/    il database di ogni centro, una migrazione per volta (0001 → 0027)
 supabase/setup.sql      tutte le migrazioni in un file (generato da tools/setup-sql.mjs)
 supabase/functions/     funzioni sul server del centro: fatture, scontrini, Nexi, report mensile
 gestore/                il server gestore: migrazioni e funzioni (un progetto Supabase tuo)
@@ -245,7 +245,9 @@ nuovo) e in `gestore/supabase/functions/_shared/migrazioni.ts` (il gestore le ag
 | 0022_voto_lezioni | `rate_lesson` |
 | 0023_cani | microchip, obiettivi, sesso e sterilizzazione del cane; assenze e `penalize_no_shows` |
 | 0024_clienti_societa | persona o società; dati della società e della fattura |
-| 0025_tesseramento | `membership_settings` e `memberships` (una riga per tessera, così resta lo storico); `request_membership`, `membership_end`, `has_membership`; il trigger `check_membership` ferma la prenotazione del cliente senza tessera valida se il centro la chiede; con la tessera con IVA `invoice_membership` prepara fattura o scontrino (`invoices.membership_id`) |
+| 0025_tesseramento | tessera e quota campo: `membership_settings` (una riga per tipo, `kind` = `tessera` o `campo`, con `period` anno, stagione o `months` mesi) e `memberships` (una riga per pagamento, così resta lo storico); `request_membership(p_kind)`, `membership_end`, `has_membership`; il trigger `check_membership` ferma la prenotazione del cliente senza le quote obbligatorie valide; con la quota con IVA `invoice_membership` prepara fattura o scontrino (`invoices.membership_id`) |
+| 0026_bacheca_spese | `posts` (avvisi ed eventi), `post_rsvps` (chi partecipa, con il trigger `guard_rsvp` per eventi passati o pieni), `post_reads` (chi ha letto), `event_seats_taken()`; `expenses` (uscite, solo il proprietario) |
+| 0027_campo_libero | `lesson_types.free_field`: turno sul campo senza trainer; il trigger `guard_free_field` toglie il trainer |
 
 Le regole stanno nel database, non solo nell'app: le policy RLS fanno vedere a un cliente solo i suoi dati, e i
 trigger `guard_profile` e `guard_dog` gli impediscono di cambiare ruolo o togliere una sospensione.

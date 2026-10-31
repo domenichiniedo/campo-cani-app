@@ -13,7 +13,7 @@ L'app è fatta con Expo (iPhone e Android dallo stesso codice). I dati stanno su
    nel progetto apri **SQL Editor**, incolla tutto il file e premi **Run**. Crea in un colpo tabelle, regole di accesso,
    lezioni di partenza e spazi per logo e foto, e segna la tua email come quella del proprietario.
    `setup.sql` è solo per un progetto **nuovo**. Se il database esiste già, esegui solo le migrazioni nuove di
-   `supabase/migrations`, una volta ciascuna e in ordine (l'ultima è `0024_clienti_societa.sql`).
+   `supabase/migrations`, una volta ciascuna e in ordine (l'ultima è `0027_campo_libero.sql`).
 3. In **Project Settings → API Keys** copia l'URL del progetto e la **Publishable key** (inizia con `sb_publishable_`).
    Non usare mai la Secret key nell'app.
 4. Copia il file `.env.example` in `.env.local` e incolla i due valori:
@@ -552,8 +552,11 @@ aggiorna anche la prova generale. Nessuna action parte da sola a ogni commit, tr
 - Diario: per ogni cane, cosa si è fatto a ogni lezione e i commenti del trainer, con le schede di valutazione che il
   trainer ha compilato sul cane (piani Professional e Pro).
 - Profilo: foto (fotocamera o galleria), dati, cani, penalità ricevute, regolamento e privacy.
-- Tessera (se il centro la usa): fino a quando vale e lo storico; la richiede o la rinnova dal Profilo e la paga al
-  campo o con bonifico.
+- Tessera e quota campo (se il centro le usa): fino a quando valgono e lo storico; le richiede o le rinnova dal Profilo
+  e le paga al campo o con bonifico.
+- Bacheca: comunicazioni del centro ed eventi con "Partecipo"; gli avvisi importanti stanno anche in cima a Prenota
+  finché non li legge.
+- Campo libero (se il centro lo offre): prenota il campo per il suo turno, senza trainer.
 - Le mie lezioni mostrano il trainer con la sua foto.
 - Se il proprietario cambia regolamento o privacy, al prossimo accesso deve accettare il nuovo testo prima di prenotare.
 
@@ -564,17 +567,19 @@ aggiorna anche la prova generale. Nessuna action parte da sola a ogni commit, tr
   un'ora libera per prenotare per un cliente. Sul telefono, lista dei 7 giorni.
 - Orari: per ogni campo e per ogni trainer apri o chiudi le mezz'ore di ogni giorno, copiale sulle settimane seguenti o su
   tutti i campi. Un trainer senza orari impostati è sempre disponibile.
-- Incassi: incassato, da incassare e previsto per settimana, mese o anno, con grafico e lezioni per tipo, campo, trainer e
-  pagamento.
+- Incassi: incassato (lezioni, pacchetti, tessere e quote), da incassare, previsto, uscite e saldo per settimana, mese o
+  anno, con grafico e lezioni per tipo, campo, trainer e pagamento.
+- Bacheca: avvisi (anche importanti, in cima a Prenota) ed eventi con posti, chi ha letto e chi partecipa.
+- Spese: le uscite del centro per categoria, mese per mese.
 - Trainer: elenco con foto (fotocamera o galleria), lezioni della settimana, ore disponibili, diari scritti e collegamento
   dell'app con la loro email.
-- Clienti: lista in ordine alfabetico con filtri, diario di ogni cane, ricerca anche per codice fiscale, dati di fatturazione, pacchetti da attivare e lezioni rimaste, tessere da incassare o da rinnovare con lo storico di ognuno, penalità per cane, sospensione e riattivazione. Alla penalità numero N (scelta in Impostazioni) il cane
+- Clienti: lista in ordine alfabetico con filtri, diario di ogni cane, ricerca anche per codice fiscale, dati di fatturazione, pacchetti da attivare e lezioni rimaste, tessere e quote campo da incassare o da rinnovare con lo storico di ognuno, penalità per cane, sospensione e riattivazione. Alla penalità numero N (scelta in Impostazioni) il cane
   viene sospeso da solo; 0 spegne la sospensione automatica.
 - Report mensile (piano Pro): l'ultimo venerdì del mese un Excel per email con lezioni, pacchetti, fatture e scontrini,
   incassi e statistiche.
 - Impostazioni: nome del centro, logo, numero di campi (ognuno con nome e indirizzo, anche uguale), trainer con le
-  lezioni che seguono, pacchetti (lezioni, prezzo, validità), tesseramento (nome e quota della tessera, anno solare,
-  stagione sportiva o 12 mesi, con o senza IVA, se serve per prenotare), orario della griglia, ore per la disdetta, limite penalità, lezioni (nome, durata,
+  lezioni che seguono, pacchetti (lezioni, prezzo, validità), tessera e quota campo (nome e importo, anno solare,
+  stagione sportiva o un numero di mesi, con o senza IVA, se serve per prenotare), campo libero senza trainer, orario della griglia, ore per la disdetta, limite penalità, lezioni (nome, durata,
   prezzo, opzioni), modelli delle schede di valutazione del cane (piani Professional e Pro: per esempio primo incontro o ipersensibilità al tatto, con
   voci a voto da 1 a 5, sì/no, scelta tra risposte o testo), regolamento e
   privacy.

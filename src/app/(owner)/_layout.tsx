@@ -30,6 +30,8 @@ export default function OwnerLayout() {
         <Tabs.Screen name="hours" options={{ title: t('Orari'), tabBarIcon: tabIcon('◑') }} />
         <Tabs.Screen name="stats" options={{ title: t('Incassi'), tabBarIcon: tabIcon('€'), href: plan.payments ? undefined : null }} />
         <Tabs.Screen name="clients" options={{ title: t('Clienti'), tabBarIcon: tabIcon('☺') }} />
+        <Tabs.Screen name="board" options={{ title: t('Bacheca'), tabBarIcon: tabIcon('✉') }} />
+        <Tabs.Screen name="expenses" options={{ title: t('Spese'), tabBarIcon: tabIcon('↧') }} />
         <Tabs.Screen name="trainers" options={{ title: t('Trainer'), tabBarIcon: tabIcon('✪'), href: plan.trainers ? undefined : null }} />
         <Tabs.Screen name="settings" options={{ title: t('Impostazioni'), tabBarIcon: tabIcon('⚙') }} />
       </Tabs>

@@ -242,7 +242,7 @@ export function SlotFields(p: {
         </>
       )}
 
-      {trainers.length > 0 && (
+      {trainers.length > 0 && !lesson?.free_field && (
         <>
           <Muted style={{ fontSize: 13 }}>{t('Trainer')}</Muted>
           <Chips

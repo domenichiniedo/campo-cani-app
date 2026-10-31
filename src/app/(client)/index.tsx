@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { ImportantNotices } from '@/components/board';
 import { CardPay } from '@/components/card-pay';
 import { TransferDetails } from '@/components/transfer';
 import { Badge, Body, Button, Card, Chips, ErrorText, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
@@ -207,6 +208,7 @@ export default function Book() {
   return (
     <Screen onRefresh={load} refreshing={loading}>
       <H1>{t('Prenota il campo')}</H1>
+      <ImportantNotices />
 
       <Step n="1" title={t('Cane')} />
       {dogs.length ? (
@@ -249,6 +251,7 @@ export default function Book() {
                 <Text style={{ color: c.text, fontSize: 17, fontWeight: '800' }}>{lt.label}</Text>
                 <Badge tone="warn">{`${lt.duration_min} min · ${euro(lt.price_cents)}`}</Badge>
               </Row>
+              {!!lt.free_field && <Muted style={{ fontSize: 13 }}>{t('Campo libero: prenoti il campo per il tuo turno, senza trainer.')}</Muted>}
               {lt.group_seats !== null && <Muted style={{ fontSize: 13 }}>{t('Lezione di gruppo: scegli una delle classi in calendario.')}</Muted>}
               {!!lt.description && <Muted>{lt.description}</Muted>}
             </Pressable>

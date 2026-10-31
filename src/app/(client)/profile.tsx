@@ -1,7 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
-import { ClientMembership } from '@/components/client-membership';
+import { ClientMemberships } from '@/components/client-membership';
 import { PhotoEditor } from '@/components/photo';
 import { ChipField, chipOk, ClientKindCard, DogFacts, dogColumns, dogLine, GoalsField, newDog as emptyDog, type DogDraft } from '@/components/signup-parts';
 import { Badge, Body, Button, Card, Check, ConfirmButton, ErrorText, Expandable, Field, H1, Muted, Row, Screen, Step } from '@/components/ui';
@@ -122,7 +122,7 @@ export default function Profile() {
     <Screen>
       <H1>{t('Profilo')}</H1>
 
-      <ClientMembership />
+      <ClientMemberships />
 
       <Step title={t('I tuoi dati')} />
       <Card>

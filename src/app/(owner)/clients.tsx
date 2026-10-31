@@ -9,7 +9,7 @@ import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Field, H1, 
 import { billingLine } from '@/lib/billing';
 import { euro, shortDate } from '@/lib/format';
 import { t } from '@/lib/i18n';
-import { membershipState, useMembershipSettings } from '@/lib/membership';
+import { membershipState, ofKind, useMembershipSettings } from '@/lib/membership';
 import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
@@ -28,9 +28,8 @@ export default function OwnerClients() {
   const c = useColors();
   const { settings } = useSession();
   const plan = usePlan();
-  // La tessera del centro: null se il database non ha ancora il tesseramento.
-  const { cfg: memberCfg } = useMembershipSettings();
-  const tessera = memberCfg?.enabled ? memberCfg : null;
+  // Tessera e quota campo, quelle accese (nessuna se il database non le ha ancora).
+  const { active: quotas } = useMembershipSettings();
   // Sul PC la scheda del cliente sta a destra della lista; sul telefono si apre sotto il nome.
   const { width, height } = useWindowDimensions();
   const wide = width >= 900;
@@ -81,7 +80,7 @@ export default function OwnerClients() {
   const passes = (p: Client) =>
     filter === 'all' ||
     (filter === 'package' && p.client_packages.some((cp) => usable(cp))) ||
-    (filter === 'membership' && !!tessera && membershipState(p.memberships ?? [], tessera.renew_days) !== 'valid') ||
+    (filter === 'membership' && quotas.some((q) => membershipState(ofKind(p.memberships ?? [], q.kind), q.renew_days) !== 'valid')) ||
     (filter === 'blocked' && dogsOf(p).some((d) => d.blocked)) ||
     (filter === 'penalties' && dogsOf(p).some((d) => d.penalties.length > 0)) ||
     (filter === 'billing' && p.doc_pref !== 'receipt' && !p.tax_code) ||
@@ -93,7 +92,7 @@ export default function OwnerClients() {
 
   const limit = settings?.penalty_limit ?? 0;
   const requests = rows.flatMap((p) => p.client_packages.filter((cp) => cp.status === 'requested').map((cp) => ({ p, cp })));
-  const memberRequests = tessera ? rows.filter((p) => (p.memberships ?? []).some((m) => m.status === 'requested')) : [];
+  const memberRequests = quotas.length ? rows.filter((p) => (p.memberships ?? []).some((m) => m.status === 'requested')) : [];
   const activate = (cp: ClientPackage) => act(() => supabase.from('client_packages').update({ status: 'active' }).eq('id', cp.id));
   const reject = (cp: ClientPackage) => act(() => supabase.from('client_packages').update({ status: 'cancelled' }).eq('id', cp.id));
 
@@ -138,7 +137,9 @@ export default function OwnerClients() {
                 </Text>
               </View>
               <Row style={{ gap: 4, flexWrap: 'nowrap' }}>
-                {tessera && <MembershipBadge list={p.memberships ?? []} cfg={tessera} />}
+                {quotas.map((q) => (
+                  <MembershipBadge key={q.kind} list={ofKind(p.memberships ?? [], q.kind)} cfg={q} />
+                ))}
                 {pkg && <Badge tone="ok">{t('{n} lez.', { n: pkg.lessons_total - pkg.lessons_used })}</Badge>}
                 {pens > 0 && <Badge tone="warn">{t('{n} pen.', { n: pens })}</Badge>}
                 {dogs.some((d) => d.blocked) && <Badge tone="bad">{t('Sospeso')}</Badge>}
@@ -147,7 +148,7 @@ export default function OwnerClients() {
             </Pressable>
             {!wide && on && (
               <View style={{ padding: 12, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.bg }}>
-                <ClientDetail p={p} act={act} tessera={tessera} />
+                <ClientDetail p={p} act={act} quotas={quotas} />
               </View>
             )}
           </View>
@@ -185,10 +186,10 @@ export default function OwnerClients() {
           ))}
         </Card>
       )}
-      {memberRequests.length > 0 && tessera && (
+      {memberRequests.length > 0 && (
         <Card accent>
-          <Body bold>{memberRequests.length === 1 ? t('1 tessera da incassare') : t('{n} tessere da incassare', { n: memberRequests.length })}</Body>
-          <Muted style={{ fontSize: 13 }}>{t('Apri il cliente e segna la tessera pagata quando incassi la quota.')}</Muted>
+          <Body bold>{memberRequests.length === 1 ? t('1 cliente ha chiesto tessera o quota campo') : t('{n} clienti hanno chiesto tessera o quota campo', { n: memberRequests.length })}</Body>
+          <Muted style={{ fontSize: 13 }}>{t('Apri il cliente e segnala pagata quando incassi.')}</Muted>
           <Row>
             {memberRequests.map((p) => (
               <Button
@@ -212,7 +213,7 @@ export default function OwnerClients() {
         items={[
           { value: 'all', label: t('Tutti') },
           { value: 'package', label: t('Con pacchetto') },
-          ...(tessera ? [{ value: 'membership' as Filter, label: t('Tessera da rinnovare') }] : []),
+          ...(quotas.length ? [{ value: 'membership' as Filter, label: quotas.length > 1 ? t('Tessera o quota da rinnovare') : t('{nome} da rinnovare', { nome: quotas[0].name }) }] : []),
           { value: 'penalties', label: t('Con penalità') },
           { value: 'blocked', label: t('Sospesi') },
           { value: 'billing', label: t('Senza dati fattura') },
@@ -229,7 +230,7 @@ export default function OwnerClients() {
           <ScrollView style={{ flex: 1.3, height: paneH }}>
             {open ? (
               <Card>
-                <ClientDetail p={open} act={act} tessera={tessera} />
+                <ClientDetail p={open} act={act} quotas={quotas} />
               </Card>
             ) : (
               <Muted>{t('Scegli un cliente dalla lista per vedere cani, pacchetti e penalità.')}</Muted>
@@ -243,8 +244,8 @@ export default function OwnerClients() {
   );
 }
 
-/** Scheda del cliente: contatti, dati di fatturazione, tessera, pacchetti e cani con penalità. */
-function ClientDetail({ p, act, tessera }: { p: Client; act: Act; tessera: MembershipSettings | null }) {
+/** Scheda del cliente: contatti, dati di fatturazione, tessera e quota campo, pacchetti e cani con penalità. */
+function ClientDetail({ p, act, quotas }: { p: Client; act: Act; quotas: MembershipSettings[] }) {
   const { trainers } = useSession();
   const plan = usePlan();
   const [diary, setDiary] = useState<string | null>(null);
@@ -287,7 +288,9 @@ function ClientDetail({ p, act, tessera }: { p: Client; act: Act; tessera: Membe
             : t('Foto sui social: no')}
         </Muted>
       </View>
-      {tessera && <OwnerMembership key={p.id} userId={p.id} list={p.memberships ?? []} cfg={tessera} act={act} />}
+      {quotas.map((q) => (
+        <OwnerMembership key={`${p.id}-${q.kind}`} userId={p.id} list={ofKind(p.memberships ?? [], q.kind)} cfg={q} act={act} />
+      ))}
       {p.client_packages
         .filter((cp) => cp.status === 'active')
         .map((cp) => (

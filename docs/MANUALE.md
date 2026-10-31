@@ -154,13 +154,26 @@ cane vedi razza, sesso, sterilizzazione, data di nascita, microchip e la nota co
 dettagli** (o **Aggiungi microchip e dettagli**) per cambiarli e poi **Salva**, oppure aggiungi un cane nuovo con
 **Aggiungi**. Vedi anche le penalità ricevute, il regolamento e la privacy.
 
-### La tessera del centro
+### Tessera e quota campo
 
-Se il centro usa la tessera (per esempio quella associativa), in cima al **Profilo** vedi fino a quando vale, il suo
-numero e lo storico delle tue tessere. Quando sta per scadere (o è scaduta) premi **Rinnova la tessera** (la prima
-volta **Richiedi la tessera**) e paga la quota al campo o con il bonifico istantaneo che compare sotto. Vale appena il
-proprietario segna il pagamento; se rinnovi prima della scadenza, quella nuova parte dal giorno dopo e non perdi
-giorni. Se il centro la chiede per prenotare, senza tessera valida il giorno della lezione l'app non ti fa prenotare.
+Il centro può usare la tessera (per esempio quella associativa) e la quota campo (per esempio mensile). In cima al
+**Profilo** vedi per ognuna fino a quando vale, il numero della tessera e lo storico dei pagamenti. Quando sta per
+scadere (o è scaduta) premi **Rinnova** (la prima volta **Richiedi**) e paga al campo o con il bonifico istantaneo che
+compare sotto. Vale appena il proprietario segna il pagamento; se rinnovi prima della scadenza, quella nuova parte dal
+giorno dopo e non perdi giorni. Se il centro la chiede per prenotare, senza tessera o quota valida il giorno della
+lezione l'app non ti fa prenotare.
+
+### Bacheca ed eventi
+
+Nella scheda **Bacheca** trovi le comunicazioni del centro e gli eventi (gare, serate, uscite). Gli avvisi importanti
+compaiono anche in cima a **Prenota** finché non premi **Ho letto**. Per un evento premi **Partecipo** (o **Non
+partecipo più**); se ha i posti contati vedi quanti ne restano. Non arrivano notifiche sul telefono: le comunicazioni
+si vedono aprendo l'app.
+
+### Campo libero
+
+Se il centro lo offre, tra le lezioni c'è il **campo libero**: prenoti il campo per il tuo turno e lo paghi come una
+lezione, ma senza trainer.
 
 ### Pacchetti, diario e voti
 
@@ -222,9 +235,11 @@ pannello.
 - **Orari e regole**: apertura e chiusura della griglia, ore per la disdetta, penalità che sospende il cane, e
   **Penalità automatica se il cane non entra in campo** (accesa all'inizio).
 - **Metodi di pagamento**: bonifico istantaneo (il tuo IBAN) e carta con Nexi.
-- **Lezioni**, **Pacchetti**, **Tesseramento** (nome e quota della tessera; durata: anno solare, stagione sportiva
-  dal 1 settembre al 31 agosto o 12 mesi dal pagamento; da quanti giorni prima della scadenza si rinnova; **Senza IVA**
-  o **Con IVA**; se serve per prenotare), **Schede di valutazione**.
+- **Lezioni** (con **Campo libero, senza trainer** per i turni sul campo senza trainer, che non compaiono tra le
+  lezioni da assegnare), **Pacchetti**, **Tesseramento** e **Quota campo** (per ognuna: accesa o spenta, nome e
+  importo; durata: anno solare, stagione sportiva dal 1 settembre al 31 agosto o un numero di mesi dal pagamento, per
+  esempio 1 per la quota mensile; da quanti giorni prima della scadenza si rinnova; **Senza IVA** o **Con IVA**; se
+  serve per prenotare), **Schede di valutazione**.
 - **Fatture** (o **Fatture e scontrini**): vedi i punti [7](#7-collegare-fatture-in-cloud) e [8](#8-scontrini-registratore-e-pos).
 - **Report mensile**, **Proprietari** (altri proprietari con la loro email), **Regolamento e privacy**.
 
@@ -251,14 +266,21 @@ In **Impostazioni → Licenza** c'è **QR code per i clienti**: un QR con il **c
 - **Clienti**: per ognuno "Persona: scontrino" oppure i dati della società, i cani con il microchip, pacchetti,
   penalità (qui togli una penalità sbagliata), sospensione. La ricerca trova anche la ragione sociale e il codice
   fiscale.
-- **Tessere** (se usi il tesseramento): in Clienti ogni cliente ha il segno **Tessera scaduta**, **Tessera in
-  scadenza**, **Senza tessera** o **Tessera da incassare**, e il filtro **Tessera da rinnovare** li mostra tutti. In
-  cima c'è chi ha chiesto la tessera dall'app. Nella scheda del cliente scegli **Contanti**, **Carta** o **Bonifico**,
-  scrivi se vuoi il numero della tessera e premi **Tessera incassata** (o **Rinnovo incassato**): vale da oggi, o dal
-  giorno dopo la scadenza di quella in corso. Lì sotto c'è lo storico di tutte le sue tessere, con il tasto
-  **Annulla** per una registrata per sbaglio. Con la tessera **Senza IVA** (quota associativa fuori campo IVA) non
-  parte nessun documento; **Con IVA** all'incasso parte la fattura o lo scontrino, come per i pacchetti.
-- **Incassi** e **Statistiche** (secondo il piano).
+- **Tessera e quota campo** (se le usi): in Clienti ogni cliente ha il segno con il nome della quota, per esempio
+  **Tessera scaduta**, **Quota campo in scadenza**, **… mancante** o **… da incassare**, e il filtro **… da rinnovare**
+  li mostra tutti. In cima c'è chi le ha chieste dall'app. Nella scheda del cliente scegli **Contanti**, **Carta** o
+  **Bonifico**, scrivi se vuoi il numero della tessera e premi **Incassata** (o **Rinnovo incassato**): vale da oggi, o
+  dal giorno dopo la scadenza di quella in corso. Lì sotto c'è lo storico di tutti i pagamenti, con il tasto
+  **Annulla** per uno registrato per sbaglio. **Senza IVA** (quota associativa fuori campo IVA) non parte nessun
+  documento; **Con IVA** all'incasso parte la fattura o lo scontrino, come per i pacchetti.
+- **Bacheca**: **+ Nuovo avviso** (con **Importante** resta in cima a Prenota finché il cliente non lo legge; puoi dire
+  fino a quando si vede) e **+ Nuovo evento** (giorno, ora, luogo e posti, vuoto = senza limite). Per ogni avviso vedi
+  quanti clienti l'hanno letto, per ogni evento chi partecipa. **Modifica** ed **Elimina** sotto ognuno.
+- **Spese**: segni le uscite del centro (affitto, utenze, attrezzatura, manutenzione, compensi trainer,
+  assicurazione, tasse, pubblicità o altro) con giorno, importo e come hai pagato; vedi il totale del mese e per
+  categoria.
+- **Incassi** e **Statistiche** (secondo il piano): l'incassato comprende anche tessere e quote; **Uscite** sono le
+  spese del periodo e **Saldo** è l'incassato meno le uscite.
 
 ---
 
