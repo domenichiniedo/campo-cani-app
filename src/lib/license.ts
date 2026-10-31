@@ -42,7 +42,7 @@ export const licensingEnabled = KEYS.length > 0;
 /** Legge un codice e ne controlla la firma, senza guardare la scadenza. */
 export function readLicense(code: string, publicKey?: string): LicenseCheck {
   const [prefix, body, sig] = code.trim().split('.');
-  if (prefix !== PREFIX || !body || !sig) return { ok: false, reason: t('Questo non è un codice di licenza K9 Manager.') };
+  if (prefix !== PREFIX || !body || !sig) return { ok: false, reason: t('Questo non è un codice di licenza Club Manager.') };
   const valid = (publicKey ? [publicKey] : KEYS).some((key) => {
     try {
       return nacl.sign.detached.verify(ascii(`${prefix}.${body}`), fromB64url(sig), fromB64url(key));

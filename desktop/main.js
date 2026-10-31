@@ -1,4 +1,4 @@
-// K9 Manager per Windows e Mac: apre la versione web dell'app in una finestra, senza browser.
+// Club Manager per Windows e Mac: apre la versione web dell'app in una finestra, senza browser.
 // I file dell'app stanno in web/ (creati da "npm run web") e si servono dall'indirizzo app://campo/.
 const { app, BrowserWindow, ipcMain, net, protocol, screen, shell } = require('electron');
 const crypto = require('node:crypto');
@@ -194,14 +194,23 @@ function createWindow(link) {
   win.loadURL(pageFor(link));
 }
 
+// Il programma prima si chiamava "K9 ..." (K9 Manager, K9 Gestore, ...): se c'è ancora la cartella dei dati con il
+// nome vecchio usiamo quella, così dopo l'aggiornamento restano l'accesso, le impostazioni e la finestra.
+{
+  const vecchia = path.join(app.getPath('appData'), app.getName().replace(/^Club /, 'K9 '));
+  if (vecchia !== app.getPath('userData') && fs.existsSync(vecchia) && !fs.existsSync(app.getPath('userData'))) {
+    app.setPath('userData', vecchia);
+  }
+}
+
 // Una finestra sola per programma. Il blocco va col nome del programma (app.getName()), che viene dal
-// package.json impacchettato: le build di K9 Gestore e delle prove lo cambiano con -c.extraMetadata.productName,
-// se no avrebbero lo stesso nome di K9 Manager e non si aprirebbero insieme a lui.
+// package.json impacchettato: le build di Club Gestore e delle prove lo cambiano con -c.extraMetadata.productName,
+// se no avrebbero lo stesso nome di Club Manager e non si aprirebbero insieme a lui.
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  // Il pannello del gestore (K9 Gestore) non apre i link di attivazione: restano a K9 Manager.
-  if (app.getName() !== 'K9 Gestore') app.setAsDefaultProtocolClient(SCHEME);
+  // Il pannello del gestore (Club Gestore) non apre i link di attivazione: restano a Club Manager.
+  if (app.getName() !== 'Club Gestore') app.setAsDefaultProtocolClient(SCHEME);
 
   // Su Mac il link di attivazione arriva qui, anche quando apre il programma.
   let macLink = null;

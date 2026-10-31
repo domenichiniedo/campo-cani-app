@@ -1,4 +1,4 @@
-# K9 Manager
+# Club Manager
 
 App per prenotare il campo di addestramento. I clienti si iscrivono, accettano regolamento e privacy e prenotano le lezioni
 (IGP da 60 minuti, educazione base da 30). Il proprietario apre gli orari, vede il piano del giorno e della settimana, segna
@@ -68,20 +68,20 @@ account di sempre.
 L'app si fa dare da Google un "ID token" e lo passa a Supabase: non serve registrare su Google l'indirizzo di ogni
 centro, e gli stessi client valgono per tutti i centri. Si prepara **una volta sola**:
 
-1. **Google Cloud** (console.cloud.google.com): crea un progetto, per esempio "K9 Manager". In **Google Auth Platform →
+1. **Google Cloud** (console.cloud.google.com): crea un progetto, per esempio "Club Manager". In **Google Auth Platform →
    Branding** metti nome dell'app, email di supporto e logo; in **Audience** scegli "Esterno" e poi **Pubblica l'app**
    (finché è "In test" entrano solo gli utenti di prova che aggiungi tu). Gli scope sono quelli di base (email, profilo):
    Google non chiede verifiche.
 2. In **Google Auth Platform → Clients → Create client** crea quattro client:
-   - **Applicazione web**, "K9 Manager web". In *Origini JavaScript autorizzate* metti gli indirizzi dove apri l'app
+   - **Applicazione web**, "Club Manager web". In *Origini JavaScript autorizzate* metti gli indirizzi dove apri l'app
      nel browser, per esempio `https://domenichiniedo.github.io` (niente URI di reindirizzamento). Ti dà un **ID client**
      e un **client secret**.
    - **Android**, nome pacchetto `it.campocani.app`, impronta SHA-1
      `02:B3:E4:2E:B2:A9:A1:47:C6:3A:F3:4F:42:8B:0E:6A:EB:8A:9B:02` (è la firma di `mobile-demo/demo-debug.keystore`).
    - **Android** di nuovo, uguale ma con pacchetto `it.campocani.provavera` (le prove con database), un altro con
-     `it.campocani.provagenerale` (la prova generale) e uno con `it.campocani.gestore` (il pannello K9 Gestore sul
+     `it.campocani.provagenerale` (la prova generale) e uno con `it.campocani.gestore` (il pannello Club Gestore sul
      telefono).
-   - **App desktop**, "K9 Manager computer": ti dà un altro **ID client** e un **client secret** (per Google quello delle
+   - **App desktop**, "Club Manager computer": ti dà un altro **ID client** e un **client secret** (per Google quello delle
      app desktop non è segreto: può stare nel programma).
 3. **GitHub → Settings → Secrets and variables → Actions → Variables**: `GOOGLE_WEB_CLIENT_ID` (ID del client web),
    `GOOGLE_DESKTOP_CLIENT_ID` e `GOOGLE_DESKTOP_SECRET` (quelli del client desktop). Poi ricostruisci app e programma
@@ -140,7 +140,7 @@ La stessa app gira anche nel browser, su telefono e computer, senza store: è un
 3. L'app è su **https://domenichiniedo.github.io/campo-cani-app/app/** (la demo resta su
    https://domenichiniedo.github.io/campo-cani-app/). Per installarla: su iPhone Safari → **Condividi → Aggiungi alla
    schermata Home**; su Android e computer Chrome o Edge → **Installa app** (menu ⋮ o icona nella barra
-   dell'indirizzo). Si apre a tutto schermo con l'icona di K9 Manager e si aggiorna da sola.
+   dell'indirizzo). Si apre a tutto schermo con l'icona di Club Manager e si aggiorna da sola.
 
 Nel browser il proprietario paga il piano direttamente (come nel programma per computer). Per l'accesso con Google
 aggiungi `https://domenichiniedo.github.io` alle origini autorizzate (vedi *Accesso con Google*). Lo scontrino con il
@@ -180,7 +180,7 @@ Poi vai in GitHub → Settings → Secrets and variables → Actions → **Secre
 - `ANDROID_UPLOAD_KEY_PASSWORD`: la stessa password, se keytool non te ne ha chiesta un'altra.
 
 Conserva `k9-upload.jks` e la password in un posto sicuro. Da lì in poi l'AAB firmato esce nelle Releases accanto
-all'APK (K9Manager-Demo.aab, K9Manager-Prova.aab). Senza i secrets l'AAB si costruisce lo stesso, ma solo per
+all'APK (ClubManager-Demo.aab, ClubManager-Prova.aab). Senza i secrets l'AAB si costruisce lo stesso, ma solo per
 controllo, e non si pubblica. L'APK resta firmato con la chiave della demo, così si installa sopra quella vecchia.
 
 Nella Play Console, per ogni app (demo `it.campocani.demo`, prova `it.campocani.provavera`, app vera
@@ -380,7 +380,7 @@ quella del server: la tua resta sul computer). Ogni mese il centro vede nell'app
 quota a prenotazione) e ti paga con un bonifico istantaneo; il gestore legge i bonifici sul tuo conto, in sola lettura, e
 rinnova la licenza. Se il pagamento non arriva entro il giorno 3, l'app del centro si blocca finché non arriva. Il
 proprietario può cambiare piano dall'app; clienti e trainer entrano con il codice corto del centro (K9-XXXXXX). Il
-pannello "K9 Gestore" ti mostra tutti i centri, i pagamenti (con lo storico mese per mese di ogni centro) e le statistiche, e lì scrivi il tuo IBAN e i prezzi dei piani.
+pannello "Club Gestore" ti mostra tutti i centri, i pagamenti (con lo storico mese per mese di ogni centro) e le statistiche, e lì scrivi il tuo IBAN e i prezzi dei piani.
 Come accenderlo: [gestore/README.md](gestore/README.md).
 
 ## 8. Programma per Windows e Mac
@@ -389,18 +389,18 @@ La stessa app esiste anche come programma da installare sul computer del campo, 
 né schermate dei clienti), con la stessa licenza e la stampa sul registratore Epson RT della rete del campo.
 
 - **Scaricarlo**: su GitHub apri **Actions → App per Windows → Run workflow**. Finita l'esecuzione, in fondo alla pagina
-  trovi **K9Manager-Windows** con il file `K9Manager-Setup-x.y.z.exe`. Lo stesso succede quando crei un tag `v1.0.0`.
+  trovi **ClubManager-Windows** con il file `ClubManager-Setup-x.y.z.exe`. Lo stesso succede quando crei un tag `v1.0.0`.
 - **Quale database usa**: se in **Settings → Secrets and variables → Actions → Variables** imposti
   `EXPO_PUBLIC_SUPABASE_URL` ed `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, il programma è collegato al tuo campo. Altrimenti
   chiede il codice di licenza al primo avvio, come l'app sugli store (serve la chiave pubblica, punto 7).
 - **Avviso di Windows**: il programma non è firmato, quindi al primo avvio Windows SmartScreen mostra "Windows ha protetto
   il PC": premi **Ulteriori informazioni → Esegui comunque**. Per toglierlo serve un certificato di firma del codice
   (a pagamento), da aggiungere quando lo vendi.
-- **Versione demo**: in **Run workflow** spunta **demo**. Esce **K9Manager-Windows-Demo**, con i dati di esempio della
+- **Versione demo**: in **Run workflow** spunta **demo**. Esce **ClubManager-Windows-Demo**, con i dati di esempio della
   demo web e senza database: utile per farlo vedere a un centro.
-- **Mac**: allo stesso modo da **Actions → App per Mac → Run workflow**, che crea `K9Manager-x.y.z.dmg` (per Mac con chip
-  Apple e Intel; con **demo** spuntato esce `K9Manager-Mac-Demo.dmg`, anche in **Releases → Demo per Mac**). Si apre il
-  file e si trascina K9 Manager in Applicazioni. Il programma non è firmato da Apple: la prima volta aprilo con **clic
+- **Mac**: allo stesso modo da **Actions → App per Mac → Run workflow**, che crea `ClubManager-x.y.z.dmg` (per Mac con chip
+  Apple e Intel; con **demo** spuntato esce `ClubManager-Mac-Demo.dmg`, anche in **Releases → Demo per Mac**). Si apre il
+  file e si trascina Club Manager in Applicazioni. Il programma non è firmato da Apple: la prima volta aprilo con **clic
   destro → Apri**, oppure da **Impostazioni di Sistema → Privacy e sicurezza → Apri comunque**. Per toglierlo serve
   l'Apple Developer Program (99 $ l'anno).
 - **Provarlo sul tuo computer**: nella cartella `desktop` esegui `npm install`, `npm run web` e `npm start`.
@@ -418,7 +418,7 @@ La chiave di Resend resta nei Secrets di Supabase: non finisce mai nell'app.
    indirizzo, da `onboarding@resend.dev`: va bene per provare.
 2. Dalla cartella del progetto (come al punto 5):
    ```sh
-   supabase secrets set RESEND_API_KEY=la_chiave REPORT_FROM="K9 Manager <report@iltuocampo.it>" WEBHOOK_SECRET=una_parola_lunga_a_caso
+   supabase secrets set RESEND_API_KEY=la_chiave REPORT_FROM="Club Manager <report@iltuocampo.it>" WEBHOOK_SECRET=una_parola_lunga_a_caso
    supabase functions deploy report-mensile --no-verify-jwt
    ```
    Se hai già impostato `WEBHOOK_SECRET` per le fatture, non cambiarlo. Il report va agli account con ruolo
@@ -446,9 +446,9 @@ imposti anche `LICENSE_PUBLIC_KEY` (la riga di `src/lib/license-key.ts`), contro
 Tutte le demo hanno i dati di esempio, senza database, e il bottone **Demo** per entrare come proprietario, cliente o
 trainer e per cambiare piano. I dati restano solo su quel telefono o computer.
 
-- **Android**: GitHub → Releases → **Demo per Android**, file `K9Manager-Demo.apk` da aprire sul telefono.
+- **Android**: GitHub → Releases → **Demo per Android**, file `ClubManager-Demo.apk` da aprire sul telefono.
 - **Prova Pro di 3 giorni (Android)**: **Actions → Demo per Android → Run workflow** con **prova** spuntato. Esce
-  `K9Manager-Prova.apk` in Releases → **Prova Pro per Android**: piano Pro fisso, dati di esempio, niente pagamenti online.
+  `ClubManager-Prova.apk` in Releases → **Prova Pro per Android**: piano Pro fisso, dati di esempio, niente pagamenti online.
   Tre giorni dopo la prima apertura su quel telefono l'app si blocca. È un'app a parte, quindi può stare accanto alla demo.
 - **iPhone (e qualunque browser)**: la demo web su https://domenichiniedo.github.io/campo-cani-app/. In Safari
   **Condividi → Aggiungi alla schermata Home** e si apre a tutto schermo come un'app. Si aggiorna con
@@ -467,7 +467,7 @@ salvalo nel repository in **Settings → Secrets and variables → Actions → N
 l'email del proprietario e i giorni (se hai già creato il progetto su supabase.com, scrivi anche il suo codice, quello
 di `xxxx.supabase.co`). Il workflow crea il progetto Supabase gratuito con il database pronto (senza
 conferma via email) e costruisce l'APK per Android e il programma per Windows del proprietario: in una quindicina
-di minuti sono in **Releases → Prova di K9 Manager – xxxx** (`K9Manager-Prova.apk` e `K9Manager-Prova-Windows.exe`).
+di minuti sono in **Releases → Prova di Club Manager – xxxx** (`ClubManager-Prova.apk` e `ClubManager-Prova-Windows.exe`).
 Poi segui i punti 4 e 5 qui sotto.
 
 **A mano**, se preferisci:
@@ -480,9 +480,9 @@ Poi segui i punti 4 e 5 qui sotto.
 2. In **Project Settings → API Keys** copia l'URL del progetto e la **Publishable key** (`sb_publishable_...`). Mai la
    Secret key.
 3. Su GitHub: **Actions → App per Android → Run workflow**, con l'URL, la publishable key e i giorni (3). In una decina
-   di minuti esce in **Releases → Prova di K9 Manager – xxxx** il file `K9Manager-Prova.apk`, che vale fino a oggi più
+   di minuti esce in **Releases → Prova di Club Manager – xxxx** il file `ClubManager-Prova.apk`, che vale fino a oggi più
    i giorni scelti, compreso l'ultimo. Per il programma Windows del proprietario: **Actions → App per Windows → Run
-   workflow** con gli stessi dati; esce `K9Manager-Prova-Windows.exe` nella stessa release, e si installa accanto
+   workflow** con gli stessi dati; esce `ClubManager-Prova-Windows.exe` nella stessa release, e si installa accanto
    alla demo.
 4. Il repository è privato: scarica l'APK con il tuo account e mandalo tu a chi prova (WhatsApp, email). Si installa
    come la demo; è un'app a parte, quindi può stare accanto alla demo.
@@ -490,7 +490,7 @@ Poi segui i punti 4 e 5 qui sotto.
    trainer si iscrivono dall'app come sempre.
 
 Per allungare la prova rilancia il workflow con gli stessi dati e altri giorni, e manda il nuovo APK: si installa
-sopra quello vecchio. Con **giorni 0** esce l'app senza scadenza (`K9Manager.apk`, Releases → **App per Android**).
+sopra quello vecchio. Con **giorni 0** esce l'app senza scadenza (`ClubManager.apk`, Releases → **App per Android**).
 Quando la prova è finita puoi mettere in pausa o cancellare il progetto in Supabase.
 
 ## 12. Prova generale: tutto il giro, dalla registrazione del centro
@@ -500,12 +500,12 @@ solo, il proprietario entra, dà il codice del centro (K9-XXXXXX) a clienti e tr
 centro e il conto del mese del gestore.
 
 Serve solo il secret `SUPABASE_ACCESS_TOKEN` del punto 11. Poi **Actions → Prova generale → Run workflow** con la tua
-email. In una ventina di minuti il workflow accende il gestore su Supabase (progetto "K9 Gestore": tabelle, funzioni,
+email. In una ventina di minuti il workflow accende il gestore su Supabase (progetto "Club Gestore": tabelle, funzioni,
 chiave delle licenze, orari, il tuo utente) e costruisce:
 
-- **Releases → Prova generale di K9 Manager**: `K9Manager-ProvaGenerale.apk` (sul telefono si chiama "K9 Prova
-  generale" e sta accanto alle altre) e `K9Manager-ProvaGenerale-Windows.exe`;
-- **Releases → K9 Gestore**: il pannello per Windows e Mac. Entri con la tua email e la password che trovi nel
+- **Releases → Prova generale di Club Manager**: `ClubManager-ProvaGenerale.apk` (sul telefono si chiama "Club Prova
+  generale" e sta accanto alle altre) e `ClubManager-ProvaGenerale-Windows.exe`;
+- **Releases → Club Gestore**: il pannello per Windows e Mac. Entri con la tua email e la password che trovi nel
   riepilogo dell'esecuzione (Actions → Prova generale → l'esecuzione → Summary).
 
 La prova in pratica:

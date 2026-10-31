@@ -1,4 +1,4 @@
-# Prova generale di K9 Manager: tutto il giro come sarà davvero, acceso da GitHub con un pulsante solo.
+# Prova generale di Club Manager: tutto il giro come sarà davvero, acceso da GitHub con un pulsante solo.
 # Un centro si registra dall'app ("Registra il tuo centro"), il gestore gli prepara il database da solo e il centro dà
 # il suo codice a clienti e trainer; poi prenotazioni, pagamenti al centro e il conto del mese del gestore.
 #
@@ -14,11 +14,11 @@
 # il secret GOOGLE_WEB_SECRET (il client secret del client web), come nel README ("Accesso con Google").
 #
 # Actions → Prova generale → Run workflow, con la tua email. In una ventina di minuti:
-#   - il gestore acceso su Supabase (progetto "K9 Gestore"), con le funzioni, gli orari e il tuo utente: la password è
+#   - il gestore acceso su Supabase (progetto "Club Gestore"), con le funzioni, gli orari e il tuo utente: la password è
 #     nel riepilogo di questa esecuzione (Summary), mai nei log;
-#   - Releases → "Prova generale di K9 Manager": K9Manager-ProvaGenerale.apk (Android, "K9 Prova generale") e
-#     K9Manager-ProvaGenerale-Windows.exe (il programma del proprietario);
-#   - Releases → "K9 Gestore": il pannello per Windows e Mac, con cui vedi i centri, fai il conto del mese
+#   - Releases → "Prova generale di Club Manager": ClubManager-ProvaGenerale.apk (Android, "Club Prova generale") e
+#     ClubManager-ProvaGenerale-Windows.exe (il programma del proprietario);
+#   - Releases → "Club Gestore": il pannello per Windows e Mac, con cui vedi i centri, fai il conto del mese
 #     ("Addebita adesso") e segni i pagamenti.
 # È una prova: i centri si preparano senza email di conferma né SMS (chi si iscrive entra subito) e i bonifici si
 # segnano a mano dal pannello. Il piano gratuito di Supabase tiene due progetti attivi, il gestore e un centro: per
@@ -30,7 +30,7 @@ on:
   workflow_dispatch:
     inputs:
       email:
-        description: La tua email (entri nel pannello K9 Gestore con questa)
+        description: La tua email (entri nel pannello Club Gestore con questa)
         required: true
       giorni:
         description: Giorni di prova delle app (0 = senza scadenza; le licenze dei centri scadono comunque se non pagano)
@@ -105,7 +105,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view prova-generale >/dev/null 2>&1 || gh release create prova-generale --prerelease --title "Prova generale di K9 Manager" \
+          gh release view prova-generale >/dev/null 2>&1 || gh release create prova-generale --prerelease --title "Prova generale di Club Manager" \
             --notes "La prova di tutto il giro: un centro si registra dall'app e il gestore gli prepara il database da solo."
 
   app:

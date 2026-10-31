@@ -1,7 +1,7 @@
-# Manuale d'uso di K9 Manager
+# Manuale d'uso di Club Manager
 
 Questo manuale spiega l'app a chi la usa: clienti, trainer, proprietari dei centri e te che gestisci tutti i centri
-(K9 Gestore). Le istruzioni tecniche per installare i database sono nel [README](../README.md) e in
+(Club Gestore). Le istruzioni tecniche per installare i database sono nel [README](../README.md) e in
 [gestore/README.md](../gestore/README.md); qui ci sono i passi da fare nell'app e i collegamenti con i servizi esterni
 (Fatture in Cloud, registratore e POS, Nexi, Stripe). Il codice è spiegato nel [manuale tecnico](MANUALE-TECNICO.md) e
 i costi nello [studio dei costi](COSTI.md).
@@ -19,7 +19,7 @@ i costi nello [studio dei costi](COSTI.md).
 9. [Pagamento con carta: Nexi](#9-pagamento-con-carta-nexi)
 10. [Stripe](#10-stripe)
 11. [Bonifico istantaneo e "Paga dalla tua banca"](#11-bonifico-istantaneo-e-paga-dalla-tua-banca)
-12. [K9 Gestore: il tuo pannello](#12-k9-gestore-il-tuo-pannello)
+12. [Club Gestore: il tuo pannello](#12-club-gestore-il-tuo-pannello)
 13. [Le action di GitHub](#13-le-action-di-github)
 
 ---
@@ -28,10 +28,10 @@ i costi nello [studio dei costi](COSTI.md).
 
 | Chi | Che cosa usa | Dove si trova |
 | --- | --- | --- |
-| Cliente | l'app K9 Manager | Android (Play Store o APK), iPhone dal browser (Safari → Condividi → Aggiungi alla schermata Home) |
+| Cliente | l'app Club Manager | Android (Play Store o APK), iPhone dal browser (Safari → Condividi → Aggiungi alla schermata Home) |
 | Trainer | la stessa app, area trainer | come il cliente |
 | Proprietario del centro | la stessa app, area proprietario; sul computer anche il programma per Windows e Mac (piano Pro) | app sul telefono, oppure Releases su GitHub per Windows e Mac |
-| Tu (gestore di tutti i centri) | K9 Gestore | Releases → K9 Gestore: `K9Gestore-Windows.exe`, `K9Gestore-Mac.dmg`, `K9Gestore-Android.apk` |
+| Tu (gestore di tutti i centri) | Club Gestore | Releases → Club Gestore: `ClubGestore-Windows.exe`, `ClubGestore-Mac.dmg`, `ClubGestore-Android.apk` |
 
 L'app è una sola per tutti: chi entra decide che cosa vede. Il database riconosce il proprietario dalla sua email, il
 trainer dall'email che il proprietario ha scritto nella scheda Trainer, e tutti gli altri sono clienti.
@@ -431,17 +431,17 @@ Nexi, senza canone.
 
 ---
 
-## 12. K9 Gestore: il tuo pannello
+## 12. Club Gestore: il tuo pannello
 
 ### Installare
 
-Releases → **K9 Gestore** (lo crea l'action **Pannello del gestore**):
+Releases → **Club Gestore** (lo crea l'action **Pannello del gestore**):
 
-- **Windows**: `K9Gestore-Windows.exe`. Al primo avvio SmartScreen dice "Windows ha protetto il PC": **Ulteriori
+- **Windows**: `ClubGestore-Windows.exe`. Al primo avvio SmartScreen dice "Windows ha protetto il PC": **Ulteriori
   informazioni → Esegui comunque**.
-- **Mac**: `K9Gestore-Mac.dmg`, trascina in Applicazioni, la prima volta **clic destro → Apri**.
-- **Android**: `K9Gestore-Android.apk`. Scaricalo dal telefono e aprilo; se Android lo chiede, permetti
-  l'installazione da questa fonte. L'icona è quella di K9 Manager con lo sfondo blu.
+- **Mac**: `ClubGestore-Mac.dmg`, trascina in Applicazioni, la prima volta **clic destro → Apri**.
+- **Android**: `ClubGestore-Android.apk`. Scaricalo dal telefono e aprilo; se Android lo chiede, permetti
+  l'installazione da questa fonte. L'icona è quella di Club Manager con lo sfondo blu.
 
 ### Entrare
 
@@ -482,7 +482,7 @@ Le action che costruiscono le app **partono solo quando le lanci tu**: GitHub �
 | App per Android, App per Windows, App per Mac | per avere una versione nuova di una sola app |
 | Demo per Android | per aggiornare la demo per Android |
 | Sito web (web app e demo) | per pubblicare la web app e la demo web dopo una modifica |
-| Pannello del gestore | per avere K9 Gestore nuovo (Windows, Mac, Android) |
+| Pannello del gestore | per avere Club Gestore nuovo (Windows, Mac, Android) |
 | Prova con database | per una prova di qualche giorno per un centro |
 | Prova generale | per provare tutto il giro con il gestore di prova |
 | Pulizia delle Releases | per togliere le versioni vecchie |

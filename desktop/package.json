@@ -1,8 +1,8 @@
 {
   "name": "campo-cani-desktop",
-  "productName": "K9 Manager",
+  "productName": "Club Manager",
   "version": "1.0.0",
-  "description": "K9 Manager per Windows e Mac",
+  "description": "Club Manager per Windows e Mac",
   "author": "domenichiniedo",
   "private": true,
   "main": "main.js",
@@ -19,19 +19,19 @@
   },
   "build": {
     "appId": "it.campocani.app",
-    "productName": "K9 Manager",
+    "productName": "Club Manager",
     "directories": { "output": "release" },
     "files": ["main.js", "preload.js", "package.json"],
     "extraResources": [{ "from": "web", "to": "web" }],
-    "protocols": [{ "name": "K9 Manager", "schemes": ["campocaniapp"] }],
-    "win": { "icon": "../assets/images/icon.png", "artifactName": "K9Manager-Setup-${version}.exe" },
+    "protocols": [{ "name": "Club Manager", "schemes": ["campocaniapp"] }],
+    "win": { "icon": "../assets/images/icon.png", "artifactName": "ClubManager-Setup-${version}.exe" },
     "mac": {
       "icon": "../assets/images/icon.png",
       "category": "public.app-category.business",
       "identity": "-",
       "hardenedRuntime": false,
-      "artifactName": "K9Manager-${version}.${ext}"
+      "artifactName": "ClubManager-${version}.${ext}"
     },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "shortcutName": "K9 Manager" }
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "shortcutName": "Club Manager" }
   }
 }

@@ -1,4 +1,4 @@
--- K9 Manager, server gestore: i centri pagano ogni mese con un bonifico istantaneo sul tuo conto, che il gestore
+-- Club Manager, server gestore: i centri pagano ogni mese con un bonifico istantaneo sul tuo conto, che il gestore
 -- trova da solo nei movimenti (niente più addebito SEPA con Stripe); senza pagamento l'app si blocca dopo pochi
 -- giorni. Prezzi per piano, con il cambio di piano deciso dal centro nell'app.
 -- Va eseguito nel SQL Editor del progetto gestore dopo 0001_centri.sql.

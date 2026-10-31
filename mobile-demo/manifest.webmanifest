@@ -1,6 +1,6 @@
 {
-  "name": "K9 Manager Demo",
-  "short_name": "K9 Demo",
+  "name": "Club Manager Demo",
+  "short_name": "Club Demo",
   "lang": "it",
   "start_url": "./",
   "scope": "./",

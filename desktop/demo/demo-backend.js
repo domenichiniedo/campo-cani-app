@@ -675,7 +675,7 @@
       if (a.azione === 'tieni') try { localStorage.removeItem('campo-demo-disdetta'); } catch (e) {}
       if (a.azione === 'iban') try { localStorage.setItem('campo-demo-iban-centro', String(a.iban || '')); } catch (e) {}
       var out = { piano: piano, formula: formula, piano_prossimo: prossimo, formula_prossima: formulaProssima, piano_dal: prossimo || formulaProssima ? primoDopo : null, disdetta: localStorage.getItem('campo-demo-disdetta') || null, disdetta_se_oggi: fineDopo, piani: PREZZI, iban_centro: localStorage.getItem('campo-demo-iban-centro') || '', scade: null,
-        bonifico: { iban: 'IT60X0542811101000000123456', intestatario: 'K9 Manager' }, da_pagare: [],
+        bonifico: { iban: 'IT60X0542811101000000123456', intestatario: 'Club Manager' }, da_pagare: [],
         storico: storicoDemo(oggi, piano, formula),
         credito_cents: Number(localStorage.getItem('campo-demo-bonus') || 0) };
       if (a.azione === 'cambia') out.licenza = lic[piano];

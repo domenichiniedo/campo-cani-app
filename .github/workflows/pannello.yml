@@ -1,9 +1,9 @@
-# Costruisce "K9 Gestore", il tuo pannello per tutti i centri registrati dall'app: centri, addebiti,
-# licenze, statistiche. Esce per Windows, Mac e Android in GitHub → Releases → "K9 Gestore" (K9Gestore-Windows.exe,
-# K9Gestore-Mac.dmg e K9Gestore-Android.apk, da installare sul telefono). Si installa accanto a K9 Manager, senza toccarlo.
+# Costruisce "Club Gestore", il tuo pannello per tutti i centri registrati dall'app: centri, addebiti,
+# licenze, statistiche. Esce per Windows, Mac e Android in GitHub → Releases → "Club Gestore" (ClubGestore-Windows.exe,
+# ClubGestore-Mac.dmg e ClubGestore-Android.apk, da installare sul telefono). Si installa accanto a Club Manager, senza toccarlo.
 #
 # Demo con centri e addebiti finti, senza server: Run workflow con "demo" spuntato. Esce in Releases →
-# "Demo di K9 Gestore" (K9Gestore-Demo-Windows.exe e K9Gestore-Demo-Mac.dmg).
+# "Demo di Club Gestore" (ClubGestore-Demo-Windows.exe e ClubGestore-Demo-Mac.dmg).
 #
 # Partenza: a mano (Run workflow), con l'indirizzo delle funzioni del gestore e la sua publishable key
 # (vedi gestore/README.md). Al posto degli input puoi mettere le variabili GESTORE_URL e GESTORE_KEY in
@@ -39,11 +39,11 @@ on:
 permissions:
   contents: write
 
-# K9 Gestore ha l'icona di K9 Manager con lo sfondo blu (assets/images/icon-gestore.png).
+# Club Gestore ha l'icona di Club Manager con lo sfondo blu (assets/images/icon-gestore.png).
 env:
   EXPO_PUBLIC_PANNELLO: '1'
   EXPO_PUBLIC_PANNELLO_DEMO: ${{ inputs.demo && '1' || '' }}
-  NOME: ${{ inputs.demo && 'K9Gestore-Demo' || 'K9Gestore' }}
+  NOME: ${{ inputs.demo && 'ClubGestore-Demo' || 'ClubGestore' }}
   # La demo si installa accanto al pannello vero, senza sostituirlo.
   APP_ID: ${{ inputs.demo && 'it.campocani.gestoredemo' || 'it.campocani.gestore' }}
   EXPO_PUBLIC_GESTORE_URL: ${{ inputs.gestore_url || vars.GESTORE_URL }}
@@ -73,16 +73,16 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           if [ -n "$EXPO_PUBLIC_PANNELLO_DEMO" ]; then
-            TAG=pannello-demo; TITLE="Demo di K9 Gestore"
-            NOTES="Demo del pannello K9 Gestore con centri e addebiti finti, senza server: entri con una email e una password qualsiasi. Le modifiche restano finché il programma è aperto."
+            TAG=pannello-demo; TITLE="Demo di Club Gestore"
+            NOTES="Demo del pannello Club Gestore con centri e addebiti finti, senza server: entri con una email e una password qualsiasi. Le modifiche restano finché il programma è aperto."
           else
-            TAG=pannello-gestore; TITLE="K9 Gestore"
+            TAG=pannello-gestore; TITLE="Club Gestore"
             NOTES="Il tuo pannello per tutti i centri registrati dall'app. Entri con l'utente del progetto gestore."
           fi
           NOTES="$NOTES
 
           - Windows: scarica $NOME-Windows.exe e aprilo per installarlo.
-          - Mac: scarica $NOME-Mac.dmg, aprilo e trascina K9 Gestore in Applicazioni. La prima volta aprilo con clic destro → Apri.
+          - Mac: scarica $NOME-Mac.dmg, aprilo e trascina Club Gestore in Applicazioni. La prima volta aprilo con clic destro → Apri.
           - Android: scarica $NOME-Android.apk dal telefono e aprilo per installarlo."
           gh release view $TAG >/dev/null 2>&1 || gh release create $TAG --prerelease --title "$TITLE" --notes "$NOTES"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
@@ -104,7 +104,7 @@ jobs:
         working-directory: desktop
       - run: npm run web
         working-directory: desktop
-      - run: npm run dist -- -c.appId=$APP_ID -c.productName="K9 Gestore" -c.extraMetadata.productName="K9 Gestore" -c.nsis.shortcutName="K9 Gestore" -c.win.artifactName=$NOME-Windows.exe -c.win.icon=../assets/images/icon-gestore.png
+      - run: npm run dist -- -c.appId=$APP_ID -c.productName="Club Gestore" -c.extraMetadata.productName="Club Gestore" -c.nsis.shortcutName="Club Gestore" -c.win.artifactName=$NOME-Windows.exe -c.win.icon=../assets/images/icon-gestore.png
         shell: bash
         working-directory: desktop
       - name: Carica nelle Releases
@@ -131,7 +131,7 @@ jobs:
         working-directory: desktop
       - run: npm run web
         working-directory: desktop
-      - run: npm run dist:mac -- -c.appId=$APP_ID -c.productName="K9 Gestore" -c.extraMetadata.productName="K9 Gestore" -c.mac.artifactName=$NOME-Mac.dmg -c.mac.icon=../assets/images/icon-gestore.png
+      - run: npm run dist:mac -- -c.appId=$APP_ID -c.productName="Club Gestore" -c.extraMetadata.productName="Club Gestore" -c.mac.artifactName=$NOME-Mac.dmg -c.mac.icon=../assets/images/icon-gestore.png
         working-directory: desktop
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -148,10 +148,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       APP_VERA: '1'
-      # La stessa icona di K9 Manager, con lo sfondo blu: sul telefono si distinguono.
+      # La stessa icona di Club Manager, con lo sfondo blu: sul telefono si distinguono.
       ICONA: ../assets/images/icon-gestore.png
-      APK: ${{ inputs.demo && 'K9Gestore-Demo-Android.apk' || 'K9Gestore-Android.apk' }}
-      AAB: K9Gestore-Android.aab
+      APK: ${{ inputs.demo && 'ClubGestore-Demo-Android.apk' || 'ClubGestore-Android.apk' }}
+      AAB: ClubGestore-Android.aab
       # Google sul telefono usa il client web (vedi gestore/README.md): vuota = solo email e password.
       EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ !inputs.demo && vars.GOOGLE_WEB_CLIENT_ID || '' }}
     steps:
@@ -172,9 +172,9 @@ jobs:
       - name: Nome dell'app
         working-directory: mobile-demo
         run: |
-          NAME="K9 Gestore"; [ -n "$EXPO_PUBLIC_PANNELLO_DEMO" ] && NAME="K9 Gestore Demo"
-          sed -i "s/\"it.campocani.demo\"/\"$APP_ID\"/; s/\"K9 Manager Demo\"/\"$NAME\"/" capacitor.config.json
-          sed -i "s#<title>K9 Manager</title>#<title>$NAME</title>#" www/index.html
+          NAME="Club Gestore"; [ -n "$EXPO_PUBLIC_PANNELLO_DEMO" ] && NAME="Club Gestore Demo"
+          sed -i "s/\"it.campocani.demo\"/\"$APP_ID\"/; s/\"Club Manager Demo\"/\"$NAME\"/" capacitor.config.json
+          sed -i "s#<title>Club Manager</title>#<title>$NAME</title>#" www/index.html
           cat capacitor.config.json
       - run: npx cap add android
         working-directory: mobile-demo

@@ -6,13 +6,13 @@
 #   supabase_url   https://xxxx.supabase.co del progetto (vuoto: la variabile EXPO_PUBLIC_SUPABASE_URL del repository)
 #   supabase_key   la chiave publishable sb_publishable_... (vuoto: EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY)
 #   giorni         durata della prova; 0 = senza scadenza
-# Esce nelle Releases: "Prova di K9 Manager – xxxx" (K9Manager-Prova.apk, una per ogni progetto, così più prove
-# non si sovrascrivono) o "App per Android" (K9Manager.apk). Con il repository privato il file si scarica solo
+# Esce nelle Releases: "Prova di Club Manager – xxxx" (ClubManager-Prova.apk, una per ogni progetto, così più prove
+# non si sovrascrivono) o "App per Android" (ClubManager.apk). Con il repository privato il file si scarica solo
 # con il tuo account GitHub: a chi prova l'app mandalo tu (WhatsApp, email).
 # Mai la chiave segreta di Supabase: quella publishable è fatta per stare nell'app.
 # Con gestore_url (lo passa "Prova generale") l'app non ha un database suo: c'è "Registra il tuo centro" e ogni centro
-# entra con il suo codice. Esce come "K9 Prova generale" in Releases → "Prova generale di K9 Manager"
-# (K9Manager-ProvaGenerale.apk).
+# entra con il suo codice. Esce come "Club Prova generale" in Releases → "Prova generale di Club Manager"
+# (ClubManager-ProvaGenerale.apk).
 name: App per Android
 
 on:
@@ -87,14 +87,14 @@ jobs:
             echo "Prova valida fino al $FINO compreso"
           fi
           if [ -n "$EXPO_PUBLIC_GESTORE_URL" ]; then
-            echo "APK=K9Manager-ProvaGenerale.apk" >> $GITHUB_ENV
-            echo "AAB=K9Manager-ProvaGenerale.aab" >> $GITHUB_ENV
+            echo "APK=ClubManager-ProvaGenerale.apk" >> $GITHUB_ENV
+            echo "AAB=ClubManager-ProvaGenerale.aab" >> $GITHUB_ENV
           elif [ "$GIORNI" -gt 0 ]; then
-            echo "APK=K9Manager-Prova.apk" >> $GITHUB_ENV
-            echo "AAB=K9Manager-Prova.aab" >> $GITHUB_ENV
+            echo "APK=ClubManager-Prova.apk" >> $GITHUB_ENV
+            echo "AAB=ClubManager-Prova.aab" >> $GITHUB_ENV
           else
-            echo "APK=K9Manager.apk" >> $GITHUB_ENV
-            echo "AAB=K9Manager.aab" >> $GITHUB_ENV
+            echo "APK=ClubManager.apk" >> $GITHUB_ENV
+            echo "AAB=ClubManager.aab" >> $GITHUB_ENV
           fi
       - uses: actions/setup-node@v4
         with:
@@ -116,9 +116,9 @@ jobs:
         working-directory: mobile-demo
         run: |
           # La prova generale ha un id suo: è quello che il gestore di prova mette nei link di invito (APP_ANDROID_ID).
-          if [ -n "$EXPO_PUBLIC_GESTORE_URL" ]; then ID=it.campocani.provagenerale; NAME="K9 Prova generale"
-          elif [ -n "$EXPO_PUBLIC_PROVA_FINO" ]; then ID=it.campocani.provavera; NAME="K9 Manager Prova"; else ID=it.campocani.app; NAME="K9 Manager"; fi
-          sed -i "s/\"it.campocani.demo\"/\"$ID\"/; s/\"K9 Manager Demo\"/\"$NAME\"/" capacitor.config.json
+          if [ -n "$EXPO_PUBLIC_GESTORE_URL" ]; then ID=it.campocani.provagenerale; NAME="Club Prova generale"
+          elif [ -n "$EXPO_PUBLIC_PROVA_FINO" ]; then ID=it.campocani.provavera; NAME="Club Manager Prova"; else ID=it.campocani.app; NAME="Club Manager"; fi
+          sed -i "s/\"it.campocani.demo\"/\"$ID\"/; s/\"Club Manager Demo\"/\"$NAME\"/" capacitor.config.json
           cat capacitor.config.json
       - run: npx cap add android
         working-directory: mobile-demo
@@ -148,7 +148,7 @@ jobs:
         continue-on-error: true
         with:
           retention-days: 7
-          name: K9Manager-Android
+          name: ClubManager-Android
           path: |
             mobile-demo/${{ env.APK }}
             mobile-demo/${{ env.AAB }}
@@ -162,24 +162,24 @@ jobs:
           # L'AAB per Google Play solo se è firmato con la chiave di caricamento.
           FILES="$APK"; [ -n "${UPLOAD_KEYSTORE:-}" ] && FILES="$APK $AAB"
           if [ -n "$EXPO_PUBLIC_GESTORE_URL" ]; then
-            TAG=prova-generale; TITLE="Prova generale di K9 Manager"
+            TAG=prova-generale; TITLE="Prova generale di Club Manager"
             FINO=""; [ -n "$EXPO_PUBLIC_PROVA_FINO" ] && FINO=" Vale fino al $(echo $EXPO_PUBLIC_PROVA_FINO | awk -F- '{print $3"/"$2"/"$1}') compreso."
             NOTES="La prova di tutto il giro, come sarà davvero: un centro si registra dall'app, il gestore gli prepara il database da solo e il centro dà il suo codice a clienti e trainer.$FINO
 
-          - Android: scarica K9Manager-ProvaGenerale.apk dal telefono e aprilo per installarlo. Si chiama \"K9 Prova generale\" e sta accanto alle altre.
-          - Windows (programma del proprietario): K9Manager-ProvaGenerale-Windows.exe.
-          - Il pannello del gestore: Releases → \"K9 Gestore\"."
+          - Android: scarica ClubManager-ProvaGenerale.apk dal telefono e aprilo per installarlo. Si chiama \"Club Prova generale\" e sta accanto alle altre.
+          - Windows (programma del proprietario): ClubManager-ProvaGenerale-Windows.exe.
+          - Il pannello del gestore: Releases → \"Club Gestore\"."
           elif [ -n "$EXPO_PUBLIC_PROVA_FINO" ]; then
             REF=$(echo "$EXPO_PUBLIC_SUPABASE_URL" | sed 's#https://##; s#\.supabase\.co.*##')
-            TAG=prova-$REF; TITLE="Prova di K9 Manager – $REF"
+            TAG=prova-$REF; TITLE="Prova di Club Manager – $REF"
             FINO=$(echo $EXPO_PUBLIC_PROVA_FINO | awk -F- '{print $3"/"$2"/"$1}')
-            NOTES="Prova di K9 Manager nel piano Pro, collegata al database della prova. Vale fino al $FINO compreso, poi l'app mostra che la prova è finita.
+            NOTES="Prova di Club Manager nel piano Pro, collegata al database della prova. Vale fino al $FINO compreso, poi l'app mostra che la prova è finita.
 
-          - Android: scarica K9Manager-Prova.apk dal telefono e aprilo per installarlo.
-          - Windows (programma del proprietario): scarica K9Manager-Prova-Windows.exe e aprilo per installarlo."
+          - Android: scarica ClubManager-Prova.apk dal telefono e aprilo per installarlo.
+          - Windows (programma del proprietario): scarica ClubManager-Prova-Windows.exe e aprilo per installarlo."
           else
             TAG=app-android; TITLE="App per Android"
-            NOTES="K9 Manager per Android, da installare senza Play Store. Scarica K9Manager.apk dal telefono e aprilo per installarlo."
+            NOTES="Club Manager per Android, da installare senza Play Store. Scarica ClubManager.apk dal telefono e aprilo per installarlo."
           fi
           gh release view $TAG >/dev/null 2>&1 || gh release create $TAG --prerelease --title "$TITLE" --notes "$NOTES"
           gh release edit $TAG --title "$TITLE" --notes "$NOTES"

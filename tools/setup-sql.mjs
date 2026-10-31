@@ -32,7 +32,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const out = join(import.meta.dirname, '../supabase/setup.sql');
   writeFileSync(
     out,
-    `-- K9 Manager: tutto il database in un solo file, per un progetto Supabase NUOVO.
+    `-- Club Manager: tutto il database in un solo file, per un progetto Supabase NUOVO.
 -- 1. Scrivi l'email del titolare del centro nell'ultima riga, al posto di titolare@esempio.it.
 -- 2. Incolla tutto il file nel SQL Editor di Supabase e premi Run.
 -- Il titolare poi si iscrive dall'app con quella email ed entra già come proprietario.

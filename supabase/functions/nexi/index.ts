@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
       if (q.get('annullato')) return pagina('Pagamento annullato', 'Non hai pagato niente. Torna nell\'app: puoi pagare la lezione più tardi o al campo.');
       const stato = await verifica(id).catch(() => 'created');
       return stato === 'paid'
-        ? pagina('Pagamento riuscito', 'La lezione è pagata. Torna nell\'app K9 Manager.')
+        ? pagina('Pagamento riuscito', 'La lezione è pagata. Torna nell\'app Club Manager.')
         : stato === 'failed'
           ? pagina('Pagamento non riuscito', 'La carta non è stata accettata. Torna nell\'app e riprova, oppure paga al campo.')
           : pagina('Pagamento in verifica', 'Nexi sta ancora confermando il pagamento: torna nell\'app tra qualche minuto.');

@@ -1,6 +1,6 @@
 {
   "appId": "it.campocani.demo",
-  "appName": "K9 Manager Demo",
+  "appName": "Club Manager Demo",
   "webDir": "www",
   "plugins": {
     "SystemBars": {

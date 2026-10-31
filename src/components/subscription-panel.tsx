@@ -155,7 +155,7 @@ function StorePlan({ sub }: { sub: Subscription }) {
       <Body>{t('Piano {piano}', { piano: PLANS[current].label })}</Body>
       {due > 0 && <Badge tone="warn">{t('Da pagare: {importo}', { importo: euro(due) })}</Badge>}
       {!!sub.disdetta && <Badge tone="bad">{t('Abbonamento disdetto: il servizio finisce il {data}.', { data: date(sub.disdetta) })}</Badge>}
-      <Muted style={{ fontSize: 13 }}>{t('Pagamenti, cambio di piano e disdetta si fanno dal programma K9 Manager per computer.')}</Muted>
+      <Muted style={{ fontSize: 13 }}>{t('Pagamenti, cambio di piano e disdetta si fanno dal programma Club Manager per computer.')}</Muted>
     </Card>
     <PaymentHistory list={sub.storico} />
     </>

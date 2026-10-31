@@ -59,12 +59,12 @@ export function LicensePanel() {
   // apre direttamente l'app, se c'è già.
   const link = auto ? inviteLink(license.id) : `campocaniapp://attiva?codice=${encodeURIComponent(read())}`;
   const invite = auto
-    ? t("Scarica l'app K9 Manager e attivala per {campo} con questo link: {link} (oppure scrivi il codice del centro {codice})", {
+    ? t("Scarica l'app Club Manager e attivala per {campo} con questo link: {link} (oppure scrivi il codice del centro {codice})", {
         campo: license.campo,
         link,
         codice: license.id,
       })
-    : t("Scarica l'app K9 Manager e attivala per {campo} con questo link: {link}", { campo: license.campo, link });
+    : t("Scarica l'app Club Manager e attivala per {campo} con questo link: {link}", { campo: license.campo, link });
 
   async function renew() {
     setErr('');

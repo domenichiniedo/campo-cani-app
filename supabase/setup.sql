@@ -1,4 +1,4 @@
--- K9 Manager: tutto il database in un solo file, per un progetto Supabase NUOVO.
+-- Club Manager: tutto il database in un solo file, per un progetto Supabase NUOVO.
 -- 1. Scrivi l'email del titolare del centro nell'ultima riga, al posto di titolare@esempio.it.
 -- 2. Incolla tutto il file nel SQL Editor di Supabase e premi Run.
 -- Il titolare poi si iscrive dall'app con quella email ed entra già come proprietario.
@@ -1338,7 +1338,7 @@ revoke execute on function public.set_owner_email(text) from public, anon, authe
 
 -- ===== 0016_lezioni_di_gruppo.sql =====
 
--- K9 Manager: lezioni di gruppo (piano Pro).
+-- Club Manager: lezioni di gruppo (piano Pro).
 -- Un tipo di lezione con group_seats si fa solo in gruppo. Il proprietario mette in calendario le
 -- classi (campo, giorno, ora, trainer, posti), anche ripetute ogni settimana; i clienti si iscrivono
 -- ai posti liberi. Ogni cane iscritto ha la sua prenotazione collegata alla classe, con pagamento,
@@ -1681,7 +1681,7 @@ grant execute on function public.busy_slots(date, date) to authenticated;
 
 -- ===== 0017_consenso_social.sql =====
 
--- K9 Manager: consenso facoltativo alla pubblicazione delle foto sui social del centro.
+-- Club Manager: consenso facoltativo alla pubblicazione delle foto sui social del centro.
 -- Si dà all'iscrizione (casella non obbligatoria) e il cliente può cambiarlo dal Profilo quando vuole;
 -- il proprietario lo vede nella scheda del cliente, con la data dell'ultima scelta.
 -- Da eseguire nel SQL Editor di Supabase dopo 0016_lezioni_di_gruppo.sql.

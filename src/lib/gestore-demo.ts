@@ -1,7 +1,7 @@
 import type { CentreBilling } from '@/lib/billing';
 import type { AdminCentre, AdminData, AppVersions, BuildRun, Charge, PlanRow } from '@/lib/gestore-admin';
 
-// Demo del pannello K9 Gestore: centri e addebiti finti, tutto nel dispositivo, senza server.
+// Demo del pannello Club Gestore: centri e addebiti finti, tutto nel dispositivo, senza server.
 // Le azioni (piano, prezzi, IBAN, rinnovo, sospensione...) cambiano i dati finti finché la pagina resta aperta.
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -173,7 +173,7 @@ const LANCI = [
   { id: 'tutte', titolo: 'Tutte le app: demo e prova, Android e Windows' },
   { id: 'demo-mac', titolo: 'Demo per Mac' },
   { id: 'demo-web', titolo: 'Demo web per iPhone' },
-  { id: 'pannello', titolo: 'Demo del pannello K9 Gestore' },
+  { id: 'pannello', titolo: 'Demo del pannello Club Gestore' },
 ];
 
 /** Releases e build finte, come le mostra GitHub. */
@@ -207,10 +207,10 @@ function versions(): AppVersions {
       run(6, 'Demo per Mac', 75, 'failure', 'Demo per Mac'),
     ],
     rilasci: [
-      { id: 100, tag: 'demo-android', titolo: 'Demo per Android', data: ago(50), note: '', file: [file('demo-android', 'K9Manager-Demo.apk', 9.4, 128, 50), file('demo-android', 'K9Manager-Demo.aab', 8.1, 3, 50)] },
-      { id: 101, tag: 'demo-windows', titolo: 'Demo per Windows', data: ago(50), note: '', file: [file('demo-windows', 'K9Manager-Windows-Demo.exe', 92.3, 41, 50)] },
-      { id: 102, tag: 'prova-jnysclqgutqetrxitlez', titolo: 'Prova di K9 Manager – jnysclqgutqetrxitlez', data: ago(26), note: '', file: [file('prova-jnysclqgutqetrxitlez', 'K9Manager-Prova.apk', 9.5, 17, 26), file('prova-jnysclqgutqetrxitlez', 'K9Manager-Prova-Windows.exe', 92.4, 6, 26)] },
-      { id: 103, tag: 'demo-mac', titolo: 'Demo per Mac', data: ago(300), note: '', file: [file('demo-mac', 'K9Manager-Mac-Demo.dmg', 118.0, 9, 300)] },
+      { id: 100, tag: 'demo-android', titolo: 'Demo per Android', data: ago(50), note: '', file: [file('demo-android', 'ClubManager-Demo.apk', 9.4, 128, 50), file('demo-android', 'ClubManager-Demo.aab', 8.1, 3, 50)] },
+      { id: 101, tag: 'demo-windows', titolo: 'Demo per Windows', data: ago(50), note: '', file: [file('demo-windows', 'ClubManager-Windows-Demo.exe', 92.3, 41, 50)] },
+      { id: 102, tag: 'prova-jnysclqgutqetrxitlez', titolo: 'Prova di Club Manager – jnysclqgutqetrxitlez', data: ago(26), note: '', file: [file('prova-jnysclqgutqetrxitlez', 'ClubManager-Prova.apk', 9.5, 17, 26), file('prova-jnysclqgutqetrxitlez', 'ClubManager-Prova-Windows.exe', 92.4, 6, 26)] },
+      { id: 103, tag: 'demo-mac', titolo: 'Demo per Mac', data: ago(300), note: '', file: [file('demo-mac', 'ClubManager-Mac-Demo.dmg', 118.0, 9, 300)] },
     ],
   };
 }
@@ -293,7 +293,7 @@ export async function demoCall<T>(azione: string, b: Record<string, unknown>): P
       const progetti = d.centri
         .filter((x) => demoDb![x.id])
         .map((x, i) => ({ ref: `demo${String(i).padStart(16, '0')}`, nome: `K9 ${x.codice}`, stato: demoDb![x.id], regione: 'eu-central-1', creato: x.creato, centro: { id: x.id, campo: x.campo, codice: x.codice }, gestore: false }));
-      return { progetti: [{ ref: 'demogestore000000000', nome: 'K9 Gestore', stato: 'ACTIVE_HEALTHY', regione: 'eu-central-1', creato: null, centro: null, gestore: true }, ...progetti] } as T;
+      return { progetti: [{ ref: 'demogestore000000000', nome: 'Club Gestore', stato: 'ACTIVE_HEALTHY', regione: 'eu-central-1', creato: null, centro: null, gestore: true }, ...progetti] } as T;
     }
     case 'database_accendi':
       if (demoDb && c) demoDb[c.id] = b.acceso ? 'ACTIVE_HEALTHY' : 'INACTIVE';

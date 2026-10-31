@@ -1,4 +1,4 @@
-# Server gestore di K9 Manager: un progetto Supabase tuo, separato da quelli dei centri (vedi gestore/README.md).
+# Server gestore di Club Manager: un progetto Supabase tuo, separato da quelli dei centri (vedi gestore/README.md).
 # Le funzioni si chiamano senza accesso Supabase: ognuna controlla da sé chi la chiama
 # (parola segreta di pg_cron, accesso del proprietario al database del suo centro,
 # parola casuale del collegamento alla banca).

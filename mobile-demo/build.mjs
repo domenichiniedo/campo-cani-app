@@ -64,7 +64,7 @@ if (real) {
 cpSync(join(root, 'desktop/demo/demo-backend.js'), join(www, 'demo-backend.js'));
 cpSync(join(import.meta.dirname, 'app.html'), join(www, 'app.html'));
 let page = readFileSync(join(import.meta.dirname, 'index.html'), 'utf8');
-if (days) page = page.replace('var TRIAL_DAYS = 0;', `var TRIAL_DAYS = ${days};`).replace('<title>K9 Manager Demo</title>', '<title>K9 Manager Prova</title>');
+if (days) page = page.replace('var TRIAL_DAYS = 0;', `var TRIAL_DAYS = ${days};`).replace('<title>Club Manager Demo</title>', '<title>Club Manager Prova</title>');
 writeFileSync(join(www, 'index.html'), page);
 // Manifest per "Aggiungi alla schermata Home" su iPhone e Android.
 cpSync(join(import.meta.dirname, 'manifest.webmanifest'), join(www, 'manifest.webmanifest'));
@@ -76,8 +76,8 @@ console.log(`Demo pronta in ${www}`);
 function webApp(page, entry) {
   const base = (process.env.DEMO_BASE_URL ?? '').replace(/\/+$/, '');
   const manifest = {
-    name: 'K9 Manager',
-    short_name: 'K9 Manager',
+    name: 'Club Manager',
+    short_name: 'Club Manager',
     lang: 'it',
     id: `${base}/`,
     start_url: `${base}/`,
@@ -94,14 +94,14 @@ function webApp(page, entry) {
     `<meta name="theme-color" content="#123a2b" />`,
     `<meta name="apple-mobile-web-app-capable" content="yes" />`,
     `<meta name="mobile-web-app-capable" content="yes" />`,
-    `<meta name="apple-mobile-web-app-title" content="K9 Manager" />`,
+    `<meta name="apple-mobile-web-app-title" content="Club Manager" />`,
     `<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />`,
     `<link rel="icon" href="${base}/icon.png" />`,
     `<link rel="apple-touch-icon" href="${base}/icon.png" />`,
     `<link rel="manifest" href="${base}/manifest.webmanifest" />`,
     `<script>if ('serviceWorker' in navigator) addEventListener('load', function () { navigator.serviceWorker.register('${base}/sw.js', { scope: '${base}/' }).catch(function () {}); });</script>`,
   ].join('\n');
-  page = page.replace('<title>K9 Manager</title>', `<title>K9 Manager</title>\n${head}`).replace('<script src="app.js"', `<script src="${base}/app.js"`);
+  page = page.replace('<title>Club Manager</title>', `<title>Club Manager</title>\n${head}`).replace('<script src="app.js"', `<script src="${base}/app.js"`);
   // Fuori dall'app (un indirizzo sbagliato del sito) la 404 riporta alla pagina principale del sito.
   const guard = `<script>(function () { var p = location.pathname; if (p.indexOf('${base}/') === 0) return; var home = '/' + (p.split('/')[1] || ''); if (home !== '/' && p !== home + '/') location.replace(home + '/'); })();</script>`;
   writeFileSync(join(www, '404.html'), page.replace('<meta charset="utf-8" />', `<meta charset="utf-8" />\n${guard}`));

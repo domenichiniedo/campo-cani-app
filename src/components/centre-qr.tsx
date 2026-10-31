@@ -23,7 +23,7 @@ function print(campo: string, qr: string, code: string | null) {
   d.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(campo)}</title></head>
 <body style="font-family:system-ui,sans-serif;text-align:center;padding:48px 24px;color:#16211b">
 <h1 style="font-size:34px;margin:0 0 8px">${esc(campo)}</h1>
-<p style="font-size:20px;margin:0 0 28px">${esc(t("Prenota le lezioni con l'app K9 Manager"))}</p>
+<p style="font-size:20px;margin:0 0 28px">${esc(t("Prenota le lezioni con l'app Club Manager"))}</p>
 <img src="${qr}" style="width:340px;height:340px">
 <p style="font-size:18px;margin:28px auto 0;max-width:520px">${esc(t("Inquadra il codice con la fotocamera del telefono: si apre l'app già collegata al centro. Se non hai ancora l'app ti porta a scaricarla: poi inquadralo di nuovo."))}</p>
 ${code ? `<p style="font-size:18px">${esc(t('Codice del centro'))}: <b>${esc(code)}</b></p>` : ''}
@@ -106,7 +106,7 @@ function poster(campo: string, q: ReturnType<typeof qrcode>, code: string | null
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   fitText(g, campo.toUpperCase(), 105, 66, '800', '#ffffff', 980);
-  fitText(g, t("Prenota le lezioni con l'app K9 Manager"), 285, 42, '600', INK, 980);
+  fitText(g, t("Prenota le lezioni con l'app Club Manager"), 285, 42, '600', INK, 980);
   const n = q.getModuleCount();
   const cell = Math.floor(720 / (n + 8));
   const side = cell * (n + 8);

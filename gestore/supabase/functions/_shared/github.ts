@@ -25,7 +25,7 @@ export const LANCI = {
   tutte: { file: 'aggiorna-app.yml', titolo: 'Tutte le app: demo e prova, Android e Windows' },
   'demo-mac': { file: 'mac.yml', titolo: 'Demo per Mac', inputs: { demo: true } },
   'demo-web': { file: 'demo-web.yml', titolo: 'Demo web per iPhone' },
-  pannello: { file: 'pannello.yml', titolo: 'Demo del pannello K9 Gestore', inputs: { demo: true } },
+  pannello: { file: 'pannello.yml', titolo: 'Demo del pannello Club Gestore', inputs: { demo: true } },
 } as const;
 export type Lancio = keyof typeof LANCI | 'prova';
 
@@ -36,7 +36,7 @@ async function github(path: string, init: RequestInit = {}) {
       Accept: 'application/vnd.github+json',
       Authorization: `Bearer ${env('GITHUB_TOKEN')}`,
       'X-GitHub-Api-Version': '2022-11-28',
-      'User-Agent': 'k9-gestore',
+      'User-Agent': 'club-gestore',
       ...(init.body ? { 'Content-Type': 'application/json' } : {}),
     },
   });

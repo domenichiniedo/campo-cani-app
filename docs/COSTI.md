@@ -1,6 +1,6 @@
-# Studio dei costi totali di K9 Manager
+# Studio dei costi totali di Club Manager
 
-Quanto costa far girare K9 Manager: a te come gestore di tutti i centri, e a ogni centro che usa l'app. In fondo ci
+Quanto costa far girare Club Manager: a te come gestore di tutti i centri, e a ogni centro che usa l'app. In fondo ci
 sono gli esempi con i conti fatti e le fonti.
 
 **Come leggere i numeri**
@@ -153,7 +153,7 @@ Tutti comprendono la fatturazione elettronica (PA, B2B e B2C). La prova gratuita
 in Cloud: la pagina dei prezzi le elenca, ma non sono riuscito a leggere in quali piani sono comprese. Chiedilo a
 loro prima di scegliere il piano.
 
-Con K9 Manager le fatture sono solo per le associazioni e società che le chiedono: di solito bastano Standard o
+Con Club Manager le fatture sono solo per le associazioni e società che le chiedono: di solito bastano Standard o
 Premium.
 
 ### 2.7 Scontrini

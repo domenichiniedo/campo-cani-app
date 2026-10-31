@@ -1,4 +1,4 @@
--- K9 Manager: lezioni di gruppo (piano Pro).
+-- Club Manager: lezioni di gruppo (piano Pro).
 -- Un tipo di lezione con group_seats si fa solo in gruppo. Il proprietario mette in calendario le
 -- classi (campo, giorno, ora, trainer, posti), anche ripetute ogni settimana; i clienti si iscrivono
 -- ai posti liberi. Ogni cane iscritto ha la sua prenotazione collegata alla classe, con pagamento,

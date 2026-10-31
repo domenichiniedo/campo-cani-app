@@ -1,4 +1,4 @@
--- K9 Manager: consenso facoltativo alla pubblicazione delle foto sui social del centro.
+-- Club Manager: consenso facoltativo alla pubblicazione delle foto sui social del centro.
 -- Si dà all'iscrizione (casella non obbligatoria) e il cliente può cambiarlo dal Profilo quando vuole;
 -- il proprietario lo vede nella scheda del cliente, con la data dell'ultima scelta.
 -- Da eseguire nel SQL Editor di Supabase dopo 0016_lezioni_di_gruppo.sql.

@@ -1,11 +1,11 @@
-# Costruisce la demo da installare sui telefoni Android (K9Manager-Demo.apk) e da caricare su Google Play
-# (K9Manager-Demo.aab, vedi README "Google Play"): l'app vera con i dati
+# Costruisce la demo da installare sui telefoni Android (ClubManager-Demo.apk) e da caricare su Google Play
+# (ClubManager-Demo.aab, vedi README "Google Play"): l'app vera con i dati
 # di esempio, senza database, con il bottone "Demo" per entrare come proprietario, cliente o trainer.
-# Si scarica dal telefono da GitHub → Releases → "Demo per Android" (file K9Manager-Demo.apk),
+# Si scarica dal telefono da GitHub → Releases → "Demo per Android" (file ClubManager-Demo.apk),
 # oppure da Actions → "Demo per Android" → l'ultima esecuzione → Artifacts.
 # Partenza: a mano (Run workflow), che la pubblica nelle Releases, o quando una PR cambia la demo:
 # in quel caso si costruisce solo per provarla e l'APK resta negli Artifacts.
-# Con "prova" spuntato esce invece la prova del piano Pro (K9Manager-Prova.apk, Releases → "Prova Pro per
+# Con "prova" spuntato esce invece la prova del piano Pro (ClubManager-Prova.apk, Releases → "Prova Pro per
 # Android"): niente cambio di piano e dopo 3 giorni dalla prima apertura l'app si blocca. È un'app a parte,
 # quindi sul telefono può stare insieme alla demo.
 name: Demo per Android
@@ -32,8 +32,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DEMO_PROVA_GIORNI: ${{ inputs.prova && '3' || '' }}
-      APK: ${{ inputs.prova && 'K9Manager-Prova.apk' || 'K9Manager-Demo.apk' }}
-      AAB: ${{ inputs.prova && 'K9Manager-Prova.aab' || 'K9Manager-Demo.aab' }}
+      APK: ${{ inputs.prova && 'ClubManager-Prova.apk' || 'ClubManager-Demo.apk' }}
+      AAB: ${{ inputs.prova && 'ClubManager-Prova.aab' || 'ClubManager-Demo.aab' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -53,7 +53,7 @@ jobs:
         if: ${{ inputs.prova }}
         working-directory: mobile-demo
         run: |
-          sed -i 's/"it.campocani.demo"/"it.campocani.prova"/; s/"K9 Manager Demo"/"K9 Manager Prova"/' capacitor.config.json
+          sed -i 's/"it.campocani.demo"/"it.campocani.prova"/; s/"Club Manager Demo"/"Club Manager Prova"/' capacitor.config.json
           cat capacitor.config.json
       - run: npx cap add android
         working-directory: mobile-demo
@@ -83,7 +83,7 @@ jobs:
         continue-on-error: true
         with:
           retention-days: 7
-          name: ${{ inputs.prova && 'K9Manager-Prova-Android' || 'K9Manager-Demo-Android' }}
+          name: ${{ inputs.prova && 'ClubManager-Prova-Android' || 'ClubManager-Demo-Android' }}
           path: |
             mobile-demo/${{ env.APK }}
             mobile-demo/${{ env.AAB }}
@@ -100,15 +100,15 @@ jobs:
           # L'AAB per Google Play solo se è firmato con la chiave di caricamento.
           FILES="$APK"; [ -n "${UPLOAD_KEYSTORE:-}" ] && FILES="$APK $AAB"
           if [ -n "$DEMO_PROVA_GIORNI" ]; then
-            NOTES="Prova di K9 Manager nel piano Pro, con i dati di esempio e senza pagamenti online. Scarica K9Manager-Prova.apk dal telefono e aprilo per installarlo. Dura $DEMO_PROVA_GIORNI giorni dalla prima apertura, poi l'app si blocca."
+            NOTES="Prova di Club Manager nel piano Pro, con i dati di esempio e senza pagamenti online. Scarica ClubManager-Prova.apk dal telefono e aprilo per installarlo. Dura $DEMO_PROVA_GIORNI giorni dalla prima apertura, poi l'app si blocca."
             gh release view demo-prova >/dev/null 2>&1 || gh release create demo-prova --prerelease --title "Prova Pro per Android" --notes "$NOTES"
             gh release edit demo-prova --title "Prova Pro per Android" --notes "$NOTES"
             gh release upload demo-prova $FILES --clobber
             exit 0
           fi
-          NOTES="Demo di K9 Manager con i dati di esempio. Scarica K9Manager-Demo.apk dal telefono e aprilo per installarlo. Se il telefono non la installa sopra una demo vecchia, disinstalla prima quella vecchia (solo la prima volta)."
+          NOTES="Demo di Club Manager con i dati di esempio. Scarica ClubManager-Demo.apk dal telefono e aprilo per installarlo. Se il telefono non la installa sopra una demo vecchia, disinstalla prima quella vecchia (solo la prima volta)."
           gh release view demo-android >/dev/null 2>&1 || gh release create demo-android --prerelease --title "Demo per Android" --notes "$NOTES"
           gh release edit demo-android --title "Demo per Android" --notes "$NOTES"
           gh release upload demo-android $FILES --clobber
-          # Il file col vecchio nome (prima di K9 Manager) non si aggiorna più: si toglie per non confondersi.
+          # Il file col vecchio nome (prima di Club Manager) non si aggiorna più: si toglie per non confondersi.
           gh release delete-asset demo-android CampoCani-Demo.apk -y || true

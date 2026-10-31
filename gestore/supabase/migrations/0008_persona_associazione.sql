@@ -1,4 +1,4 @@
--- K9 Manager, server gestore: chi apre un centro sceglie se è una persona o un'associazione (o società).
+-- Club Manager, server gestore: chi apre un centro sceglie se è una persona o un'associazione (o società).
 -- Una persona dà nome e cognome, telefono e codice fiscale; un'associazione tutti i dati della società.
 -- Va eseguito nel SQL Editor del progetto gestore dopo 0007_lezioni.sql.
 

@@ -1,4 +1,4 @@
-# Manuale tecnico di K9 Manager
+# Manuale tecnico di Club Manager
 
 Come è fatto il codice, passo per passo: da dove parte l'app, come trova il database del centro, come si iscrive un
 cliente, che cosa fanno il database e le funzioni sul server, come lavora il gestore e come si costruiscono le app.
@@ -18,7 +18,7 @@ Il manuale per chi usa l'app è [MANUALE.md](MANUALE.md); i passi di installazio
 9. [Il database del centro: le migrazioni](#9-il-database-del-centro-le-migrazioni)
 10. [Le funzioni del centro (supabase/functions)](#10-le-funzioni-del-centro-supabasefunctions)
 11. [Il gestore](#11-il-gestore)
-12. [Il pannello K9 Gestore](#12-il-pannello-k9-gestore)
+12. [Il pannello Club Gestore](#12-il-pannello-club-gestore)
 13. [Le schermate: src/app](#13-le-schermate-srcapp)
 14. [I componenti: src/components](#14-i-componenti-srccomponents)
 15. [Le librerie: src/lib](#15-le-librerie-srclib)
@@ -41,7 +41,7 @@ src/app/                schermate (Expo Router: un file = una pagina)
   (owner)/              schede del proprietario
   (trainer)/            schede del trainer
   welcome.tsx, terms.tsx, phone.tsx, billing.tsx, attiva.tsx   passaggi obbligati
-src/components/         pezzi di interfaccia riusati (moduli, schede, pannelli delle impostazioni, K9 Gestore)
+src/components/         pezzi di interfaccia riusati (moduli, schede, pannelli delle impostazioni, Club Gestore)
 src/lib/                logica senza interfaccia: Supabase, sessione, licenze, piani, fatturazione, traduzioni
 src/locales/            traduzioni (en, de, es, fr); l'italiano è il testo del codice
 supabase/migrations/    il database di ogni centro, una migrazione per volta (0001 → 0027)
@@ -302,7 +302,7 @@ e 1% dei pacchetti (0006), bonifici delle lezioni dei clienti (0007).
   chi entra in un centro sta in `_shared/password.ts`, le app su GitHub in `_shared/github.ts`, lo stato dei database
   in `_shared/database.ts`.
 
-## 12. Il pannello K9 Gestore
+## 12. Il pannello Club Gestore
 
 `src/components/gestore-panel.tsx` è tutto il pannello (in italiano, lo usi solo tu). Entra nel progetto del gestore
 con il tuo utente e chiede tutto alla funzione `pannello` (`src/lib/gestore-admin.ts`). Sezioni: Centri, Database,
@@ -387,7 +387,7 @@ più, e l'action **Traduzioni** lo controlla su ogni PR.
   l'accesso con Google nel browser del computer (`googleLogin`, con il client desktop).
 - **Android** (`mobile-demo/`): `build.mjs` prepara `www/` con l'app web; con `APP_VERA=1` è l'app vera collegata al
   database, senza dati finti. `android-build.sh` costruisce APK e AAB con Capacitor, controlla i requisiti di Google
-  Play (API 36, build di rilascio, pagine da 16 KB) e usa l'icona di `ICONA` (per K9 Gestore
+  Play (API 36, build di rilascio, pagine da 16 KB) e usa l'icona di `ICONA` (per Club Gestore
   `assets/images/icon-gestore.png`, lo sfondo blu). Per il pannello (`EXPO_PUBLIC_PANNELLO=1`) salta il link di invito.
 - **Demo**: `desktop/demo/demo-backend.js` è un finto Supabase in memoria che risponde alle chiamate dell'app (anche
   il gestore finto, per provare la registrazione di un centro). `mobile-demo/index.html` ha il bottone **Demo** per
@@ -417,7 +417,7 @@ Le action che costruiscono partono solo a mano (`workflow_dispatch`); App per Wi
 | `android.yml`, `windows.yml`, `mac.yml` | App per Android / Windows / Mac | le app vere o le prove |
 | `android-demo.yml` | Demo per Android | la demo per Android |
 | `demo-web.yml` | Sito web (web app e demo) | la web app installabile (`/app/`) e la demo web, su GitHub Pages |
-| `pannello.yml` | Pannello del gestore | K9 Gestore per Windows, Mac e Android |
+| `pannello.yml` | Pannello del gestore | Club Gestore per Windows, Mac e Android |
 | `prova-database.yml`, `prova-generale.yml` | Prova con database, Prova generale | le prove con Supabase vero |
 | `pulizia-releases.yml` | Pulizia delle Releases | toglie le versioni vecchie |
 
