@@ -100,7 +100,7 @@ const codeFromUrl = (url: string | null) => {
 
 /** Dal codice del centro alla sua licenza, chiedendola al gestore. */
 async function fromCentreCode(code: string): Promise<{ code: string } | { reason: string }> {
-  if (!gestoreEnabled) return { reason: t('Questo non è un codice di licenza K9 Manager.') };
+  if (!gestoreEnabled) return { reason: t('Questo non è un codice di licenza Club Manager.') };
   try {
     const s = await centreStatus(code);
     if (s.licenza) return { code: s.licenza };

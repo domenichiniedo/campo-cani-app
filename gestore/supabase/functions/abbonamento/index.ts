@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
           tipo: banca.tipo,
           importo_cents: a.importo_cents,
           iban: conto.bonifico_iban,
-          intestatario: conto.bonifico_intestatario || 'K9 Manager',
+          intestatario: conto.bonifico_intestatario || 'Club Manager',
           causale: a.causale,
           state,
           ritorno: funzione('pagamento'),

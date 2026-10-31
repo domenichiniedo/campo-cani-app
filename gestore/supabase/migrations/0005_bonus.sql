@@ -1,4 +1,4 @@
--- K9 Manager, server gestore: i bonus. Un bonus è un credito in euro di un centro che si scala dai conti del mese
+-- Club Manager, server gestore: i bonus. Un bonus è un credito in euro di un centro che si scala dai conti del mese
 -- finché non finisce. Lo dai dal pannello a un centro, oppure crei un codice bonus che il centro nuovo scrive
 -- quando si registra dall'app.
 -- Va eseguito nel SQL Editor del progetto gestore dopo 0004_prezzi.sql.

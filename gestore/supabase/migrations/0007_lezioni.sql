@@ -1,4 +1,4 @@
--- K9 Manager, server gestore: il cliente paga una lezione con il bonifico istantaneo direttamente dall'app.
+-- Club Manager, server gestore: il cliente paga una lezione con il bonifico istantaneo direttamente dall'app.
 -- Sceglie la sua banca, scrive il suo IBAN e conferma il bonifico già compilato verso il conto del centro
 -- (pagamento disposto con Enable Banking, come "Paga ora"); appena la banca lo fa partire la lezione si segna
 -- pagata da sola nel database del centro. Va eseguito nel SQL Editor del progetto gestore dopo 0006_fisso_pacchetti.sql.

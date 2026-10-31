@@ -20,6 +20,6 @@ Deno.serve(async (req) => {
     return new Response(null, { status: 302, headers: { Location: intentAndroid(pacchetto, codice, scarica), 'Cache-Control': 'no-store' } });
   }
   return testo(
-    `${c.campo}\n\nScarica l'app K9 Manager e, alla prima apertura, scrivi il codice del centro:\n\n${codice}\n\nPer Android: ${scarica}\n`,
+    `${c.campo}\n\nScarica l'app Club Manager e, alla prima apertura, scrivi il codice del centro:\n\n${codice}\n\nPer Android: ${scarica}\n`,
   );
 });

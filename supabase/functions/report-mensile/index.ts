@@ -8,7 +8,7 @@
 //
 // Secrets da impostare (vedi README):
 //   RESEND_API_KEY        chiave di Resend (resend.com), il servizio che spedisce l'email
-//   REPORT_FROM           mittente, per esempio "K9 Manager <report@iltuodominio.it>"
+//   REPORT_FROM           mittente, per esempio "Club Manager <report@iltuodominio.it>"
 //   WEBHOOK_SECRET        la stessa parola segreta delle altre funzioni
 // Facoltativi:
 //   REPORT_TO             altri indirizzi a cui mandarlo, separati da virgola
@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
     if (!to.length) throw new Error('Nessun indirizzo a cui mandare il report');
 
     const month = today.slice(0, 7);
-    const data = await load(month, today, s?.field_name || 'K9 Manager');
+    const data = await load(month, today, s?.field_name || 'Club Manager');
     const buffer = await buildReport(ExcelJS, data).xlsx.writeBuffer();
     let bin = '';
     new Uint8Array(buffer).forEach((b) => (bin += String.fromCharCode(b)));
@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
         html:
           `<p>Ciao,</p><p>in allegato il report di ${title.toLowerCase()} di <b>${data.centre}</b>: lezioni, pacchetti, ` +
           `fatture e scontrini, statistiche del mese.</p><p>Totale incassato: <b>€ ${(cashCents(data) / 100).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</b>.</p>` +
-          `<p style="color:#5a675f">K9 Manager</p>`,
+          `<p style="color:#5a675f">Club Manager</p>`,
         attachments: [{ filename: file, content: btoa(bin) }],
       }),
     });

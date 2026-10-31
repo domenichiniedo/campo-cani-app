@@ -1,4 +1,4 @@
-# Server gestore di K9 Manager
+# Server gestore di Club Manager
 
 Il gestore è il tuo server: un progetto Supabase tuo, separato da quelli dei centri. Fa da solo quello che
 oggi fai a mano con `tools/nuovo-centro.mjs`:
@@ -29,7 +29,7 @@ Ogni centro ha il suo database: i clienti di un centro non stanno mai nello stes
 altro, e i proprietari di un centro non vedono niente degli altri. Il gestore conserva solo nome, email del
 titolare, codice, stato dei pagamenti e il numero di prenotazioni del mese: mai i dati dei clienti.
 
-Il pannello **K9 Gestore** (workflow "Pannello del gestore") ti mostra tutti i centri, gli addebiti e le
+Il pannello **Club Gestore** (workflow "Pannello del gestore") ti mostra tutti i centri, gli addebiti e le
 statistiche, e ti lascia scrivere e cambiare il tuo IBAN per i bonifici, i prezzi dei piani (canone, quota, fisso e
 percentuale sui pacchetti), dare bonus ai centri e creare codici bonus per la registrazione,
 collegare il conto in banca, cambiare piano e prezzi di un centro, abbinare a mano un bonifico non riconosciuto,
@@ -59,7 +59,7 @@ al centro con la carta (Nexi) contano nel conto del mese come quelle pagate al c
 | `controlla-bonifici` | legge i bonifici sul tuo conto e rinnova le licenze (pg_cron ogni 6 ore) |
 | `banca` | pagina di ritorno dalla tua banca quando colleghi il conto |
 | `abbonamento` | piano, prezzi e cosa pagare, dall'app del proprietario; cambio di piano |
-| `pannello` | i dati e le azioni del pannello K9 Gestore |
+| `pannello` | i dati e le azioni del pannello Club Gestore |
 | `pagamento` | pagina di ritorno dalla banca dopo "Paga ora" (centro) o "Paga dalla tua banca" (cliente) |
 | `lezione` | il cliente paga una lezione con il bonifico istantaneo dall'app |
 | `invito` | il link e il QR code che i centri danno ai clienti: su Android apre l'app già sul centro, o porta a scaricarla |
@@ -73,7 +73,7 @@ preparano anche senza SMTP e Twilio, e chi si iscrive entra subito. Nel gestore 
 Tutti i comandi si lanciano **sul tuo computer**, nella cartella del progetto. Nessuna chiave segreta va
 in chat, nell'app o su GitHub.
 
-1. **Progetto del gestore.** Su supabase.com crea un progetto nuovo, per esempio "K9 Gestore". Nel SQL
+1. **Progetto del gestore.** Su supabase.com crea un progetto nuovo, per esempio "Club Gestore". Nel SQL
    Editor esegui `gestore/supabase/migrations/0001_centri.sql`, poi `0002_bonifici_piani.sql`, `0003_fatturazione.sql`, `0004_prezzi.sql`, `0005_bonus.sql`, `0006_fisso_pacchetti.sql`, `0007_lezioni.sql` e `0008_persona_associazione.sql`. In Authentication → Users → Add user crea
    il tuo utente (email e password): con quello entri nel pannello.
 
@@ -181,8 +181,8 @@ in chat, nell'app o su GitHub.
    del centro.
 
 8. **Il pannello.** Actions → "Pannello del gestore" → Run workflow, con l'indirizzo del passo 7 e la
-   publishable key del progetto gestore. Lo scarichi da Releases → "K9 Gestore": `K9Gestore-Windows.exe`,
-   `K9Gestore-Mac.dmg` e `K9Gestore-Android.apk` (dal telefono: scaricalo e aprilo per installarlo).
+   publishable key del progetto gestore. Lo scarichi da Releases → "Club Gestore": `ClubGestore-Windows.exe`,
+   `ClubGestore-Mac.dmg` e `ClubGestore-Android.apk` (dal telefono: scaricalo e aprilo per installarlo).
 
    **Password dimenticata**: nella schermata di accesso c'è "Password dimenticata?". Ti arriva un codice per email, lo
    scrivi con la password nuova ed entri: non serve rilanciare nessuna action. Serve che il progetto del gestore mandi

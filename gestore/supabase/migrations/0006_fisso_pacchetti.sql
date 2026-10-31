@@ -1,4 +1,4 @@
--- K9 Manager, server gestore: il prezzo fisso al mese, la quota sui pacchetti, il passaggio a un piano più
+-- Club Manager, server gestore: il prezzo fisso al mese, la quota sui pacchetti, il passaggio a un piano più
 -- piccolo dal mese dopo, la disdetta con un mese di preavviso e il pulsante "Paga ora".
 -- Ogni centro sceglie come pagare il suo piano:
 --   a consumo  canone al mese + quota per ogni prenotazione (anche le lezioni scalate da un pacchetto) + l'1%

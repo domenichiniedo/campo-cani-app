@@ -88,7 +88,7 @@ function TrialOver() {
   return (
     <View style={{ flex: 1, padding: 24, justifyContent: 'center', gap: 12, backgroundColor: c.bg }}>
       <H1>{t('La prova è finita')}</H1>
-      <Body>{t('La prova di K9 Manager era valida fino al {data}.', { data: trialEndText })}</Body>
+      <Body>{t('La prova di Club Manager era valida fino al {data}.', { data: trialEndText })}</Body>
       <Muted>{t("I dati inseriti restano salvati. Per continuare a usare l'app contatta chi ti ha dato la prova.")}</Muted>
     </View>
   );

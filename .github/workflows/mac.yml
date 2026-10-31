@@ -1,4 +1,4 @@
-# Costruisce il programma per Mac (K9Manager-x.y.z.dmg), per Mac con chip Apple e Intel.
+# Costruisce il programma per Mac (ClubManager-x.y.z.dmg), per Mac con chip Apple e Intel.
 # Lo trovi in GitHub → Actions → "App per Mac" → l'ultima esecuzione → Artifacts.
 # Partenza: a mano (Run workflow), con un tag v1.2.3, o quando una PR cambia il programma.
 #
@@ -7,7 +7,7 @@
 #
 # Come per Windows, le variabili EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 # lo collegano al database del tuo campo. Versione demo: Run workflow con "demo" spuntato.
-# La demo finisce anche in GitHub → Releases → "Demo per Mac" (file K9Manager-Mac-Demo.dmg).
+# La demo finisce anche in GitHub → Releases → "Demo per Mac" (file ClubManager-Mac-Demo.dmg).
 # In una PR si costruisce la demo solo per provare che il programma si apre.
 name: App per Mac
 
@@ -63,7 +63,7 @@ jobs:
         run: |
           APP="$(ls -d desktop/release/mac*/*.app | head -1)"
           codesign --verify --deep --strict "$APP"
-          "$APP/Contents/MacOS/K9 Manager" &
+          "$APP/Contents/MacOS/Club Manager" &
           sleep 25
           screencapture -x schermata-mac.png || true
           kill -0 $!
@@ -74,7 +74,7 @@ jobs:
         continue-on-error: true
         with:
           retention-days: 7
-          name: ${{ env.DEMO == 'true' && 'K9Manager-Mac-Demo' || 'K9Manager-Mac' }}
+          name: ${{ env.DEMO == 'true' && 'ClubManager-Mac-Demo' || 'ClubManager-Mac' }}
           path: |
             desktop/release/*.dmg
             schermata-mac.png
@@ -85,7 +85,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp desktop/release/*.dmg K9Manager-Mac-Demo.dmg
+          cp desktop/release/*.dmg ClubManager-Mac-Demo.dmg
           gh release view demo-mac >/dev/null 2>&1 || gh release create demo-mac --prerelease \
-            --title "Demo per Mac" --notes "Demo del programma K9 Manager per Mac (chip Apple e Intel), con i dati di esempio e senza database. Scarica K9Manager-Mac-Demo.dmg, aprilo e trascina K9 Manager in Applicazioni. Il programma non è firmato da Apple: la prima volta aprilo con clic destro → Apri, oppure da Impostazioni di Sistema → Privacy e sicurezza → Apri comunque."
-          gh release upload demo-mac K9Manager-Mac-Demo.dmg --clobber
+            --title "Demo per Mac" --notes "Demo del programma Club Manager per Mac (chip Apple e Intel), con i dati di esempio e senza database. Scarica ClubManager-Mac-Demo.dmg, aprilo e trascina Club Manager in Applicazioni. Il programma non è firmato da Apple: la prima volta aprilo con clic destro → Apri, oppure da Impostazioni di Sistema → Privacy e sicurezza → Apri comunque."
+          gh release upload demo-mac ClubManager-Mac-Demo.dmg --clobber

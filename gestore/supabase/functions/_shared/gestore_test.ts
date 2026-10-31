@@ -371,7 +371,7 @@ Deno.test('database dal pannello: quanti sono, di chi, accesi e spenti', async (
   const chiamate: string[] = [];
   const api: Ambiente['api'] = async (method, path) => {
     chiamate.push(`${method} ${path}`);
-    if (path === '/projects') return [{ id: 'gestoreref', name: 'K9 Gestore', status: 'ACTIVE_HEALTHY', region: 'eu-central-1' }, { id: 'centroref', name: 'K9 K9-ABCDEF', status: 'INACTIVE', region: 'eu-central-1' }];
+    if (path === '/projects') return [{ id: 'gestoreref', name: 'Club Gestore', status: 'ACTIVE_HEALTHY', region: 'eu-central-1' }, { id: 'centroref', name: 'K9 K9-ABCDEF', status: 'INACTIVE', region: 'eu-central-1' }];
     if (path === '/projects/centroref') return { status: 'ACTIVE_HEALTHY', region: 'eu-central-1', database: { version: '17.4' } };
     if (path.endsWith('/database/query')) return [{ byte: 5 * 1048576, tabelle: '[{"nome":"dogs","righe":3}]', utenti: 2 }];
     return null;

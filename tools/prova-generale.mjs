@@ -3,7 +3,7 @@
 // prepara il database da solo, come succederà davvero. Lo lancia il workflow "Prova generale" (Actions), con il token nel
 // secret SUPABASE_ACCESS_TOKEN; si può lanciare anche dal tuo computer con la variabile SUPABASE_ACCESS_TOKEN.
 //
-//   node tools/prova-generale.mjs --email tua@email.it [--nome "K9 Gestore"] [--pausa <codice progetto>] [--nuova-password si]
+//   node tools/prova-generale.mjs --email tua@email.it [--nome "Club Gestore"] [--pausa <codice progetto>] [--nuova-password si]
 //   node tools/prova-generale.mjs --solo-se-esiste si   (dopo una PR unita: aggiorna il gestore solo se c'è già)
 //
 // Fa, e si può ripetere senza danni:
@@ -42,9 +42,9 @@ const o = {};
 const list = process.argv.slice(2);
 for (let i = 0; i < list.length; i++) if (list[i].startsWith('--')) o[list[i].slice(2)] = list[++i];
 const soloSeEsiste = o['solo-se-esiste'] === 'si';
-const nome = (o.nome || 'K9 Gestore').trim();
+const nome = (o.nome || 'Club Gestore').trim();
 const email = (o.email ?? '').trim().toLowerCase();
-if (!soloSeEsiste && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail("Indica la tua email con --email: con quella entri nel pannello K9 Gestore.");
+if (!soloSeEsiste && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail("Indica la tua email con --email: con quella entri nel pannello Club Gestore.");
 const token = process.env.SUPABASE_ACCESS_TOKEN ?? '';
 if (!token) fail('Manca il token di Supabase (supabase.com → Account → Access Tokens): su GitHub va nel secret SUPABASE_ACCESS_TOKEN.');
 
@@ -71,7 +71,9 @@ const riepilogo = (s) => process.env.GITHUB_STEP_SUMMARY && appendFileSync(proce
 
 let progetti = await api('GET', '/projects');
 const attivi = () => progetti.filter((p) => p.status === 'ACTIVE_HEALTHY' || p.status === 'COMING_UP');
-let gestore = progetti.find((p) => p.name === nome);
+// L'app prima si chiamava K9 Manager: un gestore di prova già acceso con il nome vecchio si tiene quello,
+// così non se ne crea un secondo accanto.
+let gestore = progetti.find((p) => p.name === nome) ?? (o.nome ? undefined : progetti.find((p) => p.name === 'K9 Gestore'));
 if (soloSeEsiste && !gestore) {
   step(`Nessun progetto "${nome}": la prova generale non è accesa, non c'è niente da aggiornare.`);
   uscita('ref', '');
@@ -219,9 +221,9 @@ if (smtp || google) {
           smtp_user: smtp.user,
           smtp_pass: smtp.pass,
           smtp_admin_email: smtp.from,
-          smtp_sender_name: 'K9 Gestore',
+          smtp_sender_name: 'Club Gestore',
           mailer_subjects_recovery: 'Il codice per la nuova password del pannello',
-          mailer_templates_recovery_content: '<h2>K9 Gestore</h2>\n<p>Il codice per la nuova password è: <strong>{{ .Token }}</strong></p>',
+          mailer_templates_recovery_content: '<h2>Club Gestore</h2>\n<p>Il codice per la nuova password è: <strong>{{ .Token }}</strong></p>',
         }
       : {}),
     ...(google
@@ -278,7 +280,7 @@ if (google) {
 }
 
 // 6. IBAN di prova e orari.
-await query(`update public.banca set bonifico_iban = ${lit(IBAN_PROVA)}, bonifico_intestatario = 'Prova K9 Gestore' where id = 1 and bonifico_iban = '';`);
+await query(`update public.banca set bonifico_iban = ${lit(IBAN_PROVA)}, bonifico_intestatario = 'Prova Club Gestore' where id = 1 and bonifico_iban = '';`);
 const orario = (n, quando) => `select cron.schedule(${lit(n)}, ${lit(quando)}, $$
   select net.http_post('${url}/functions/v1/${n}', headers := jsonb_build_object('x-webhook-secret', ${lit(webhook)}))
 $$);`;
@@ -321,6 +323,6 @@ riepilogo(`## Gestore della prova generale
 
 - Progetto Supabase: **${nome}** (\`${ref}\`)
 - Indirizzo delle funzioni: \`${gestoreUrl}\`
-${admin ? `- Pannello K9 Gestore: entri con **${admin}**${password ? ` e la password **\`${password}\`** (cambiala quando vuoi dal pannello, in "Il tuo accesso"; se la perdi usa "Password dimenticata?")` : ' e la password che hai già'}` : ''}
+${admin ? `- Pannello Club Gestore: entri con **${admin}**${password ? ` e la password **\`${password}\`** (cambiala quando vuoi dal pannello, in "Il tuo accesso"; se la perdi usa "Password dimenticata?")` : ' e la password che hai già'}` : ''}
 `);
 console.log(`\nGestore pronto: ${gestoreUrl}`);

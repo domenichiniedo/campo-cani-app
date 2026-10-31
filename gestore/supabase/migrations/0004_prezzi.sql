@@ -1,4 +1,4 @@
--- K9 Manager, server gestore: prezzi di partenza dei piani (canone al mese + quota per prenotazione).
+-- Club Manager, server gestore: prezzi di partenza dei piani (canone al mese + quota per prenotazione).
 -- Va eseguito nel SQL Editor del progetto gestore dopo 0003_fatturazione.sql. Poi i prezzi si cambiano dal
 -- pannello (Piani e addebiti); i centri con prezzi fatti apposta tengono i loro.
 --   Base:         5,90 € al mese + 1,00 € a prenotazione

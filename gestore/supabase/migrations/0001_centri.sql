@@ -1,4 +1,4 @@
--- K9 Manager, server gestore: i centri che si registrano dall'app e gli addebiti mensili.
+-- Club Manager, server gestore: i centri che si registrano dall'app e gli addebiti mensili.
 -- Va eseguito nel SQL Editor del progetto Supabase del gestore (il tuo, non quello di un centro).
 -- Le tabelle non hanno policy: le leggono e scrivono solo le funzioni del gestore, con la chiave di servizio.
 

@@ -73,7 +73,7 @@ function state(b: Lesson, today: string) {
 
 export function buildReport(ExcelJS: Excel, d: ReportData) {
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'K9 Manager';
+  wb.creator = 'Club Manager';
   wb.created = new Date();
 
   const active = d.lessons.filter((b) => b.status === 'active');
@@ -123,7 +123,7 @@ export function buildReport(ExcelJS: Excel, d: ReportData) {
   sum.columns = [{ width: 38 }, { width: 18 }, { width: 50 }];
   sum.addRow([`${d.centre}`]).font = { bold: true, size: 16, color: { argb: GREEN } };
   sum.addRow([`Report di ${monthTitle(d.month).toLowerCase()}`]).font = { size: 13 };
-  sum.addRow([`Creato il ${date(d.today).toLocaleDateString('it-IT', { timeZone: 'UTC' })} da K9 Manager. Le lezioni dopo questa data sono quelle già prenotate.`]).font = {
+  sum.addRow([`Creato il ${date(d.today).toLocaleDateString('it-IT', { timeZone: 'UTC' })} da Club Manager. Le lezioni dopo questa data sono quelle già prenotate.`]).font = {
     italic: true,
     color: { argb: 'FF5A675F' },
   };

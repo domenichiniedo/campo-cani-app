@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { CentreBilling } from '@/lib/billing';
 import { demoCall } from '@/lib/gestore-demo';
 
-// Il pannello "K9 Gestore" entra nel progetto Supabase del gestore con un tuo utente (email e password)
+// Il pannello "Club Gestore" entra nel progetto Supabase del gestore con un tuo utente (email e password)
 // e chiede tutto alla funzione "pannello", che controlla che tu sia fra gli AMMINISTRATORI.
 
 const FUNCTIONS = (process.env.EXPO_PUBLIC_GESTORE_URL ?? '').replace(/\/+$/, '');
@@ -212,7 +212,7 @@ export async function adminChangePassword(password: string) {
 
 /** L'email di chi è dentro il pannello. */
 export async function adminEmail() {
-  if (adminDemo) return 'demo@k9gestore.it';
+  if (adminDemo) return 'demo@clubgestore.it';
   const { data } = await admin.auth.getSession();
   return data.session?.user.email ?? '';
 }

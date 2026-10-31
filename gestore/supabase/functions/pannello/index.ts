@@ -1,4 +1,4 @@
-// Il tuo pannello (app "K9 Gestore"): tutti i centri, gli addebiti e le azioni a mano.
+// Il tuo pannello (app "Club Gestore"): tutti i centri, gli addebiti e le azioni a mano.
 // Entri con un utente del progetto gestore (Authentication → Users → Add user) la cui email sta in
 // AMMINISTRATORI (segreto, email separate da virgola). Nessun altro può chiamarla.
 

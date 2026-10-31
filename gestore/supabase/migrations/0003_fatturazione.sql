@@ -1,4 +1,4 @@
--- K9 Manager, server gestore: i dati per fatturare a ogni centro il canone e le prenotazioni, chiesti
+-- Club Manager, server gestore: i dati per fatturare a ogni centro il canone e le prenotazioni, chiesti
 -- alla registrazione dall'app e modificabili dal pannello.
 -- Va eseguito nel SQL Editor del progetto gestore dopo 0002_bonifici_piani.sql.
 

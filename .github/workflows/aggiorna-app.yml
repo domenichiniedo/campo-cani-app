@@ -1,12 +1,12 @@
-# Si lancia a mano dopo aver unito una PR (Actions → Aggiorna le app → Run workflow, o dal pannello K9 Gestore): rifà le app per Android e per Windows con le novità e le ripubblica nelle Releases:
+# Si lancia a mano dopo aver unito una PR (Actions → Aggiorna le app → Run workflow, o dal pannello Club Gestore): rifà le app per Android e per Windows con le novità e le ripubblica nelle Releases:
 #   - la demo con i dati di esempio, i 3 piani e le 5 entrate (proprietario, cliente, trainer, nuovo cliente, nuovo centro):
-#     Releases → "Demo per Android" (K9Manager-Demo.apk) e "Demo per Windows" (K9Manager-Windows-Demo.exe);
+#     Releases → "Demo per Android" (ClubManager-Demo.apk) e "Demo per Windows" (ClubManager-Windows-Demo.exe);
 #   - l'app collegata al database della prova: prima aggiunge al database le migrazioni nuove (i dati restano),
-#     poi costruisce APK e programma per Windows: Releases → "Prova di K9 Manager – <progetto>" (K9Manager-Prova.apk e
-#     K9Manager-Prova-Windows.exe).
+#     poi costruisce APK e programma per Windows: Releases → "Prova di Club Manager – <progetto>" (ClubManager-Prova.apk e
+#     ClubManager-Prova-Windows.exe).
 # Se la prova vecchia è in pausa (la mette in pausa "Prova generale") la salta. Se la prova generale è accesa,
-# aggiorna anche quella: le funzioni del gestore, l'APK, il programma per Windows e il pannello K9 Gestore.
-# Si lancia anche dal pannello K9 Gestore (App e versioni).
+# aggiorna anche quella: le funzioni del gestore, l'APK, il programma per Windows e il pannello Club Gestore.
+# Si lancia anche dal pannello Club Gestore (App e versioni).
 # Il progetto della prova è PROVA_PROGETTO qui sotto (il codice in xxxx.supabase.co): per collegare un'altra prova
 # cambialo qui. Usa il secret SUPABASE_ACCESS_TOKEN, lo stesso di "Prova con database".
 name: Aggiorna le app

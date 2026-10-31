@@ -2,7 +2,7 @@
 #   https://domenichiniedo.github.io/campo-cani-app/      la demo, con i dati di esempio e il bottone "Demo"
 #   https://domenichiniedo.github.io/campo-cani-app/app/  la web app vera, collegata al database del campo
 # Tutte e due si installano come un'app: su iPhone Safari → Condividi → Aggiungi alla schermata Home; su Android e
-# computer Chrome/Edge → Installa app. Si aprono a tutto schermo con l'icona di K9 Manager.
+# computer Chrome/Edge → Installa app. Si aprono a tutto schermo con l'icona di Club Manager.
 #
 # La web app usa lo stesso database dell'app per Android: gli input qui sotto o, se vuoti, le variabili
 # EXPO_PUBLIC_SUPABASE_URL ed EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY in Settings → Secrets and variables → Actions →

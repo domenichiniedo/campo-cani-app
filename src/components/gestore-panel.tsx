@@ -38,7 +38,7 @@ import { copyText } from '@/lib/share';
 import { useColors } from '@/lib/theme';
 import { formatIban, isValidIban, normalizeIban } from '@/lib/transfer';
 
-// "K9 Gestore": il tuo pannello per tutti i centri registrati dall'app. Solo in italiano: lo usi solo tu.
+// "Club Gestore": il tuo pannello per tutti i centri registrati dall'app. Solo in italiano: lo usi solo tu.
 
 const MESI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
 const PIANI = [
@@ -135,7 +135,7 @@ function Login() {
 
   return (
     <Screen header={false}>
-      <H1>K9 Gestore</H1>
+      <H1>Club Gestore</H1>
       <Card>
         <Muted>
           {adminDemo
@@ -293,7 +293,7 @@ function Dashboard() {
   if (!d) {
     return (
       <Screen header={false}>
-        <H1>K9 Gestore</H1>
+        <H1>Club Gestore</H1>
         {err ? <ErrorText>{err}</ErrorText> : <Muted>Carico i centri…</Muted>}
         {!!err && <Button kind="ghost" title="Esci" onPress={adminSignOut} />}
       </Screen>
@@ -344,7 +344,7 @@ function Dashboard() {
     <Screen header={false}>
       <Row style={{ justifyContent: 'space-between' }}>
         <Row>
-          <H1>{wide ? title : 'K9 Gestore'}</H1>
+          <H1>{wide ? title : 'Club Gestore'}</H1>
           {adminDemo && !wide && <Badge tone="warn">Demo, dati finti</Badge>}
         </Row>
         {!wide && <Button small kind="ghost" title="Esci" onPress={adminSignOut} />}
@@ -459,7 +459,7 @@ function PanelMenu({
   return (
     <View style={{ width: 232, backgroundColor: c.pitch, paddingVertical: 18, paddingHorizontal: 10, gap: 2 }}>
       <Text style={{ color: WHITE, fontSize: 20, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.3, paddingHorizontal: 12, marginBottom: 4 }}>
-        K9 Gestore
+        Club Gestore
       </Text>
       {adminDemo && <Text style={{ color: SOFT, fontSize: 12, paddingHorizontal: 12, marginBottom: 8 }}>Demo, dati finti</Text>}
       {sections.map((s) => {

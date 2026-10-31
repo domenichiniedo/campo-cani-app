@@ -1,4 +1,4 @@
-# Costruisce il programma di installazione per Windows (K9Manager-Setup-x.y.z.exe).
+# Costruisce il programma di installazione per Windows (ClubManager-Setup-x.y.z.exe).
 # Lo trovi in GitHub → Actions → "App per Windows" → l'ultima esecuzione → Artifacts.
 # Partenza: a mano (Run workflow), con un tag v1.2.3, o quando una PR cambia il programma Windows.
 #
@@ -8,14 +8,14 @@
 # di licenza (serve la chiave pubblica in src/lib/license-key.ts).
 #
 # Versione demo, con i dati di esempio e senza database: Run workflow con "demo" spuntato.
-# La demo finisce anche in GitHub → Releases → "Demo per Windows" (file K9Manager-Windows-Demo.exe).
+# La demo finisce anche in GitHub → Releases → "Demo per Windows" (file ClubManager-Windows-Demo.exe).
 #
 # Prova a tempo collegata a un database (come la prova per Android): supabase_url, supabase_key
-# (publishable) e giorni. Esce come "K9 Manager Prova", accanto alla demo, nella release della prova
-# "prova-xxxx" (file K9Manager-Prova-Windows.exe). La lancia anche "Prova con database".
+# (publishable) e giorni. Esce come "Club Manager Prova", accanto alla demo, nella release della prova
+# "prova-xxxx" (file ClubManager-Prova-Windows.exe). La lancia anche "Prova con database".
 #
 # Prova generale (la lancia "Prova generale"): gestore_url e chiave_server al posto del database. Esce come
-# "K9 Prova generale" nella release "prova-generale" (file K9Manager-ProvaGenerale-Windows.exe).
+# "Club Prova generale" nella release "prova-generale" (file ClubManager-ProvaGenerale-Windows.exe).
 name: App per Windows
 
 on:
@@ -113,11 +113,11 @@ jobs:
         if: ${{ !env.EXPO_PUBLIC_PROVA_FINO && !env.EXPO_PUBLIC_GESTORE_URL }}
         working-directory: desktop
       # La prova è un programma a parte: si installa accanto alla demo e all'app vera.
-      - run: npm run dist -- -c.appId=it.campocani.provavera -c.productName="K9 Manager Prova" -c.extraMetadata.productName="K9 Manager Prova" -c.nsis.shortcutName="K9 Manager Prova"
+      - run: npm run dist -- -c.appId=it.campocani.provavera -c.productName="Club Manager Prova" -c.extraMetadata.productName="Club Manager Prova" -c.nsis.shortcutName="Club Manager Prova"
         if: ${{ env.EXPO_PUBLIC_PROVA_FINO && !env.EXPO_PUBLIC_GESTORE_URL }}
         shell: bash
         working-directory: desktop
-      - run: npm run dist -- -c.appId=it.campocani.provagenerale -c.productName="K9 Prova generale" -c.extraMetadata.productName="K9 Prova generale" -c.nsis.shortcutName="K9 Prova generale"
+      - run: npm run dist -- -c.appId=it.campocani.provagenerale -c.productName="Club Prova generale" -c.extraMetadata.productName="Club Prova generale" -c.nsis.shortcutName="Club Prova generale"
         if: ${{ env.EXPO_PUBLIC_GESTORE_URL }}
         shell: bash
         working-directory: desktop
@@ -127,7 +127,7 @@ jobs:
         continue-on-error: true
         with:
           retention-days: 7
-          name: ${{ inputs.demo && 'K9Manager-Windows-Demo' || env.EXPO_PUBLIC_GESTORE_URL && 'K9Manager-ProvaGenerale-Windows' || env.EXPO_PUBLIC_PROVA_FINO && 'K9Manager-Prova-Windows' || 'K9Manager-Windows' }}
+          name: ${{ inputs.demo && 'ClubManager-Windows-Demo' || env.EXPO_PUBLIC_GESTORE_URL && 'ClubManager-ProvaGenerale-Windows' || env.EXPO_PUBLIC_PROVA_FINO && 'ClubManager-Prova-Windows' || 'ClubManager-Windows' }}
           path: desktop/release/*.exe
           if-no-files-found: error
       # Release fissa "demo-windows": il link per scaricare la demo resta sempre lo stesso.
@@ -137,10 +137,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp desktop/release/*.exe K9Manager-Windows-Demo.exe
+          cp desktop/release/*.exe ClubManager-Windows-Demo.exe
           gh release view demo-windows >/dev/null 2>&1 || gh release create demo-windows --prerelease \
-            --title "Demo per Windows" --notes "Demo del programma K9 Manager per Windows, con i dati di esempio e senza database. Scarica K9Manager-Windows-Demo.exe e aprilo per installarlo."
-          gh release upload demo-windows K9Manager-Windows-Demo.exe --clobber
+            --title "Demo per Windows" --notes "Demo del programma Club Manager per Windows, con i dati di esempio e senza database. Scarica ClubManager-Windows-Demo.exe e aprilo per installarlo."
+          gh release upload demo-windows ClubManager-Windows-Demo.exe --clobber
       # Prova: nella stessa release della prova per Android, una per ogni database.
       - if: ${{ env.EXPO_PUBLIC_PROVA_FINO && !env.EXPO_PUBLIC_GESTORE_URL }}
         name: Pubblica la prova nelle Releases
@@ -149,17 +149,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           URL: ${{ inputs.supabase_url }}
         run: |
-          cp desktop/release/*.exe K9Manager-Prova-Windows.exe
+          cp desktop/release/*.exe ClubManager-Prova-Windows.exe
           REF=$(echo "$URL" | sed 's#https://##; s#\.supabase\.co.*##')
-          TAG=prova-$REF; TITLE="Prova di K9 Manager – $REF"
+          TAG=prova-$REF; TITLE="Prova di Club Manager – $REF"
           FINO=$(echo $EXPO_PUBLIC_PROVA_FINO | awk -F- '{print $3"/"$2"/"$1}')
-          NOTES="Prova di K9 Manager nel piano Pro, collegata al database della prova. Vale fino al $FINO compreso, poi l'app mostra che la prova è finita.
+          NOTES="Prova di Club Manager nel piano Pro, collegata al database della prova. Vale fino al $FINO compreso, poi l'app mostra che la prova è finita.
 
-          - Android: scarica K9Manager-Prova.apk dal telefono e aprilo per installarlo.
-          - Windows (programma del proprietario): scarica K9Manager-Prova-Windows.exe e aprilo per installarlo."
+          - Android: scarica ClubManager-Prova.apk dal telefono e aprilo per installarlo.
+          - Windows (programma del proprietario): scarica ClubManager-Prova-Windows.exe e aprilo per installarlo."
           gh release view $TAG >/dev/null 2>&1 || gh release create $TAG --prerelease --title "$TITLE" --notes "$NOTES"
           gh release edit $TAG --title "$TITLE" --notes "$NOTES"
-          gh release upload $TAG K9Manager-Prova-Windows.exe --clobber
+          gh release upload $TAG ClubManager-Prova-Windows.exe --clobber
       # Prova generale: nella release della prova generale, accanto all'APK (le note le scrive "App per Android").
       - if: ${{ env.EXPO_PUBLIC_GESTORE_URL }}
         name: Pubblica la prova generale nelle Releases
@@ -167,6 +167,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp desktop/release/*.exe K9Manager-ProvaGenerale-Windows.exe
-          gh release view prova-generale >/dev/null 2>&1 || gh release create prova-generale --prerelease --title "Prova generale di K9 Manager" --notes "La prova di tutto il giro: un centro si registra dall'app e il gestore gli prepara il database da solo."
-          gh release upload prova-generale K9Manager-ProvaGenerale-Windows.exe --clobber
+          cp desktop/release/*.exe ClubManager-ProvaGenerale-Windows.exe
+          gh release view prova-generale >/dev/null 2>&1 || gh release create prova-generale --prerelease --title "Prova generale di Club Manager" --notes "La prova di tutto il giro: un centro si registra dall'app e il gestore gli prepara il database da solo."
+          gh release upload prova-generale ClubManager-ProvaGenerale-Windows.exe --clobber
