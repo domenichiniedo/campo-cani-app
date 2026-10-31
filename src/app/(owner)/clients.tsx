@@ -105,6 +105,23 @@ export default function OwnerClients() {
         const pkg = p.client_packages.find((cp) => usable(cp));
         const pens = dogs.reduce((s, d) => s + d.penalties.length, 0);
         const on = p.id === openId;
+        // Solo le quote con qualcosa da dire (da incassare, in scadenza, scadute o mancanti) hanno il segno.
+        const quotaFlags = quotas.filter((q) => {
+          const l = ofKind(p.memberships ?? [], q.kind);
+          return l.some((m) => m.status === 'requested') || membershipState(l, q.renew_days) !== 'valid';
+        });
+        const blocked = dogs.some((d) => d.blocked);
+        const badges =
+          quotaFlags.length > 0 || pkg || pens > 0 || blocked ? (
+            <>
+              {quotaFlags.map((q) => (
+                <MembershipBadge key={q.kind} list={ofKind(p.memberships ?? [], q.kind)} cfg={q} />
+              ))}
+              {pkg && <Badge tone="ok">{t('{n} lez.', { n: pkg.lessons_total - pkg.lessons_used })}</Badge>}
+              {pens > 0 && <Badge tone="warn">{t('{n} pen.', { n: pens })}</Badge>}
+              {blocked && <Badge tone="bad">{t('Sospeso')}</Badge>}
+            </>
+          ) : null;
         return (
           <View key={p.id}>
             {first && (
@@ -121,13 +138,13 @@ export default function OwnerClients() {
                 alignItems: 'center',
                 gap: 10,
                 paddingHorizontal: 12,
-                paddingVertical: 9,
+                paddingVertical: 12,
                 borderTopWidth: first ? 0 : 1,
                 borderTopColor: c.line,
                 backgroundColor: on ? c.accentSoft : pressed ? c.surface2 : c.surface,
               })}>
               <Avatar name={fullName(p) || p.email} path={p.photo_path} size={32} />
-              <View style={{ flex: 1, gap: 1 }}>
+              <View style={{ flex: 1, gap: 4 }}>
                 <Text style={{ color: c.text, fontWeight: '700', fontSize: 15 }} numberOfLines={1}>
                   {sortName(p) || p.email}
                 </Text>
@@ -135,15 +152,9 @@ export default function OwnerClients() {
                   {dogs.length ? dogs.map((d) => d.name).join(', ') : t('Nessun cane')}
                   {p.phone ? `  ·  ${p.phone}` : ''}
                 </Text>
+                {/* I segni stanno sotto il nome e vanno a capo: così il nome non si accorcia. */}
+                {badges && <Row style={{ gap: 4 }}>{badges}</Row>}
               </View>
-              <Row style={{ gap: 4, flexWrap: 'nowrap' }}>
-                {quotas.map((q) => (
-                  <MembershipBadge key={q.kind} list={ofKind(p.memberships ?? [], q.kind)} cfg={q} />
-                ))}
-                {pkg && <Badge tone="ok">{t('{n} lez.', { n: pkg.lessons_total - pkg.lessons_used })}</Badge>}
-                {pens > 0 && <Badge tone="warn">{t('{n} pen.', { n: pens })}</Badge>}
-                {dogs.some((d) => d.blocked) && <Badge tone="bad">{t('Sospeso')}</Badge>}
-              </Row>
               {!wide && <Text style={{ color: c.muted, fontSize: 16 }}>{on ? '▾' : '›'}</Text>}
             </Pressable>
             {!wide && on && (
