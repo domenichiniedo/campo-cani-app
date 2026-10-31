@@ -7,6 +7,7 @@ import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Field, Mute
 import { euro } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { canRequest, currentMembership, dayText, lastDay, membershipState, PAY_METHODS, payMethodLabel, periodLabel, useMembershipSettings, type PayMethod } from '@/lib/membership';
+import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useTransfer } from '@/lib/transfer';
@@ -110,6 +111,7 @@ export function ClientMembership() {
   const { profile } = useSession();
   const { cfg } = useMembershipSettings();
   const transfer = useTransfer();
+  const plan = usePlan();
   const [list, setList] = useState<Membership[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -163,6 +165,7 @@ export function ClientMembership() {
         <Muted style={{ fontSize: 13 }}>
           {[t('Quota {importo}', { importo: euro(cfg.price_cents) }), periodLabel(cfg.period)].join(' · ')}
           {cfg.required ? `. ${t('Serve per prenotare le lezioni.')}` : ''}
+          {cfg.vat && plan.invoices ? `. ${t('Al pagamento ricevi fattura o scontrino.')}` : ''}
         </Muted>
         {request ? (
           <Muted>

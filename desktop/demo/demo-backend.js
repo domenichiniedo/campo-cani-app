@@ -233,7 +233,7 @@
   // La tessera associativa del centro: chi ce l'ha valida, chi scaduta, chi in scadenza e chi l'ha appena chiesta.
   function addMemberships(db) {
     var y = new Date().getFullYear();
-    db.membership_settings = [{ id: 1, enabled: true, name: 'Tessera associativa', price_cents: 2500, period: 'anno', required: false, renew_days: 30 }];
+    db.membership_settings = [{ id: 1, enabled: true, name: 'Tessera associativa', price_cents: 2500, period: 'anno', required: false, renew_days: 30, vat: false }];
     db.memberships = [];
     function m(user, year, method, number) {
       db.memberships.push({ id: uid(), user_id: user, number: number || '', price_cents: 2500, status: 'active', pay_method: method, starts_on: year + '-01-1' + (db.memberships.length % 9),
@@ -260,6 +260,12 @@
     r.paid_at = r.paid_at || nowIso();
     r.starts_on = r.starts_on || start;
     r.expires_on = r.expires_on || membershipEnd(r.starts_on, s.period);
+    // Tessera con IVA: come per i pacchetti parte fattura o scontrino.
+    var buyer = db.profiles.filter(function (x) { return x.id === r.user_id; })[0];
+    if (s.vat && r.price_cents > 0 && buyer && !db.invoices.some(function (x) { return x.membership_id === r.id; })) {
+      db.invoices.unshift({ id: uid(), kind: buyer.doc_pref === 'receipt' ? 'receipt' : 'invoice', receipt_number: null, year: new Date().getFullYear(), number: null, issued_on: dk(new Date()), user_id: r.user_id, booking_id: null, package_id: null, membership_id: r.id,
+        buyer_name: (buyer.first_name + ' ' + buyer.last_name).trim(), description: s.name + ' dal ' + r.starts_on.split('-').reverse().join('/') + ' al ' + r.expires_on.split('-').reverse().join('/'), total_cents: r.price_cents, status: 'pending', error: null, sent_at: null, created_at: nowIso() });
+    }
   }
   function hasMembership(user, day) {
     return db.memberships.some(function (x) { return x.user_id === user && x.status === 'active' && x.starts_on <= day && day <= x.expires_on; });

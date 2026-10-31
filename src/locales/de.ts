@@ -1016,6 +1016,13 @@ const dict: Record<string, string> = {
   "pagato il {data}": "bezahlt am {data}",
   "{n} prenotazioni": "{n} Buchungen",
   "{n} tessere da incassare": "{n} Mitgliedskarten zu kassieren",
+  "Al pagamento ricevi fattura o scontrino.": "Bei der Zahlung erhältst du Rechnung oder Kassenbon.",
+  "All'incasso parte la fattura o lo scontrino, con l'IVA delle tue impostazioni delle fatture, come per i pacchetti.": "Beim Kassieren wird Rechnung oder Kassenbon mit der MwSt. aus deinen Rechnungseinstellungen erstellt, wie bei den Paketen.",
+  "Con IVA": "Mit MwSt.",
+  "IVA": "MwSt.",
+  "La quota ha l'IVA: fattura o scontrino li fai tu, come per le lezioni.": "Der Beitrag enthält MwSt.: Rechnung oder Kassenbon stellst du selbst aus, wie bei den Lektionen.",
+  "Quota associativa fuori campo IVA (per esempio di un'ASD): all'incasso non parte né fattura né scontrino.": "Mitgliedsbeitrag ohne MwSt. (zum Beispiel eines Amateursportvereins): beim Kassieren wird weder Rechnung noch Kassenbon erstellt.",
+  "Senza IVA": "Ohne MwSt.",
 };
 
 export default dict;

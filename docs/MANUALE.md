@@ -223,8 +223,8 @@ pannello.
   **Penalità automatica se il cane non entra in campo** (accesa all'inizio).
 - **Metodi di pagamento**: bonifico istantaneo (il tuo IBAN) e carta con Nexi.
 - **Lezioni**, **Pacchetti**, **Tesseramento** (nome e quota della tessera; durata: anno solare, stagione sportiva
-  dal 1 settembre al 31 agosto o 12 mesi dal pagamento; da quanti giorni prima della scadenza si rinnova; se serve per
-  prenotare), **Schede di valutazione**.
+  dal 1 settembre al 31 agosto o 12 mesi dal pagamento; da quanti giorni prima della scadenza si rinnova; **Senza IVA**
+  o **Con IVA**; se serve per prenotare), **Schede di valutazione**.
 - **Fatture** (o **Fatture e scontrini**): vedi i punti [7](#7-collegare-fatture-in-cloud) e [8](#8-scontrini-registratore-e-pos).
 - **Report mensile**, **Proprietari** (altri proprietari con la loro email), **Regolamento e privacy**.
 
@@ -256,7 +256,8 @@ In **Impostazioni → Licenza** c'è **QR code per i clienti**: un QR con il **c
   cima c'è chi ha chiesto la tessera dall'app. Nella scheda del cliente scegli **Contanti**, **Carta** o **Bonifico**,
   scrivi se vuoi il numero della tessera e premi **Tessera incassata** (o **Rinnovo incassato**): vale da oggi, o dal
   giorno dopo la scadenza di quella in corso. Lì sotto c'è lo storico di tutte le sue tessere, con il tasto
-  **Annulla** per una registrata per sbaglio. La quota associativa non fa partire né fattura né scontrino.
+  **Annulla** per una registrata per sbaglio. Con la tessera **Senza IVA** (quota associativa fuori campo IVA) non
+  parte nessun documento; **Con IVA** all'incasso parte la fattura o lo scontrino, come per i pacchetti.
 - **Incassi** e **Statistiche** (secondo il piano).
 
 ---

@@ -2438,7 +2438,8 @@ end $$;
 -- (contanti, carta o bonifico) e la tessera vale da quel giorno, o dal giorno dopo la scadenza di quella in corso
 -- se il cliente rinnova prima. Il proprietario può anche registrare a mano il pagamento di chi paga al campo.
 -- Se vuole, senza tessera valida il cliente non prenota. Lo storico delle tessere resta: ogni rinnovo è una riga.
--- La quota associativa non ha fattura né scontrino automatici (per un'ASD è fuori campo IVA).
+-- Con IVA o senza, lo sceglie il proprietario: senza IVA (quota associativa di un'ASD, fuori campo IVA) non parte
+-- nessun documento; con IVA, all'incasso parte la fattura o lo scontrino come per i pacchetti.
 -- Da eseguire nel SQL Editor di Supabase dopo 0024_clienti_societa.sql.
 
 create table public.membership_settings (
@@ -2451,7 +2452,9 @@ create table public.membership_settings (
   -- Senza tessera valida il giorno della lezione il cliente non prenota (il proprietario prenota lo stesso per lui).
   required boolean not null default false,
   -- Quanti giorni prima della scadenza il cliente può già rinnovare.
-  renew_days int not null default 30 check (renew_days between 0 and 120)
+  renew_days int not null default 30 check (renew_days between 0 and 120),
+  -- Con IVA: all'incasso fattura o scontrino automatici (se le fatture automatiche sono accese). Senza: nessun documento.
+  vat boolean not null default false
 );
 insert into public.membership_settings (id) values (1);
 alter table public.membership_settings enable row level security;
@@ -2554,6 +2557,36 @@ begin
 end $$;
 create trigger bookings_check_membership before insert on public.bookings
   for each row execute function public.check_membership();
+
+-- Tessera con IVA: quando è pagata il database prepara fattura o scontrino, come per i pacchetti (0012).
+alter table public.invoices add column membership_id uuid unique references public.memberships on delete set null;
+
+create function public.invoice_membership() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  cfg public.invoice_settings; s public.membership_settings; pr public.profiles; taxable int;
+begin
+  if new.status <> 'active' or (tg_op = 'UPDATE' and old.status = 'active') or new.price_cents <= 0 then return new; end if;
+  select * into s from public.membership_settings where id = 1;
+  if not coalesce(s.vat, false) then return new; end if;
+  select * into cfg from public.invoice_settings where id = 1;
+  if not coalesce(cfg.auto_invoice, false) then return new; end if;
+  if exists (select 1 from public.invoices where membership_id = new.id) then return new; end if;
+  select * into pr from public.profiles where id = new.user_id;
+  taxable := case when cfg.tax_regime = 'RF19' then new.price_cents
+                  else round(new.price_cents / (1 + cfg.vat_rate / 100)) end;
+  insert into public.invoices (kind, user_id, membership_id, buyer_name, buyer_tax_code, buyer_street, buyer_zip, buyer_city, buyer_province,
+    description, total_cents, taxable_cents, vat_cents, vat_rate, nature)
+  values (case when pr.doc_pref = 'receipt' then 'receipt' else 'invoice' end, new.user_id, new.id, trim(pr.first_name || ' ' || pr.last_name), pr.tax_code,
+    pr.billing_street, pr.billing_zip, pr.billing_city, nullif(pr.billing_province, ''),
+    s.name || ' dal ' || to_char(new.starts_on, 'DD/MM/YYYY') || ' al ' || to_char(new.expires_on, 'DD/MM/YYYY'),
+    new.price_cents, taxable, new.price_cents - taxable,
+    case when cfg.tax_regime = 'RF19' then 0 else cfg.vat_rate end,
+    case when cfg.tax_regime = 'RF19' then 'N2.2' end);
+  return new;
+end $$;
+create trigger memberships_invoice after insert or update of status on public.memberships
+  for each row execute function public.invoice_membership();
 
 alter table public.memberships enable row level security;
 create policy "tessere proprie o proprietario" on public.memberships for select using (user_id = auth.uid() or public.is_owner());

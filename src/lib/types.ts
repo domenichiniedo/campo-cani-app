@@ -190,6 +190,8 @@ export type Invoice = {
   user_id: string | null;
   booking_id: string | null;
   package_id: string | null;
+  /** La tessera pagata, se il documento è della quota con IVA. */
+  membership_id?: string | null;
   buyer_name: string;
   description: string;
   total_cents: number;
@@ -292,6 +294,8 @@ export type MembershipSettings = {
   required: boolean;
   /** Giorni prima della scadenza in cui il cliente può già rinnovare. */
   renew_days: number;
+  /** Con IVA: all'incasso fattura o scontrino automatici. Manca nei database senza questa colonna. */
+  vat?: boolean;
 };
 
 /** Una tessera di un cliente: ogni rinnovo è una riga nuova, così resta lo storico. */

@@ -574,7 +574,7 @@ aggiorna anche la prova generale. Nessuna action parte da sola a ogni commit, tr
   incassi e statistiche.
 - Impostazioni: nome del centro, logo, numero di campi (ognuno con nome e indirizzo, anche uguale), trainer con le
   lezioni che seguono, pacchetti (lezioni, prezzo, validità), tesseramento (nome e quota della tessera, anno solare,
-  stagione sportiva o 12 mesi, se serve per prenotare), orario della griglia, ore per la disdetta, limite penalità, lezioni (nome, durata,
+  stagione sportiva o 12 mesi, con o senza IVA, se serve per prenotare), orario della griglia, ore per la disdetta, limite penalità, lezioni (nome, durata,
   prezzo, opzioni), modelli delle schede di valutazione del cane (piani Professional e Pro: per esempio primo incontro o ipersensibilità al tatto, con
   voci a voto da 1 a 5, sì/no, scelta tra risposte o testo), regolamento e
   privacy.

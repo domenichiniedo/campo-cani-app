@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Button, Card, Chips, ErrorText, Field, Muted, Row, Toggle } from '@/components/ui';
 import { t } from '@/lib/i18n';
 import { periodLabel, useMembershipSettings } from '@/lib/membership';
+import { usePlan } from '@/lib/plans';
 import { errorText, supabase } from '@/lib/supabase';
 import type { MembershipSettings } from '@/lib/types';
 
@@ -22,6 +23,8 @@ function MembershipForm({ cfg, onSaved }: { cfg: MembershipSettings; onSaved: ()
   const [price, setPrice] = useState(euroField(cfg.price_cents));
   const [period, setPeriod] = useState<MembershipSettings['period']>(cfg.period);
   const [required, setRequired] = useState(cfg.required);
+  const [vat, setVat] = useState(cfg.vat ?? false);
+  const plan = usePlan();
   const [renewDays, setRenewDays] = useState(String(cfg.renew_days));
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
@@ -38,7 +41,7 @@ function MembershipForm({ cfg, onSaved }: { cfg: MembershipSettings; onSaved: ()
     setSaving(true);
     const { error } = await supabase
       .from('membership_settings')
-      .update({ enabled, name: name.trim(), price_cents: cents, period, required: enabled && required, renew_days: days })
+      .update({ enabled, name: name.trim(), price_cents: cents, period, required: enabled && required, renew_days: days, vat })
       .eq('id', 1);
     setSaving(false);
     if (error) return setErr(errorText(error));
@@ -76,6 +79,22 @@ function MembershipForm({ cfg, onSaved }: { cfg: MembershipSettings; onSaved: ()
             keyboardType="number-pad"
             style={{ maxWidth: 320 }}
           />
+          <Muted style={{ fontSize: 13 }}>{t('IVA')}</Muted>
+          <Chips
+            items={[
+              { value: 'no' as const, label: t('Senza IVA') },
+              { value: 'si' as const, label: t('Con IVA') },
+            ]}
+            value={vat ? 'si' : 'no'}
+            onChange={(v) => setVat(v === 'si')}
+          />
+          <Muted style={{ fontSize: 13 }}>
+            {!vat
+              ? t("Quota associativa fuori campo IVA (per esempio di un'ASD): all'incasso non parte né fattura né scontrino.")
+              : plan.invoices
+                ? t("All'incasso parte la fattura o lo scontrino, con l'IVA delle tue impostazioni delle fatture, come per i pacchetti.")
+                : t('La quota ha l\'IVA: fattura o scontrino li fai tu, come per le lezioni.')}
+          </Muted>
           <Toggle label={t('Senza tessera valida il cliente non prenota')} value={required} onChange={setRequired} />
           <Muted style={{ fontSize: 13 }}>
             {required

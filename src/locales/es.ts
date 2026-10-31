@@ -1016,6 +1016,13 @@ const dict: Record<string, string> = {
   "pagato il {data}": "pagado el {data}",
   "{n} prenotazioni": "{n} reservas",
   "{n} tessere da incassare": "{n} carnés por cobrar",
+  "Al pagamento ricevi fattura o scontrino.": "Al pagar recibes factura o ticket.",
+  "All'incasso parte la fattura o lo scontrino, con l'IVA delle tue impostazioni delle fatture, come per i pacchetti.": "Al cobrar se emite la factura o el ticket con el IVA de tus ajustes de facturas, como para los paquetes.",
+  "Con IVA": "Con IVA",
+  "IVA": "IVA",
+  "La quota ha l'IVA: fattura o scontrino li fai tu, come per le lezioni.": "La cuota lleva IVA: la factura o el ticket los haces tú, como para las clases.",
+  "Quota associativa fuori campo IVA (per esempio di un'ASD): all'incasso non parte né fattura né scontrino.": "Cuota de socio fuera del ámbito del IVA (por ejemplo de un club deportivo): al cobrar no se emite ni factura ni ticket.",
+  "Senza IVA": "Sin IVA",
 };
 
 export default dict;
