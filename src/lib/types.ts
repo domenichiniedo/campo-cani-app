@@ -50,6 +50,8 @@ export type LessonType = {
   active: boolean;
   /** Lezione di gruppo: posti proposti per le classi. null = lezione singola. */
   group_seats: number | null;
+  /** Campo libero: il cliente prenota il campo per il suo turno e lo paga, senza trainer. */
+  free_field?: boolean;
 };
 
 export type Profile = {
@@ -190,6 +192,8 @@ export type Invoice = {
   user_id: string | null;
   booking_id: string | null;
   package_id: string | null;
+  /** La tessera pagata, se il documento è della quota con IVA. */
+  membership_id?: string | null;
   buyer_name: string;
   description: string;
   total_cents: number;
@@ -279,4 +283,64 @@ export type LessonRating = {
   comment: string;
   created_at: string;
   updated_at: string;
+};
+
+/** La tessera o la quota campo del centro (da 0025_tesseramento.sql): nome, importo, durata e se serve per prenotare. */
+export type MembershipSettings = {
+  kind: 'tessera' | 'campo';
+  enabled: boolean;
+  name: string;
+  price_cents: number;
+  /** anno: fino al 31 dicembre; stagione: fino al 31 agosto; mesi: "months" mesi dal primo giorno. */
+  period: 'anno' | 'stagione' | 'mesi';
+  months: number;
+  required: boolean;
+  /** Giorni prima della scadenza in cui il cliente può già rinnovare. */
+  renew_days: number;
+  /** Con IVA: all'incasso fattura o scontrino automatici. */
+  vat: boolean;
+};
+
+/** Una tessera o quota campo di un cliente: ogni rinnovo è una riga nuova, così resta lo storico. */
+export type Membership = {
+  id: string;
+  user_id: string;
+  kind: MembershipSettings['kind'];
+  number: string;
+  price_cents: number;
+  status: 'requested' | 'active' | 'cancelled';
+  pay_method: '' | 'contanti' | 'carta' | 'bonifico';
+  starts_on: string | null;
+  expires_on: string | null;
+  requested_at: string;
+  paid_at: string | null;
+};
+
+/** Un avviso o un evento della bacheca del centro (da 0026_bacheca_spese.sql). */
+export type Post = {
+  id: string;
+  kind: 'avviso' | 'evento';
+  title: string;
+  body: string;
+  /** In evidenza nella pagina Prenota finché il cliente non lo legge. */
+  important: boolean;
+  event_day: string | null;
+  /** Minuti dalla mezzanotte. */
+  event_start: number | null;
+  place: string;
+  /** Posti dell'evento; null: senza limite. */
+  seats: number | null;
+  visible_until: string | null;
+  created_at: string;
+};
+
+/** Una spesa del centro: la vede solo il proprietario. */
+export type Expense = {
+  id: string;
+  day: string;
+  category: string;
+  description: string;
+  amount_cents: number;
+  pay_method: '' | 'contanti' | 'carta' | 'bonifico';
+  created_at: string;
 };

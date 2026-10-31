@@ -78,6 +78,9 @@ export default function OwnerStats() {
   const [rows, setRows] = useState<Line[]>([]);
   const [sold, setSold] = useState<Sold[]>([]);
   const [votes, setVotes] = useState<Vote[]>([]);
+  // Tessere e quote campo incassate e spese del periodo (vuote se il database non le ha ancora).
+  const [dues, setDues] = useState(0);
+  const [spent, setSpent] = useState(0);
   const [allComments, setAllComments] = useState(false);
   const [pick, setPick] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -89,7 +92,7 @@ export default function OwnerStats() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [b, p, v] = await Promise.all([
+      const [b, p, v, m, x] = await Promise.all([
         bookingsBetween(fromK, toK),
         supabase
           .from('client_packages')
@@ -103,7 +106,16 @@ export default function OwnerStats() {
           .gte('day', fromK)
           .lte('day', toK)
           .order('day', { ascending: false }),
+        supabase
+          .from('memberships')
+          .select('price_cents')
+          .eq('status', 'active')
+          .gte('paid_at', `${fromK}T00:00:00`)
+          .lte('paid_at', `${toK}T23:59:59`),
+        supabase.from('expenses').select('amount_cents').gte('day', fromK).lte('day', toK),
       ]);
+      setDues(((m.data ?? []) as { price_cents: number }[]).reduce((s, r) => s + r.price_cents, 0));
+      setSpent(((x.data ?? []) as { amount_cents: number }[]).reduce((s, r) => s + r.amount_cents, 0));
       if (p.error) throw p.error;
       if (v.error) throw v.error;
       setRows(b);
@@ -232,13 +244,18 @@ export default function OwnerStats() {
       <ErrorText>{err}</ErrorText>
 
       <Row>
-        <Stat label={t('Incassato')} value={euro(lessonsPaid + packagesPaid)} />
+        <Stat label={t('Incassato')} value={euro(lessonsPaid + packagesPaid + dues)} />
         <Stat label={sold.length === 1 ? t('1 pacchetto venduto') : t('{n} pacchetti venduti', { n: sold.length })} value={euro(packagesPaid)} />
         <Stat label={t('Da incassare')} value={euro(toCollect)} />
         <Stat label={t('Previsto')} value={euro(expected)} />
       </Row>
+      <Row>
+        {dues > 0 && <Stat label={t('Tessere e quote')} value={euro(dues)} />}
+        <Stat label={t('Uscite')} value={euro(spent)} />
+        <Stat label={t('Saldo')} value={euro(lessonsPaid + packagesPaid + dues - spent)} />
+      </Row>
       <Muted style={{ fontSize: 12 }}>
-        {t('Incassato: lezioni pagate più pacchetti venduti. Da incassare: lezioni già fatte e non ancora pagate. Previsto: lezioni prenotate nei prossimi giorni.')}
+        {t('Incassato: lezioni pagate, pacchetti venduti, tessere e quote campo. Da incassare: lezioni già fatte e non ancora pagate. Previsto: lezioni prenotate nei prossimi giorni. Saldo: incassato meno le uscite segnate in Spese.')}
       </Muted>
 
       {!plan.stats && (

@@ -2,20 +2,22 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
+import { MembershipBadge, OwnerMembership } from '@/components/client-membership';
 import { DogDiary, DogEvalEditor, type EvalTarget } from '@/components/dog-diary';
 import { Avatar } from '@/components/photo';
 import { Badge, Body, Button, Card, Chips, ConfirmButton, ErrorText, Field, H1, Muted, Row, Screen } from '@/components/ui';
 import { billingLine } from '@/lib/billing';
 import { euro, shortDate } from '@/lib/format';
 import { t } from '@/lib/i18n';
+import { membershipState, ofKind, useMembershipSettings } from '@/lib/membership';
 import { usePlan } from '@/lib/plans';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
-import { fullName, usable, type ClientPackage, type Dog, type Penalty, type Profile } from '@/lib/types';
+import { fullName, usable, type ClientPackage, type Dog, type Membership, type MembershipSettings, type Penalty, type Profile } from '@/lib/types';
 
-type Client = Profile & { dogs: (Dog & { penalties: Penalty[] })[]; client_packages: ClientPackage[] };
-type Filter = 'all' | 'package' | 'blocked' | 'penalties' | 'billing' | 'nosocial';
+type Client = Profile & { dogs: (Dog & { penalties: Penalty[] })[]; client_packages: ClientPackage[]; memberships?: Membership[] };
+type Filter = 'all' | 'package' | 'membership' | 'blocked' | 'penalties' | 'billing' | 'nosocial';
 type Act = (fn: () => PromiseLike<{ error: unknown }>) => Promise<void>;
 
 const dogsOf = (p: Client) => p.dogs.filter((d) => !d.archived);
@@ -26,6 +28,8 @@ export default function OwnerClients() {
   const c = useColors();
   const { settings } = useSession();
   const plan = usePlan();
+  // Tessera e quota campo, quelle accese (nessuna se il database non le ha ancora).
+  const { active: quotas } = useMembershipSettings();
   // Sul PC la scheda del cliente sta a destra della lista; sul telefono si apre sotto il nome.
   const { width, height } = useWindowDimensions();
   const wide = width >= 900;
@@ -40,13 +44,13 @@ export default function OwnerClients() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*, dogs(*, penalties(*)), client_packages(*)')
-      .eq('role', 'client')
-      .order('last_name');
+    const query = (extra: string) =>
+      supabase.from('profiles').select(`*, dogs(*, penalties(*)), client_packages(*)${extra}`).eq('role', 'client').order('last_name');
+    let { data, error } = await query(', memberships(*)');
+    // Database non ancora aggiornato con il tesseramento: i clienti si vedono lo stesso.
+    if (error) ({ data, error } = await query(''));
     if (error) setErr(errorText(error));
-    setRows((data ?? []) as Client[]);
+    setRows((data ?? []) as unknown as Client[]);
     setLoading(false);
   }, []);
 
@@ -76,6 +80,7 @@ export default function OwnerClients() {
   const passes = (p: Client) =>
     filter === 'all' ||
     (filter === 'package' && p.client_packages.some((cp) => usable(cp))) ||
+    (filter === 'membership' && quotas.some((q) => membershipState(ofKind(p.memberships ?? [], q.kind), q.renew_days) !== 'valid')) ||
     (filter === 'blocked' && dogsOf(p).some((d) => d.blocked)) ||
     (filter === 'penalties' && dogsOf(p).some((d) => d.penalties.length > 0)) ||
     (filter === 'billing' && p.doc_pref !== 'receipt' && !p.tax_code) ||
@@ -87,6 +92,7 @@ export default function OwnerClients() {
 
   const limit = settings?.penalty_limit ?? 0;
   const requests = rows.flatMap((p) => p.client_packages.filter((cp) => cp.status === 'requested').map((cp) => ({ p, cp })));
+  const memberRequests = quotas.length ? rows.filter((p) => (p.memberships ?? []).some((m) => m.status === 'requested')) : [];
   const activate = (cp: ClientPackage) => act(() => supabase.from('client_packages').update({ status: 'active' }).eq('id', cp.id));
   const reject = (cp: ClientPackage) => act(() => supabase.from('client_packages').update({ status: 'cancelled' }).eq('id', cp.id));
 
@@ -131,6 +137,9 @@ export default function OwnerClients() {
                 </Text>
               </View>
               <Row style={{ gap: 4, flexWrap: 'nowrap' }}>
+                {quotas.map((q) => (
+                  <MembershipBadge key={q.kind} list={ofKind(p.memberships ?? [], q.kind)} cfg={q} />
+                ))}
                 {pkg && <Badge tone="ok">{t('{n} lez.', { n: pkg.lessons_total - pkg.lessons_used })}</Badge>}
                 {pens > 0 && <Badge tone="warn">{t('{n} pen.', { n: pens })}</Badge>}
                 {dogs.some((d) => d.blocked) && <Badge tone="bad">{t('Sospeso')}</Badge>}
@@ -139,7 +148,7 @@ export default function OwnerClients() {
             </Pressable>
             {!wide && on && (
               <View style={{ padding: 12, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.bg }}>
-                <ClientDetail p={p} act={act} />
+                <ClientDetail p={p} act={act} quotas={quotas} />
               </View>
             )}
           </View>
@@ -177,11 +186,34 @@ export default function OwnerClients() {
           ))}
         </Card>
       )}
+      {memberRequests.length > 0 && (
+        <Card accent>
+          <Body bold>{memberRequests.length === 1 ? t('1 cliente ha chiesto tessera o quota campo') : t('{n} clienti hanno chiesto tessera o quota campo', { n: memberRequests.length })}</Body>
+          <Muted style={{ fontSize: 13 }}>{t('Apri il cliente e segnala pagata quando incassi.')}</Muted>
+          <Row>
+            {memberRequests.map((p) => (
+              <Button
+                key={p.id}
+                small
+                kind="ghost"
+                title={sortName(p) || p.email}
+                onPress={() => {
+                  // Sul telefono la scheda si apre sotto il nome: con la ricerca il cliente resta in cima alla lista.
+                  setFilter('all');
+                  setQ(sortName(p) || p.email);
+                  setOpenId(p.id);
+                }}
+              />
+            ))}
+          </Row>
+        </Card>
+      )}
       <Field label={t('Cerca')} value={q} onChangeText={setQ} placeholder={t('Nome, cognome, cane, telefono, email o codice fiscale')} />
       <Chips
         items={[
           { value: 'all', label: t('Tutti') },
           { value: 'package', label: t('Con pacchetto') },
+          ...(quotas.length ? [{ value: 'membership' as Filter, label: quotas.length > 1 ? t('Tessera o quota da rinnovare') : t('{nome} da rinnovare', { nome: quotas[0].name }) }] : []),
           { value: 'penalties', label: t('Con penalità') },
           { value: 'blocked', label: t('Sospesi') },
           { value: 'billing', label: t('Senza dati fattura') },
@@ -198,7 +230,7 @@ export default function OwnerClients() {
           <ScrollView style={{ flex: 1.3, height: paneH }}>
             {open ? (
               <Card>
-                <ClientDetail p={open} act={act} />
+                <ClientDetail p={open} act={act} quotas={quotas} />
               </Card>
             ) : (
               <Muted>{t('Scegli un cliente dalla lista per vedere cani, pacchetti e penalità.')}</Muted>
@@ -212,8 +244,8 @@ export default function OwnerClients() {
   );
 }
 
-/** Scheda del cliente: contatti, dati di fatturazione, pacchetti e cani con penalità. */
-function ClientDetail({ p, act }: { p: Client; act: Act }) {
+/** Scheda del cliente: contatti, dati di fatturazione, tessera e quota campo, pacchetti e cani con penalità. */
+function ClientDetail({ p, act, quotas }: { p: Client; act: Act; quotas: MembershipSettings[] }) {
   const { trainers } = useSession();
   const plan = usePlan();
   const [diary, setDiary] = useState<string | null>(null);
@@ -256,6 +288,9 @@ function ClientDetail({ p, act }: { p: Client; act: Act }) {
             : t('Foto sui social: no')}
         </Muted>
       </View>
+      {quotas.map((q) => (
+        <OwnerMembership key={`${p.id}-${q.kind}`} userId={p.id} list={ofKind(p.memberships ?? [], q.kind)} cfg={q} act={act} />
+      ))}
       {p.client_packages
         .filter((cp) => cp.status === 'active')
         .map((cp) => (

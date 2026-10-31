@@ -17,7 +17,7 @@ export default function OwnerDay() {
   // Il giorno sta nell'indirizzo, così la Settimana può aprire un giorno preciso.
   const day = params.day && isDayKey(params.day) ? params.day : dayKey(today());
   const setDay = (k: string) => router.setParams({ day: k });
-  const { fields, trainers } = useSession();
+  const { fields, trainers, lessonTypes } = useSession();
   const plan = usePlan();
   const [classes, setClasses] = useState<OwnerClass[]>([]);
   const [fieldFilter, setFieldFilter] = useState('');
@@ -53,7 +53,7 @@ export default function OwnerDay() {
     ...shown.filter((b) => !b.class_id || !classes.some((cl) => cl.id === b.class_id)).map((b) => ({ start: b.start_min, b, cl: null })),
     ...shownClasses.map((cl) => ({ start: cl.start_min, b: null, cl })),
   ].sort((x, y) => x.start - y.start);
-  const unassigned = shown.filter((b) => !b.class_id && !b.trainer_id).length + shownClasses.filter((cl) => !cl.trainer_id).length;
+  const unassigned = shown.filter((b) => !b.class_id && !b.trainer_id && !lessonTypes.find((lt) => lt.id === b.lesson_type)?.free_field).length + shownClasses.filter((cl) => !cl.trainer_id).length;
   const arrived = rows.filter((b) => b.checked_in_at).length;
   const toCollect = rows.filter((b) => !b.paid).reduce((s, b) => s + b.price_cents, 0);
 

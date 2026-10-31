@@ -60,6 +60,18 @@ export const planPrices = () => call<{ piani: Partial<Record<string, PlanPrice>>
 
 export type Due = { id: string; mese: string; prenotazioni: number; canone_cents: number; importo_cents: number; stato: 'inviato' | 'non_pagato'; causale: string; scadenza: string | null };
 
+/** Un conto del mese già fatto, per lo storico dei pagamenti. zero: niente da pagare quel mese. */
+export type PastCharge = {
+  id: string;
+  mese: string;
+  prenotazioni: number;
+  importo_cents: number;
+  bonus_cents: number;
+  stato: 'zero' | 'inviato' | 'pagato' | 'non_pagato';
+  scadenza: string | null;
+  pagato_il: string | null;
+};
+
 export type Subscription = {
   piano: string;
   formula?: Formula;
@@ -77,6 +89,8 @@ export type Subscription = {
   /** Il conto del gestore dove il centro paga con il bonifico istantaneo. */
   bonifico: { iban: string; intestatario: string };
   da_pagare: Due[];
+  /** I conti degli ultimi 24 mesi, dal più recente (manca con un gestore non ancora aggiornato). */
+  storico?: PastCharge[];
   /** Bonus che resta da scalare dai prossimi conti, in centesimi. */
   credito_cents?: number;
 };

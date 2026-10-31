@@ -24,7 +24,8 @@
       lesson_types: [
         { id: 'igp', label: 'IGP', description: 'Scegli la fase da allenare', duration_min: 60, price_cents: 2500, options: ['Pista', 'Obbedienza', 'Attacco'], sort: 1, active: true, group_seats: null },
         { id: 'base', label: 'Educazione base', description: 'Primi comandi e gestione', duration_min: 30, price_cents: 1500, options: ['Cucciolo (meno di 1,5 anni)', 'Adulto (più di 1,5 anni)'], sort: 2, active: true, group_seats: null },
-        { id: 'gruppo', label: 'Socializzazione di gruppo', description: 'In campo con altri cani, guidati dal trainer', duration_min: 60, price_cents: 1200, options: [], sort: 3, active: true, group_seats: 6 }
+        { id: 'gruppo', label: 'Socializzazione di gruppo', description: 'In campo con altri cani, guidati dal trainer', duration_min: 60, price_cents: 1200, options: [], sort: 3, active: true, group_seats: 6 },
+        { id: 'libero', label: 'Campo libero', description: 'Il campo per te e il tuo cane, senza trainer', duration_min: 60, price_cents: 800, options: [], sort: 4, active: true, group_seats: null, free_field: true }
       ],
       fields: [
         { id: 'f1', name: 'Campo A', address: 'Via dei Campi 12, Bologna', sort: 1, active: true },
@@ -129,6 +130,8 @@
     book(0, 960, 'c1', 'd2', 'base', 'Cucciolo (meno di 1,5 anni)');
     book(0, 1020, 'c2', 'd3', 'igp', 'Attacco');
     book(1, 570, 'c3', 'd4', 'igp', 'Pista', null, 'f1', 't1');
+    // Il campo libero: il cliente usa il campo da solo, senza trainer.
+    book(0, 1080, 'c3', 'd4', 'libero', '', null, 'f2');
     // Una lezione da pagare con bonifico, con la nota del cliente.
     book(2, 1110, 'c1', 'd2', 'base', 'Cucciolo (meno di 1,5 anni)', { pay: 'transfer', note: 'Luna ha paura dei rumori forti: meglio iniziare con calma.' }, 'f1');
     book(1, 600, 'c2', 'd3', 'base', 'Adulto (più di 1,5 anni)', null, 'f2');
@@ -230,6 +233,71 @@
     });
   }
 
+  // La tessera associativa e la quota campo mensile: chi le ha valide, chi scadute, chi in scadenza e chi le ha appena chieste.
+  var MS_DEFAULT = [
+    { kind: 'tessera', enabled: true, name: 'Tessera associativa', price_cents: 2500, period: 'anno', months: 12, required: false, renew_days: 30, vat: false },
+    { kind: 'campo', enabled: true, name: 'Quota campo', price_cents: 3000, period: 'mesi', months: 1, required: false, renew_days: 7, vat: true }
+  ];
+  function addMemberships(db) {
+    var y = new Date().getFullYear();
+    db.membership_settings = MS_DEFAULT.map(function (x) { return Object.assign({}, x); });
+    db.memberships = [];
+    function m(user, year, method, number) {
+      db.memberships.push({ id: uid(), user_id: user, kind: 'tessera', number: number || '', price_cents: 2500, status: 'active', pay_method: method, starts_on: year + '-01-1' + (db.memberships.length % 9),
+        expires_on: year + '-12-31', requested_at: year + '-01-10T10:00:00.000Z', paid_at: year + '-01-10T10:00:00.000Z' });
+    }
+    m('c1', y - 1, 'contanti', 'A-0142'); m('c1', y, 'bonifico', 'A-0231');
+    m('c2', y - 1, 'carta', 'A-0150');
+    m('c3', y, 'contanti', 'A-0233');
+    db.profiles.filter(function (p) { return /^x\d+$/.test(p.id); }).forEach(function (p, i) { if (i % 4) m(p.id, i % 7 ? y : y - 1, i % 3 ? 'contanti' : 'carta'); });
+    db.memberships.push({ id: uid(), user_id: 'c2', kind: 'tessera', number: '', price_cents: 2500, status: 'requested', pay_method: '', starts_on: null, expires_on: null, requested_at: nowIso(), paid_at: null });
+    addFieldQuotas(db);
+  }
+  // Quota campo mensile: Giulia la paga da mesi (l'ultima scade a breve), Sara è scaduta.
+  function addFieldQuotas(db) {
+    var t = new Date(); t.setHours(12, 0, 0, 0);
+    function q(user, monthsAgo, method) {
+      var st = new Date(t.getFullYear(), t.getMonth() - monthsAgo, Math.max(1, t.getDate() - 25), 12);
+      var start = dk(st), end = membershipEnd(start, 'mesi', 1);
+      db.memberships.push({ id: uid(), user_id: user, kind: 'campo', number: '', price_cents: 3000, status: 'active', pay_method: method, starts_on: start, expires_on: end, requested_at: start + 'T09:00:00.000Z', paid_at: start + 'T09:00:00.000Z' });
+    }
+    q('c1', 2, 'contanti'); q('c1', 1, 'bonifico'); q('c1', 0, 'carta');
+    q('c3', 3, 'contanti');
+  }
+  function membershipEnd(start, period, months) {
+    var d = new Date(start + 'T12:00:00');
+    if (period === 'stagione') return (d.getMonth() >= 8 ? d.getFullYear() + 1 : d.getFullYear()) + '-08-31';
+    if (period === 'mesi') {
+      // Come nel database: il giorno prima dello stesso giorno fra "months" mesi (31 gennaio + 1 mese = 28 febbraio).
+      var p = new Date(d); p.setDate(p.getDate() - 1);
+      var e = new Date(p.getFullYear(), p.getMonth() + (months || 12), 1, 12);
+      e.setDate(Math.min(p.getDate(), new Date(e.getFullYear(), e.getMonth() + 1, 0).getDate()));
+      return dk(e);
+    }
+    return d.getFullYear() + '-12-31';
+  }
+  function msOf(kind) { return db.membership_settings.filter(function (x) { return x.kind === (kind || 'tessera'); })[0]; }
+  // Come il database vero: pagata, la tessera parte da oggi o dal giorno dopo la scadenza di quella in corso.
+  function activateMembership(r) {
+    r.kind = r.kind || 'tessera';
+    var s = msOf(r.kind), last = null;
+    db.memberships.forEach(function (x) { if (x.user_id === r.user_id && x.kind === r.kind && x.status === 'active' && x.id !== r.id && (!last || x.expires_on > last)) last = x.expires_on; });
+    var start = dk(new Date());
+    if (last && last >= start) start = dk(addDays(new Date(last + 'T12:00:00'), 1));
+    r.paid_at = r.paid_at || nowIso();
+    r.starts_on = r.starts_on || start;
+    r.expires_on = r.expires_on || membershipEnd(r.starts_on, s.period, s.months);
+    // Tessera con IVA: come per i pacchetti parte fattura o scontrino.
+    var buyer = db.profiles.filter(function (x) { return x.id === r.user_id; })[0];
+    if (s.vat && r.price_cents > 0 && buyer && !db.invoices.some(function (x) { return x.membership_id === r.id; })) {
+      db.invoices.unshift({ id: uid(), kind: buyer.doc_pref === 'receipt' ? 'receipt' : 'invoice', receipt_number: null, year: new Date().getFullYear(), number: null, issued_on: dk(new Date()), user_id: r.user_id, booking_id: null, package_id: null, membership_id: r.id,
+        buyer_name: (buyer.first_name + ' ' + buyer.last_name).trim(), description: s.name + ' dal ' + r.starts_on.split('-').reverse().join('/') + ' al ' + r.expires_on.split('-').reverse().join('/'), total_cents: r.price_cents, status: 'pending', error: null, sent_at: null, created_at: nowIso() });
+    }
+  }
+  function hasMembership(user, day, kind) {
+    return db.memberships.some(function (x) { return x.user_id === user && x.kind === kind && x.status === 'active' && x.starts_on <= day && day <= x.expires_on; });
+  }
+
   // Esempi di fatture: nella demo il pagamento online è spento, quindi non ne nascono di nuove.
   function addInvoices(db, t) {
     db.invoice_settings = [{ id: 1, tax_regime: 'RF01', vat_rate: 22, auto_invoice: true, receipt_mode: 'manual', printer_url: '' }];
@@ -250,6 +318,33 @@
     db.invoices.splice(2, 0, rec);
   }
 
+  // La bacheca (un avviso importante, uno normale, due eventi) e le spese del centro degli ultimi mesi.
+  function addBoard(db) {
+    var t = new Date(); t.setHours(12, 0, 0, 0);
+    var ago = function (n) { return addDays(t, -n).toISOString(); };
+    db.posts = [
+      { id: 'po1', kind: 'avviso', title: 'Campo B chiuso sabato mattina', body: 'Rifacciamo il fondo del Campo B: sabato fino alle 13 le lezioni si spostano sul Campo A.', important: true, event_day: null, event_start: null, place: '', seats: null, visible_until: dk(addDays(t, 6)), created_at: ago(1) },
+      { id: 'po2', kind: 'evento', title: 'Gara sociale di obbedienza', body: 'Aperta a tutti i livelli, con premiazione e pranzo insieme. Iscrizione gratuita.', important: false, event_day: dk(addDays(t, 16)), event_start: 600, place: 'Campo A', seats: 20, visible_until: null, created_at: ago(3) },
+      { id: 'po3', kind: 'evento', title: 'Serata sul primo soccorso del cane', body: 'Con la nostra veterinaria: cosa fare in caso di colpo di calore, ferite e avvelenamenti.', important: false, event_day: dk(addDays(t, 9)), event_start: 1230, place: 'Club house', seats: null, visible_until: null, created_at: ago(5) },
+      { id: 'po4', kind: 'avviso', title: 'Nuovi orari invernali', body: 'Da novembre il campo chiude alle 19. Le lezioni serali si prenotano fino alle 18.', important: false, event_day: null, event_start: null, place: '', seats: null, visible_until: null, created_at: ago(8) }
+    ];
+    db.post_rsvps = [{ post_id: 'po2', user_id: 'c2' }, { post_id: 'po2', user_id: 'c3' }, { post_id: 'po3', user_id: 'c3' }];
+    db.post_reads = [{ post_id: 'po1', user_id: 'c3', read_at: ago(0) }, { post_id: 'po4', user_id: 'c2', read_at: ago(6) }, { post_id: 'po4', user_id: 'c3', read_at: ago(7) }];
+    db.expenses = [];
+    for (var mo = 0; mo < 3; mo++) {
+      var md = function (d) { return dk(new Date(t.getFullYear(), t.getMonth() - mo, d, 12)); };
+      db.expenses.push(
+        { id: uid(), day: md(1), category: 'Affitto', description: 'Affitto del terreno', amount_cents: 30000, pay_method: 'bonifico', created_at: nowIso() },
+        { id: uid(), day: md(5), category: 'Utenze', description: 'Luce e acqua', amount_cents: 9500 + mo * 1200, pay_method: 'bonifico', created_at: nowIso() },
+        { id: uid(), day: md(10), category: 'Compensi trainer', description: 'Luca e Paola', amount_cents: 25000, pay_method: 'bonifico', created_at: nowIso() }
+      );
+    }
+    db.expenses.push(
+      { id: uid(), day: dk(addDays(t, -4)), category: 'Attrezzatura', description: 'Ostacoli agility', amount_cents: 18900, pay_method: 'carta', created_at: nowIso() },
+      { id: uid(), day: dk(addDays(t, -12)), category: 'Manutenzione', description: 'Taglio erba', amount_cents: 7000, pay_method: 'contanti', created_at: nowIso() }
+    );
+  }
+
   var db;
   try { db = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
   if (!db) db = seed();
@@ -260,6 +355,17 @@
   if (db.invoices && !db.invoices.some(function (x) { return x.kind; })) delete db.invoices;
   if (!db.invoices) { var t0 = new Date(); t0.setHours(0, 0, 0, 0); addInvoices(db, t0); }
   if (!db.lesson_ratings) { var t1 = new Date(); t1.setHours(0, 0, 0, 0); addRatings(db, t1); }
+  if (!db.memberships) addMemberships(db);
+  // Dati di una demo di prima: una sola tessera, senza tipo.
+  if (db.membership_settings.some(function (x) { return !x.kind; })) {
+    var old = db.membership_settings[0];
+    db.membership_settings = MS_DEFAULT.map(function (x) { return Object.assign({}, x); });
+    Object.assign(db.membership_settings[0], { enabled: old.enabled, name: old.name, price_cents: old.price_cents, period: old.period, required: old.required, renew_days: old.renew_days, vat: !!old.vat });
+    db.memberships.forEach(function (x) { x.kind = x.kind || 'tessera'; });
+    addFieldQuotas(db);
+  }
+  if (!db.lesson_types.some(function (x) { return x.free_field; })) db.lesson_types.push({ id: 'libero', label: 'Campo libero', description: 'Il campo per te e il tuo cane, senza trainer', duration_min: 60, price_cents: 800, options: [], sort: 4, active: true, group_seats: null, free_field: true });
+  if (!db.posts) addBoard(db);
   function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} }
   window.__demoReset = function () { try { localStorage.removeItem(KEY); } catch (e) {} };
 
@@ -278,8 +384,9 @@
   var REL = {
     bookings: { fields: ['one', 'fields', 'field_id', 'id'], trainers: ['one', 'trainers', 'trainer_id', 'id'], profiles: ['one', 'profiles', 'user_id', 'id'], dogs: ['one', 'dogs', 'dog_id', 'id'], lesson_types: ['one', 'lesson_types', 'lesson_type', 'id'], penalties: ['many', 'penalties', 'id', 'booking_id'], dog_notes: ['one', 'dog_notes', 'id', 'booking_id'], lesson_ratings: ['one', 'lesson_ratings', 'id', 'booking_id'] },
     lesson_ratings: { profiles: ['one', 'profiles', 'user_id', 'id'], bookings: ['one', 'bookings', 'booking_id', 'id'] },
-    profiles: { dogs: ['many', 'dogs', 'id', 'owner_id'], client_packages: ['many', 'client_packages', 'id', 'user_id'] },
+    profiles: { dogs: ['many', 'dogs', 'id', 'owner_id'], client_packages: ['many', 'client_packages', 'id', 'user_id'], memberships: ['many', 'memberships', 'id', 'user_id'] },
     dogs: { penalties: ['many', 'penalties', 'id', 'dog_id'], profiles: ['one', 'profiles', 'owner_id', 'id'] },
+    post_rsvps: { profiles: ['one', 'profiles', 'user_id', 'id'] },
     classes: { fields: ['one', 'fields', 'field_id', 'id'], trainers: ['one', 'trainers', 'trainer_id', 'id'], lesson_types: ['one', 'lesson_types', 'lesson_type', 'id'] }
   };
   function splitTop(s) {
@@ -356,7 +463,7 @@
       if (table === 'dog_notes') return rows.filter(function (r) { return seen.indexOf(r.dog_id) >= 0; });
       if (table === 'trainer_accounts') return rows.filter(function (r) { return r.user_id === who.id; });
       if (table === 'penalties') return rows.filter(function (r) { return seen.indexOf(r.dog_id) >= 0; });
-      if (['client_packages', 'invoices', 'invoice_settings', 'lesson_ratings'].indexOf(table) >= 0) return [];
+      if (['client_packages', 'invoices', 'invoice_settings', 'lesson_ratings', 'memberships', 'expenses', 'post_rsvps', 'post_reads'].indexOf(table) >= 0) return [];
       return rows;
     }
     var id = who && who.id;
@@ -365,15 +472,20 @@
     if (table === 'dogs') return rows.filter(function (r) { return r.owner_id === id; });
     if (table === 'bookings') return rows.filter(function (r) { return r.user_id === id; });
     if (table === 'penalties') return rows.filter(function (r) { return myDogs.indexOf(r.dog_id) >= 0; });
-    if (table === 'client_packages' || table === 'invoices' || table === 'lesson_ratings') return rows.filter(function (r) { return r.user_id === id; });
+    if (table === 'expenses') return [];
+    if (table === 'client_packages' || table === 'invoices' || table === 'lesson_ratings' || table === 'memberships' || table === 'post_rsvps' || table === 'post_reads') return rows.filter(function (r) { return r.user_id === id; });
     if (table === 'dog_notes') return rows.filter(function (r) { return myDogs.indexOf(r.dog_id) >= 0; });
     if (table === 'invoice_settings' || table === 'trainer_accounts') return [];
     return rows;
   }
-  var PK = { availability: ['field_id', 'day'], trainer_availability: ['trainer_id', 'day'], lesson_ratings: ['booking_id'] };
+  var PK = { post_rsvps: ['post_id', 'user_id'], post_reads: ['post_id', 'user_id'], availability: ['field_id', 'day'], trainer_availability: ['trainer_id', 'day'], lesson_ratings: ['booking_id'] };
   function pk(table) { return PK[table] || ['id']; }
   function sameKey(table, a, b) { return pk(table).every(function (k) { return a[k] === b[k]; }); }
 
+  // Sul campo libero non c'è trainer (come guard_free_field nel database).
+  function freeField(b) {
+    if (b.trainer_id && db.lesson_types.some(function (x) { return x.id === b.lesson_type && x.free_field; })) b.trainer_id = null;
+  }
   function json(status, body, extra) {
     return new Response(body === undefined ? null : JSON.stringify(body), { status: status, headers: Object.assign({ 'content-type': 'application/json' }, extra || {}) });
   }
@@ -387,10 +499,14 @@
     }
   }
   function defaults(table, row, who) {
-    var base = { dogs: { blocked: false, archived: false, breed: '', birth: null, chip: '', goals: '', sex: '', neutered: null }, penalties: { created_at: nowIso() }, bookings: { created_at: nowIso() },
+    var base = { dogs: { blocked: false, archived: false, breed: '', birth: null, chip: '', goals: '', sex: '', neutered: null }, penalties: { created_at: nowIso() }, memberships: { number: '', price_cents: 0, status: 'requested', pay_method: '', starts_on: null, expires_on: null, requested_at: nowIso(), paid_at: null }, bookings: { created_at: nowIso() },
+      posts: { body: '', important: false, event_day: null, event_start: null, place: '', seats: null, visible_until: null, created_at: nowIso() }, post_reads: { read_at: nowIso() },
+      expenses: { category: 'Altro', description: '', pay_method: '', created_at: nowIso() },
       fields: { address: '', sort: 0, active: true }, eval_forms: { sort: 0, active: true }, packages: { lesson_type: null, valid_days: null, sort: 0, active: true }, trainers: { lessons: [], sort: 0, active: true } }[table] || {};
     var r = Object.assign({}, base, row);
     if (pk(table)[0] === 'id' && r.id === undefined) r.id = uid();
+    if ((table === 'post_rsvps' || table === 'post_reads') && !r.user_id && who) r.user_id = who.id;
+    if (table === 'memberships' && !r.kind) r.kind = 'tessera';
     return r;
   }
 
@@ -431,6 +547,8 @@
               buyer_name: (buyer.first_name + ' ' + buyer.last_name).trim(), description: 'Pacchetto ' + r.name + ' · ' + r.lessons_total + ' lezioni', total_cents: r.price_cents, status: 'pending', error: null, sent_at: null, created_at: nowIso() });
           }
         }
+        if (table === 'memberships' && r.status === 'active' && old.status !== 'active') activateMembership(r);
+        if (table === 'bookings') freeField(r);
         if (table === 'bookings' && old.status === 'active' && r.status === 'cancelled') refund(r);
         // Come nel database vero: il trainer della classe vale per tutti i cani, e annullarla annulla le iscrizioni.
         if (table === 'classes') db.bookings.forEach(function (b) {
@@ -443,18 +561,31 @@
     } else if (method === 'POST') {
       var list = Array.isArray(body) ? body : [body];
       var ownHours = table === 'trainer_availability' && who && who.role === 'trainer' && list.every(function (x) { return x.trainer_id === trainerOf(who); });
-      if (table !== 'dogs' && !ownHours && (!who || who.role !== 'owner')) return fail('Permesso negato', 403);
+      var ownPost = (table === 'post_rsvps' || table === 'post_reads') && who && list.every(function (x) { return !x.user_id || x.user_id === who.id; });
+      if (table !== 'dogs' && !ownHours && !ownPost && (!who || who.role !== 'owner')) return fail('Permesso negato', 403);
+      // Come guard_rsvp nel database: evento esistente, non passato e con posti.
+      if (table === 'post_rsvps') for (var j = 0; j < list.length; j++) {
+        var ev = db.posts.filter(function (x) { return x.id === list[j].post_id && x.kind === 'evento'; })[0];
+        if (!ev) return fail('Evento non trovato');
+        if (ev.event_day < dk(new Date())) return fail("L'evento è già passato");
+        if (ev.seats && db.post_rsvps.filter(function (x) { return x.post_id === ev.id; }).length >= ev.seats) return fail("L'evento è al completo");
+      }
       out = list.map(function (b) {
         var r = defaults(table, b, who);
         var existing = prefer.indexOf('merge-duplicates') >= 0 && rows.filter(function (x) { return sameKey(table, x, r); })[0];
         if (existing) { Object.assign(existing, b); return existing; }
+        var dup = rows.filter(function (x) { return sameKey(table, x, r); })[0];
+        if (dup && pk(table)[0] !== 'id') return dup;
+        if (table === 'memberships' && r.status === 'active') activateMembership(r);
+        if (table === 'bookings') freeField(r);
         rows.push(r);
         afterInsert(table, r);
         return r;
       });
     } else if (method === 'DELETE') {
-      if (!who || who.role !== 'owner') return fail('Permesso negato', 403);
-      out = applyFilters(rows, params);
+      var ownRsvp = table === 'post_rsvps' && who;
+      if (!ownRsvp && (!who || who.role !== 'owner')) return fail('Permesso negato', 403);
+      out = applyFilters(ownRsvp && who.role !== 'owner' ? visible(table, rows, who) : rows, params);
       db[table] = rows.filter(function (r) { return out.indexOf(r) < 0; });
     }
     save();
@@ -545,11 +676,26 @@
       if (a.azione === 'iban') try { localStorage.setItem('campo-demo-iban-centro', String(a.iban || '')); } catch (e) {}
       var out = { piano: piano, formula: formula, piano_prossimo: prossimo, formula_prossima: formulaProssima, piano_dal: prossimo || formulaProssima ? primoDopo : null, disdetta: localStorage.getItem('campo-demo-disdetta') || null, disdetta_se_oggi: fineDopo, piani: PREZZI, iban_centro: localStorage.getItem('campo-demo-iban-centro') || '', scade: null,
         bonifico: { iban: 'IT60X0542811101000000123456', intestatario: 'K9 Manager' }, da_pagare: [],
+        storico: storicoDemo(oggi, piano, formula),
         credito_cents: Number(localStorage.getItem('campo-demo-bonus') || 0) };
       if (a.azione === 'cambia') out.licenza = lic[piano];
       return json(200, out);
     }
     return json(404, { errore: 'Funzione sconosciuta.' });
+  }
+
+  // Sei mesi di conti già pagati, per lo storico dei pagamenti nelle Impostazioni.
+  function storicoDemo(oggi, piano, formula) {
+    var out = [];
+    for (var i = 1; i <= 6; i++) {
+      var m = new Date(oggi.getFullYear(), oggi.getMonth() - i, 1), mese = m.getFullYear() + '-' + String(m.getMonth() + 1).padStart(2, '0');
+      var pren = 40 + ((i * 37) % 45), p = PREZZI[piano];
+      var importo = formula === 'fisso' && p.fisso_cents != null ? p.fisso_cents : p.canone_cents + pren * p.tariffa_cents;
+      var pagato = new Date(oggi.getFullYear(), oggi.getMonth() - i + 1, 1 + (i % 3));
+      out.push({ id: 'demo-' + mese, mese: mese, prenotazioni: pren, importo_cents: importo, bonus_cents: 0, stato: 'pagato', scadenza: null,
+        pagato_il: pagato.getFullYear() + '-' + String(pagato.getMonth() + 1).padStart(2, '0') + '-' + String(pagato.getDate()).padStart(2, '0') });
+    }
+    return out;
   }
 
   function nexi(headers, a) {
@@ -610,7 +756,12 @@
     return { form_id: ef.id, name: ef.name, items: items };
   }
   // I controlli del cliente comuni a book_slot e join_class (come check_client_booking nel database).
-  function clientCheck(who, s, pay) {
+  function clientCheck(who, s, pay, day) {
+    var need = (db.membership_settings || []).filter(function (x) { return x.enabled && x.required; }).sort(function (a, b) { return a.kind < b.kind ? 1 : -1; });
+    for (var k = 0; k < need.length; k++) {
+      if (who.role === 'client' && day && !hasMembership(who.id, day, need[k].kind))
+        return need[k].kind === 'campo' ? 'Per prenotare serve la quota campo pagata per il giorno della lezione: rinnovala dal Profilo' : 'Per prenotare serve la tessera valida il giorno della lezione: rinnovala dal Profilo';
+    }
     if (who.doc_pref !== 'receipt' && (!who.tax_code || !who.billing_street || !who.billing_zip || !who.billing_city)) return 'Completa codice fiscale e indirizzo di fatturazione nel Profilo';
     if (who.phone_ok === false) return 'Conferma il tuo cellulare con il codice SMS';
     if (pay === 'online' && !s.online_payments) return 'Il pagamento online non è ancora attivo';
@@ -808,6 +959,7 @@
       if (jd.blocked && !forOther) return fail('Le prenotazioni per questo cane sono sospese. Contatta il campo.');
       var jc = db.classes.filter(function (c) { return c.id === a.p_class && c.status === 'active'; })[0];
       if (!jc) return fail('Classe non trovata');
+      if (!forOther) { var jm = clientCheck(who, s, a.p_pay, jc.day); if (jm) return fail(jm); }
       if (!forOther && slotDate(jc.day, jc.start_min) <= new Date()) return fail('Orario già passato');
       var inside = db.bookings.filter(function (b) { return b.class_id === jc.id && b.status === 'active'; });
       if (inside.some(function (b) { return b.dog_id === jd.id; })) return fail('Questo cane è già iscritto alla classe');
@@ -858,6 +1010,23 @@
       save();
       return new Response(null, { status: 204 });
     }
+    if (name === 'request_membership') {
+      var mk = a.p_kind || 'tessera', ms = msOf(mk);
+      if (!ms || !ms.enabled) return fail('Il centro non usa questa quota');
+      if (db.memberships.some(function (x) { return x.user_id === who.id && x.kind === mk && x.status === 'requested'; })) return fail("L'hai già chiesta: il campo la attiva quando paghi");
+      var lastM = null;
+      db.memberships.forEach(function (x) { if (x.user_id === who.id && x.kind === mk && x.status === 'active' && (!lastM || x.expires_on > lastM)) lastM = x.expires_on; });
+      if (lastM && dk(addDays(new Date(lastM + 'T12:00:00'), -ms.renew_days)) > dk(new Date())) return fail('Vale ancora: potrai rinnovarla più avanti');
+      var nm = { id: uid(), user_id: who.id, kind: mk, number: '', price_cents: ms.price_cents, status: 'requested', pay_method: '', starts_on: null, expires_on: null, requested_at: nowIso(), paid_at: null };
+      db.memberships.push(nm);
+      save();
+      return json(200, nm);
+    }
+    if (name === 'event_seats_taken') {
+      var taken = {};
+      db.post_rsvps.forEach(function (x) { taken[x.post_id] = (taken[x.post_id] || 0) + 1; });
+      return json(200, Object.keys(taken).map(function (k) { return { post_id: k, taken: taken[k] }; }));
+    }
     if (name === 'request_package') {
       var pkg = db.packages.filter(function (x) { return x.id === a.p_package && x.active; })[0];
       if (!pkg) return fail('Pacchetto non disponibile');
@@ -869,7 +1038,7 @@
     }
     if (name === 'book_slot') {
       if (who.rules_ver !== s.rules_ver || who.privacy_ver !== s.privacy_ver) return fail('Devi accettare il regolamento aggiornato.');
-      var bw = clientCheck(who, s, a.p_pay);
+      var bw = clientCheck(who, s, a.p_pay, a.p_day);
       if (bw) return fail(bw);
       var fld = db.fields.filter(function (f) { return f.id === a.p_field && f.active; })[0];
       if (!fld) return fail('Campo non disponibile');

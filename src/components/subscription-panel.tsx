@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
+import { View } from 'react-native';
 
 import { PayNow } from '@/components/pay-now';
 import { TransferBox } from '@/components/transfer';
 import { Badge, Body, Button, Card, Chips, ErrorText, Field, Muted, Row } from '@/components/ui';
 import { storeApp } from '@/lib/edition';
-import { dayKey, euro, today } from '@/lib/format';
-import { cancelSubscription, changePlan, gestoreEnabled, keepSubscription, isCentreCode, setCentreIban, subscription, subscriptionCode, type Due, type Formula, type PlanPrice, type Subscription } from '@/lib/gestore';
+import { dayKey, euro, monthName, today } from '@/lib/format';
+import { cancelSubscription, changePlan, gestoreEnabled, keepSubscription, isCentreCode, setCentreIban, subscription, subscriptionCode, type Due, type Formula, type PastCharge, type PlanPrice, type Subscription } from '@/lib/gestore';
 import { t } from '@/lib/i18n';
 import { useLicense } from '@/lib/license-gate';
 import { PLAN_IDS, PLANS, usePlan, type PlanId } from '@/lib/plans';
@@ -88,6 +89,44 @@ function DueTransfer({ due, to, code }: { due: Due; to: Subscription['bonifico']
   );
 }
 
+/** "ottobre 2026" da "2026-10". */
+const monthYear = (m: string) => `${monthName(Number(m.slice(5, 7)) - 1)} ${m.slice(0, 4)}`;
+
+/** Lo storico dei conti del gestore, mese per mese: quanto, se è pagato e quando. */
+function PaymentHistory({ list }: { list: PastCharge[] | undefined }) {
+  if (!list) return null;
+  const late = (a: PastCharge) => a.stato === 'non_pagato' || (a.stato === 'inviato' && !!a.scadenza && a.scadenza < dayKey(today()));
+  return (
+    <Card>
+      <Body bold>{t('Storico dei pagamenti')}</Body>
+      {list.length === 0 && <Muted>{t('Ancora nessun conto: il primo arriva il primo del mese.')}</Muted>}
+      {list.map((a) => (
+        <Row key={a.id} style={{ justifyContent: 'space-between' }}>
+          <View style={{ flex: 1, minWidth: 160 }}>
+            <Body>{monthYear(a.mese)}</Body>
+            <Muted style={{ fontSize: 13 }}>
+              {[
+                t('{n} prenotazioni', { n: a.prenotazioni }),
+                a.bonus_cents ? t('bonus scalato {importo}', { importo: euro(a.bonus_cents) }) : '',
+                a.stato === 'pagato' && a.pagato_il ? t('pagato il {data}', { data: date(a.pagato_il) }) : '',
+                a.stato === 'inviato' && a.scadenza ? t('da pagare entro il {data}', { data: date(a.scadenza) }) : '',
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </Muted>
+          </View>
+          <Body bold>{euro(a.importo_cents)}</Body>
+          {a.stato === 'pagato' || a.stato === 'zero' ? (
+            <Badge tone="ok">{a.stato === 'zero' ? t('Niente da pagare') : t('Pagato')}</Badge>
+          ) : (
+            <Badge tone={late(a) ? 'bad' : 'warn'}>{late(a) ? t('Non pagato') : t('Da pagare')}</Badge>
+          )}
+        </Row>
+      ))}
+    </Card>
+  );
+}
+
 /** Il piano di un centro con la licenza fatta a mano: si cambia con un codice nuovo del gestore. */
 function ManualPlan() {
   const p = usePlan();
@@ -107,6 +146,7 @@ function StorePlan({ sub }: { sub: Subscription }) {
   const current = (sub.piano as PlanId) in PLANS ? (sub.piano as PlanId) : 'pro';
   const due = sub.da_pagare.reduce((n, d) => n + d.importo_cents, 0);
   return (
+    <>
     <Card>
       <Row style={{ justifyContent: 'space-between' }}>
         <Body bold>{t('Abbonamento')}</Body>
@@ -117,6 +157,8 @@ function StorePlan({ sub }: { sub: Subscription }) {
       {!!sub.disdetta && <Badge tone="bad">{t('Abbonamento disdetto: il servizio finisce il {data}.', { data: date(sub.disdetta) })}</Badge>}
       <Muted style={{ fontSize: 13 }}>{t('Pagamenti, cambio di piano e disdetta si fanno dal programma K9 Manager per computer.')}</Muted>
     </Card>
+    <PaymentHistory list={sub.storico} />
+    </>
   );
 }
 
@@ -350,6 +392,7 @@ export function SubscriptionPanel() {
         <ErrorText>{err}</ErrorText>
         {!!msg && <Muted>{msg}</Muted>}
       </Card>
+      <PaymentHistory list={sub.storico} />
     </>
   );
 }

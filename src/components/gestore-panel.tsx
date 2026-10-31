@@ -1123,6 +1123,41 @@ function MonthChart({ data: rows, format, what }: { data: { mese: string; valore
   );
 }
 
+/** Lo storico dei conti di un centro negli ultimi 12 mesi, dal più recente: quanto, se è pagato e quando. */
+function PaymentHistory({ charges, today }: { charges: Charge[]; today: string }) {
+  const c = useColors();
+  const rows = charges.filter((a) => a.stato !== 'da_fare' || !!a.errore).slice().reverse();
+  const paid = rows.filter((a) => a.stato === 'pagato').reduce((s, a) => s + a.importo_cents, 0);
+  return (
+    <View style={{ gap: 4 }}>
+      <Body bold>Storico dei pagamenti</Body>
+      <Muted style={{ fontSize: 13 }}>Pagato in tutto {euro(paid)} in {rows.filter((a) => a.stato === 'pagato').length} mesi.</Muted>
+      {rows.map((a) => {
+        const late = a.stato === 'non_pagato' || (a.stato === 'inviato' && !!a.scadenza && a.scadenza < today);
+        const ok = a.stato === 'pagato' || a.stato === 'zero';
+        return (
+          <Row key={a.id} style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
+            <Text style={{ width: 64, color: c.text, fontSize: 14 }}>{meseLabel(a.mese)}</Text>
+            <Text style={{ width: 80, color: c.text, fontSize: 14, textAlign: 'right', fontWeight: '700' }}>{euro(a.importo_cents)}</Text>
+            <Text style={{ flex: 1, color: ok ? c.muted : late ? c.danger : c.text, fontSize: 13 }} numberOfLines={1}>
+              {a.stato === 'pagato'
+                ? `pagato${a.pagato_il ? ` il ${data(a.pagato_il)}` : ''}`
+                : a.stato === 'inviato'
+                  ? late
+                    ? `scaduto il ${data(a.scadenza)}`
+                    : `da pagare entro il ${data(a.scadenza)}`
+                  : a.errore
+                    ? `da rifare: ${a.errore}`
+                    : ADDEBITO[a.stato]}
+            </Text>
+            <Dot paid={ok} />
+          </Row>
+        );
+      })}
+    </View>
+  );
+}
+
 /** Un centro nella lista: pallino, nome e quanto deve; toccandolo si aprono i dettagli. */
 function CentreRow({
   first,
@@ -1279,6 +1314,7 @@ function CentreRow({
               <Button small kind="ghost" title="Segna pagato" onPress={() => run('pagato', { addebito: a.id })} loading={busy === 'pagato'} />
             </Row>
           ))}
+          {charges.length > 0 && <PaymentHistory charges={charges} today={today} />}
           <Row>
             <Field label="Dai un bonus €" value={bonus} onChangeText={setBonus} keyboardType="decimal-pad" style={{ width: 130 }} />
             <Field label="Perché (lo vedi solo tu)" value={bonusNote} onChangeText={setBonusNote} style={{ flex: 1, minWidth: 180 }} />

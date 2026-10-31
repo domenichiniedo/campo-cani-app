@@ -9,6 +9,7 @@ import { SubscriptionPanel } from '@/components/subscription-panel';
 import { TransferPanel } from '@/components/transfer-panel';
 import { LicensePanel } from '@/components/license-panel';
 import { LimitNote } from '@/components/limit-note';
+import { MembershipEditor } from '@/components/membership-editor';
 import { NexiPanel } from '@/components/nexi-panel';
 import { OwnersPanel } from '@/components/owners-panel';
 import { PackagesEditor } from '@/components/packages-editor';
@@ -36,6 +37,8 @@ type TypeDraft = {
   /** Lezione di gruppo, con i posti proposti per le classi. */
   group: boolean;
   seats: string;
+  /** Campo libero: turno sul campo senza trainer. */
+  free: boolean;
 };
 
 type FieldDraft = { id?: string; name: string; address: string };
@@ -51,6 +54,7 @@ const toDraft = (t: LessonType): TypeDraft => ({
   active: t.active,
   group: t.group_seats !== null,
   seats: String(t.group_seats ?? 6),
+  free: !!t.free_field,
 });
 
 /** Sezione che il piano attuale non comprende. */
@@ -231,6 +235,7 @@ export default function OwnerSettings() {
         sort: i,
         active: ty.active,
         group_seats: seats,
+        free_field: ty.free && !ty.group,
       });
     }
 
@@ -284,6 +289,8 @@ export default function OwnerSettings() {
     { id: 'pagamenti', title: t('Metodi di pagamento') },
     { id: 'lezioni', title: t('Lezioni') },
     { id: 'pacchetti', title: t('Pacchetti') },
+    { id: 'tessera', title: t('Tesseramento') },
+    { id: 'quota', title: t('Quota campo') },
     { id: 'valutazioni', title: t('Schede di valutazione') },
     { id: 'fatture', title: plan.invoices ? t('Fatture') : t('Fatture e scontrini') },
     { id: 'report', title: t('Report mensile') },
@@ -462,7 +469,17 @@ export default function OwnerSettings() {
               </Row>
               <Field label={t('Opzioni, separate da virgola')} value={ty.options} onChangeText={(v) => setType(i, { options: v })} />
               <Toggle label={t('Prenotabile')} value={ty.active} onChange={(v) => setType(i, { active: v })} disabled={!ty.active && typesFull} />
-              {(plan.groups || ty.group) && (
+              {!ty.group && (
+                <>
+                  <Toggle label={t('Campo libero, senza trainer')} value={ty.free} onChange={(v) => setType(i, { free: v })} />
+                  {ty.free && (
+                    <Muted style={{ fontSize: 13 }}>
+                      {t('Il cliente prenota il campo per il suo turno e lo paga come una lezione, ma senza trainer: non compare tra le lezioni da assegnare.')}
+                    </Muted>
+                  )}
+                </>
+              )}
+              {(plan.groups || ty.group) && !ty.free && (
                 <>
                   <Toggle label={t('Lezione di gruppo')} value={ty.group} onChange={(v) => setType(i, { group: v })} />
                   {ty.group && (
@@ -490,7 +507,7 @@ export default function OwnerSettings() {
               setTypes([
                 ...types,
                 // L'id resta fisso anche se poi cambi il nome; serve ai trainer per riconoscere la lezione.
-                { id: `lez-${Date.now().toString(36)}`, label: '', description: '', duration: '60', price: '0', options: '', active: true, group: false, seats: '6' },
+                { id: `lez-${Date.now().toString(36)}`, label: '', description: '', duration: '60', price: '0', options: '', active: true, group: false, seats: '6', free: false },
               ])
             }
           />
@@ -518,6 +535,20 @@ export default function OwnerSettings() {
         </>
       ) : (
         <PlanNote title={t('Pacchetti')} plan={planWith('packages')} />
+      )}
+
+      {show('tessera') && (
+        <>
+          <Step title={t('Tesseramento')} />
+          <MembershipEditor kind="tessera" />
+        </>
+      )}
+
+      {show('quota') && (
+        <>
+          <Step title={t('Quota campo')} />
+          <MembershipEditor kind="campo" />
+        </>
       )}
 
       {!show('valutazioni') ? null : plan.evals ? (
