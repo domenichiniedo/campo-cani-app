@@ -1,7 +1,7 @@
 // L'abbonamento del centro, dall'app (Impostazioni → Licenza), con l'accesso del proprietario al database del
 // suo centro: il gestore controlla lì che sia davvero un proprietario.
 //   vedi    piano, a consumo o fisso, prezzi dei piani, cosa c'è da pagare (con IBAN e causale per il bonifico
-//           istantaneo), scadenza
+//           istantaneo), scadenza e lo storico dei conti degli ultimi 24 mesi
 //   cambia  cambia piano o formula (consumo, fisso) da oggi: canone e quote si dividono a giorni nell'addebito
 //           del mese; con un piano nuovo torna la licenza nuova
 //           (un piano più piccolo parte dal primo del mese dopo)
@@ -41,6 +41,14 @@ async function vedi(c: Centro) {
     .in('stato', ['inviato', 'non_pagato'])
     .gt('importo_cents', 0)
     .order('mese');
+  // Lo storico: tutti i conti già fatti, pagati e no, dal più recente.
+  const { data: storico } = await db
+    .from('addebiti')
+    .select('id, mese, prenotazioni, importo_cents, bonus_cents, stato, scadenza, pagato_il')
+    .eq('centro', c.id)
+    .neq('stato', 'da_fare')
+    .order('mese', { ascending: false })
+    .limit(24);
   const { data: crediti } = await db.from('crediti').select('residuo_cents').eq('centro', c.id).gt('residuo_cents', 0);
   return {
     piano: c.piano,
@@ -57,6 +65,7 @@ async function vedi(c: Centro) {
     scade: c.scade,
     bonifico: { iban: conto?.bonifico_iban ?? '', intestatario: conto?.bonifico_intestatario ?? '' },
     da_pagare: aperti ?? [],
+    storico: storico ?? [],
     // Il bonus che resta, da scalare dai prossimi conti.
     credito_cents: (crediti ?? []).reduce((s, x) => s + x.residuo_cents, 0),
   };

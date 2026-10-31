@@ -230,6 +230,41 @@
     });
   }
 
+  // La tessera associativa del centro: chi ce l'ha valida, chi scaduta, chi in scadenza e chi l'ha appena chiesta.
+  function addMemberships(db) {
+    var y = new Date().getFullYear();
+    db.membership_settings = [{ id: 1, enabled: true, name: 'Tessera associativa', price_cents: 2500, period: 'anno', required: false, renew_days: 30 }];
+    db.memberships = [];
+    function m(user, year, method, number) {
+      db.memberships.push({ id: uid(), user_id: user, number: number || '', price_cents: 2500, status: 'active', pay_method: method, starts_on: year + '-01-1' + (db.memberships.length % 9),
+        expires_on: year + '-12-31', requested_at: year + '-01-10T10:00:00.000Z', paid_at: year + '-01-10T10:00:00.000Z' });
+    }
+    m('c1', y - 1, 'contanti', 'A-0142'); m('c1', y, 'bonifico', 'A-0231');
+    m('c2', y - 1, 'carta', 'A-0150');
+    m('c3', y, 'contanti', 'A-0233');
+    db.profiles.filter(function (p) { return /^x\d+$/.test(p.id); }).forEach(function (p, i) { if (i % 4) m(p.id, i % 7 ? y : y - 1, i % 3 ? 'contanti' : 'carta'); });
+    db.memberships.push({ id: uid(), user_id: 'c2', number: '', price_cents: 2500, status: 'requested', pay_method: '', starts_on: null, expires_on: null, requested_at: nowIso(), paid_at: null });
+  }
+  function membershipEnd(start, period) {
+    var d = new Date(start + 'T12:00:00');
+    if (period === 'stagione') return (d.getMonth() >= 8 ? d.getFullYear() + 1 : d.getFullYear()) + '-08-31';
+    if (period === 'mesi') { d.setDate(d.getDate() - 1); d.setFullYear(d.getFullYear() + 1); return dk(d); }
+    return d.getFullYear() + '-12-31';
+  }
+  // Come il database vero: pagata, la tessera parte da oggi o dal giorno dopo la scadenza di quella in corso.
+  function activateMembership(r) {
+    var s = db.membership_settings[0], last = null;
+    db.memberships.forEach(function (x) { if (x.user_id === r.user_id && x.status === 'active' && x.id !== r.id && (!last || x.expires_on > last)) last = x.expires_on; });
+    var start = dk(new Date());
+    if (last && last >= start) start = dk(addDays(new Date(last + 'T12:00:00'), 1));
+    r.paid_at = r.paid_at || nowIso();
+    r.starts_on = r.starts_on || start;
+    r.expires_on = r.expires_on || membershipEnd(r.starts_on, s.period);
+  }
+  function hasMembership(user, day) {
+    return db.memberships.some(function (x) { return x.user_id === user && x.status === 'active' && x.starts_on <= day && day <= x.expires_on; });
+  }
+
   // Esempi di fatture: nella demo il pagamento online è spento, quindi non ne nascono di nuove.
   function addInvoices(db, t) {
     db.invoice_settings = [{ id: 1, tax_regime: 'RF01', vat_rate: 22, auto_invoice: true, receipt_mode: 'manual', printer_url: '' }];
@@ -260,6 +295,7 @@
   if (db.invoices && !db.invoices.some(function (x) { return x.kind; })) delete db.invoices;
   if (!db.invoices) { var t0 = new Date(); t0.setHours(0, 0, 0, 0); addInvoices(db, t0); }
   if (!db.lesson_ratings) { var t1 = new Date(); t1.setHours(0, 0, 0, 0); addRatings(db, t1); }
+  if (!db.memberships) addMemberships(db);
   function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} }
   window.__demoReset = function () { try { localStorage.removeItem(KEY); } catch (e) {} };
 
@@ -278,7 +314,7 @@
   var REL = {
     bookings: { fields: ['one', 'fields', 'field_id', 'id'], trainers: ['one', 'trainers', 'trainer_id', 'id'], profiles: ['one', 'profiles', 'user_id', 'id'], dogs: ['one', 'dogs', 'dog_id', 'id'], lesson_types: ['one', 'lesson_types', 'lesson_type', 'id'], penalties: ['many', 'penalties', 'id', 'booking_id'], dog_notes: ['one', 'dog_notes', 'id', 'booking_id'], lesson_ratings: ['one', 'lesson_ratings', 'id', 'booking_id'] },
     lesson_ratings: { profiles: ['one', 'profiles', 'user_id', 'id'], bookings: ['one', 'bookings', 'booking_id', 'id'] },
-    profiles: { dogs: ['many', 'dogs', 'id', 'owner_id'], client_packages: ['many', 'client_packages', 'id', 'user_id'] },
+    profiles: { dogs: ['many', 'dogs', 'id', 'owner_id'], client_packages: ['many', 'client_packages', 'id', 'user_id'], memberships: ['many', 'memberships', 'id', 'user_id'] },
     dogs: { penalties: ['many', 'penalties', 'id', 'dog_id'], profiles: ['one', 'profiles', 'owner_id', 'id'] },
     classes: { fields: ['one', 'fields', 'field_id', 'id'], trainers: ['one', 'trainers', 'trainer_id', 'id'], lesson_types: ['one', 'lesson_types', 'lesson_type', 'id'] }
   };
@@ -356,7 +392,7 @@
       if (table === 'dog_notes') return rows.filter(function (r) { return seen.indexOf(r.dog_id) >= 0; });
       if (table === 'trainer_accounts') return rows.filter(function (r) { return r.user_id === who.id; });
       if (table === 'penalties') return rows.filter(function (r) { return seen.indexOf(r.dog_id) >= 0; });
-      if (['client_packages', 'invoices', 'invoice_settings', 'lesson_ratings'].indexOf(table) >= 0) return [];
+      if (['client_packages', 'invoices', 'invoice_settings', 'lesson_ratings', 'memberships'].indexOf(table) >= 0) return [];
       return rows;
     }
     var id = who && who.id;
@@ -365,7 +401,7 @@
     if (table === 'dogs') return rows.filter(function (r) { return r.owner_id === id; });
     if (table === 'bookings') return rows.filter(function (r) { return r.user_id === id; });
     if (table === 'penalties') return rows.filter(function (r) { return myDogs.indexOf(r.dog_id) >= 0; });
-    if (table === 'client_packages' || table === 'invoices' || table === 'lesson_ratings') return rows.filter(function (r) { return r.user_id === id; });
+    if (table === 'client_packages' || table === 'invoices' || table === 'lesson_ratings' || table === 'memberships') return rows.filter(function (r) { return r.user_id === id; });
     if (table === 'dog_notes') return rows.filter(function (r) { return myDogs.indexOf(r.dog_id) >= 0; });
     if (table === 'invoice_settings' || table === 'trainer_accounts') return [];
     return rows;
@@ -387,7 +423,7 @@
     }
   }
   function defaults(table, row, who) {
-    var base = { dogs: { blocked: false, archived: false, breed: '', birth: null, chip: '', goals: '', sex: '', neutered: null }, penalties: { created_at: nowIso() }, bookings: { created_at: nowIso() },
+    var base = { dogs: { blocked: false, archived: false, breed: '', birth: null, chip: '', goals: '', sex: '', neutered: null }, penalties: { created_at: nowIso() }, memberships: { number: '', price_cents: 0, status: 'requested', pay_method: '', starts_on: null, expires_on: null, requested_at: nowIso(), paid_at: null }, bookings: { created_at: nowIso() },
       fields: { address: '', sort: 0, active: true }, eval_forms: { sort: 0, active: true }, packages: { lesson_type: null, valid_days: null, sort: 0, active: true }, trainers: { lessons: [], sort: 0, active: true } }[table] || {};
     var r = Object.assign({}, base, row);
     if (pk(table)[0] === 'id' && r.id === undefined) r.id = uid();
@@ -431,6 +467,7 @@
               buyer_name: (buyer.first_name + ' ' + buyer.last_name).trim(), description: 'Pacchetto ' + r.name + ' · ' + r.lessons_total + ' lezioni', total_cents: r.price_cents, status: 'pending', error: null, sent_at: null, created_at: nowIso() });
           }
         }
+        if (table === 'memberships' && r.status === 'active' && old.status !== 'active') activateMembership(r);
         if (table === 'bookings' && old.status === 'active' && r.status === 'cancelled') refund(r);
         // Come nel database vero: il trainer della classe vale per tutti i cani, e annullarla annulla le iscrizioni.
         if (table === 'classes') db.bookings.forEach(function (b) {
@@ -448,6 +485,7 @@
         var r = defaults(table, b, who);
         var existing = prefer.indexOf('merge-duplicates') >= 0 && rows.filter(function (x) { return sameKey(table, x, r); })[0];
         if (existing) { Object.assign(existing, b); return existing; }
+        if (table === 'memberships' && r.status === 'active') activateMembership(r);
         rows.push(r);
         afterInsert(table, r);
         return r;
@@ -545,11 +583,26 @@
       if (a.azione === 'iban') try { localStorage.setItem('campo-demo-iban-centro', String(a.iban || '')); } catch (e) {}
       var out = { piano: piano, formula: formula, piano_prossimo: prossimo, formula_prossima: formulaProssima, piano_dal: prossimo || formulaProssima ? primoDopo : null, disdetta: localStorage.getItem('campo-demo-disdetta') || null, disdetta_se_oggi: fineDopo, piani: PREZZI, iban_centro: localStorage.getItem('campo-demo-iban-centro') || '', scade: null,
         bonifico: { iban: 'IT60X0542811101000000123456', intestatario: 'K9 Manager' }, da_pagare: [],
+        storico: storicoDemo(oggi, piano, formula),
         credito_cents: Number(localStorage.getItem('campo-demo-bonus') || 0) };
       if (a.azione === 'cambia') out.licenza = lic[piano];
       return json(200, out);
     }
     return json(404, { errore: 'Funzione sconosciuta.' });
+  }
+
+  // Sei mesi di conti già pagati, per lo storico dei pagamenti nelle Impostazioni.
+  function storicoDemo(oggi, piano, formula) {
+    var out = [];
+    for (var i = 1; i <= 6; i++) {
+      var m = new Date(oggi.getFullYear(), oggi.getMonth() - i, 1), mese = m.getFullYear() + '-' + String(m.getMonth() + 1).padStart(2, '0');
+      var pren = 40 + ((i * 37) % 45), p = PREZZI[piano];
+      var importo = formula === 'fisso' && p.fisso_cents != null ? p.fisso_cents : p.canone_cents + pren * p.tariffa_cents;
+      var pagato = new Date(oggi.getFullYear(), oggi.getMonth() - i + 1, 1 + (i % 3));
+      out.push({ id: 'demo-' + mese, mese: mese, prenotazioni: pren, importo_cents: importo, bonus_cents: 0, stato: 'pagato', scadenza: null,
+        pagato_il: pagato.getFullYear() + '-' + String(pagato.getMonth() + 1).padStart(2, '0') + '-' + String(pagato.getDate()).padStart(2, '0') });
+    }
+    return out;
   }
 
   function nexi(headers, a) {
@@ -610,7 +663,9 @@
     return { form_id: ef.id, name: ef.name, items: items };
   }
   // I controlli del cliente comuni a book_slot e join_class (come check_client_booking nel database).
-  function clientCheck(who, s, pay) {
+  function clientCheck(who, s, pay, day) {
+    var ms = db.membership_settings && db.membership_settings[0];
+    if (ms && ms.enabled && ms.required && who.role === 'client' && day && !hasMembership(who.id, day)) return 'Per prenotare serve la tessera valida il giorno della lezione: rinnovala dal Profilo';
     if (who.doc_pref !== 'receipt' && (!who.tax_code || !who.billing_street || !who.billing_zip || !who.billing_city)) return 'Completa codice fiscale e indirizzo di fatturazione nel Profilo';
     if (who.phone_ok === false) return 'Conferma il tuo cellulare con il codice SMS';
     if (pay === 'online' && !s.online_payments) return 'Il pagamento online non è ancora attivo';
@@ -808,6 +863,7 @@
       if (jd.blocked && !forOther) return fail('Le prenotazioni per questo cane sono sospese. Contatta il campo.');
       var jc = db.classes.filter(function (c) { return c.id === a.p_class && c.status === 'active'; })[0];
       if (!jc) return fail('Classe non trovata');
+      if (!forOther) { var jm = clientCheck(who, s, a.p_pay, jc.day); if (jm) return fail(jm); }
       if (!forOther && slotDate(jc.day, jc.start_min) <= new Date()) return fail('Orario già passato');
       var inside = db.bookings.filter(function (b) { return b.class_id === jc.id && b.status === 'active'; });
       if (inside.some(function (b) { return b.dog_id === jd.id; })) return fail('Questo cane è già iscritto alla classe');
@@ -858,6 +914,18 @@
       save();
       return new Response(null, { status: 204 });
     }
+    if (name === 'request_membership') {
+      var ms = db.membership_settings[0];
+      if (!ms.enabled) return fail('Il centro non usa la tessera');
+      if (db.memberships.some(function (x) { return x.user_id === who.id && x.status === 'requested'; })) return fail('Hai già chiesto la tessera: il campo la attiva quando paghi');
+      var lastM = null;
+      db.memberships.forEach(function (x) { if (x.user_id === who.id && x.status === 'active' && (!lastM || x.expires_on > lastM)) lastM = x.expires_on; });
+      if (lastM && dk(addDays(new Date(lastM + 'T12:00:00'), -ms.renew_days)) > dk(new Date())) return fail('La tua tessera vale ancora: potrai rinnovarla più avanti');
+      var nm = { id: uid(), user_id: who.id, number: '', price_cents: ms.price_cents, status: 'requested', pay_method: '', starts_on: null, expires_on: null, requested_at: nowIso(), paid_at: null };
+      db.memberships.push(nm);
+      save();
+      return json(200, nm);
+    }
     if (name === 'request_package') {
       var pkg = db.packages.filter(function (x) { return x.id === a.p_package && x.active; })[0];
       if (!pkg) return fail('Pacchetto non disponibile');
@@ -869,7 +937,7 @@
     }
     if (name === 'book_slot') {
       if (who.rules_ver !== s.rules_ver || who.privacy_ver !== s.privacy_ver) return fail('Devi accettare il regolamento aggiornato.');
-      var bw = clientCheck(who, s, a.p_pay);
+      var bw = clientCheck(who, s, a.p_pay, a.p_day);
       if (bw) return fail(bw);
       var fld = db.fields.filter(function (f) { return f.id === a.p_field && f.active; })[0];
       if (!fld) return fail('Campo non disponibile');

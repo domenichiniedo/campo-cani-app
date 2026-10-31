@@ -154,6 +154,14 @@ cane vedi razza, sesso, sterilizzazione, data di nascita, microchip e la nota co
 dettagli** (o **Aggiungi microchip e dettagli**) per cambiarli e poi **Salva**, oppure aggiungi un cane nuovo con
 **Aggiungi**. Vedi anche le penalità ricevute, il regolamento e la privacy.
 
+### La tessera del centro
+
+Se il centro usa la tessera (per esempio quella associativa), in cima al **Profilo** vedi fino a quando vale, il suo
+numero e lo storico delle tue tessere. Quando sta per scadere (o è scaduta) premi **Rinnova la tessera** (la prima
+volta **Richiedi la tessera**) e paga la quota al campo o con il bonifico istantaneo che compare sotto. Vale appena il
+proprietario segna il pagamento; se rinnovi prima della scadenza, quella nuova parte dal giorno dopo e non perdi
+giorni. Se il centro la chiede per prenotare, senza tessera valida il giorno della lezione l'app non ti fa prenotare.
+
 ### Pacchetti, diario e voti
 
 - **Pacchetti**: vedi quelli offerti e li richiedi; li paghi al campo e il proprietario li attiva.
@@ -208,12 +216,15 @@ pannello.
 
 - **Licenza**: scadenza, piano, numero di clienti, il **QR code per i clienti** e il link di attivazione (sotto).
 - **Piano e abbonamento**: quanto paghi questo mese al gestore, con IBAN, causale e QR per il bonifico; cambio di
-  piano e disdetta.
+  piano e disdetta. In fondo lo **Storico dei pagamenti**: mese per mese quanto hai pagato, se è pagato e in che giorno
+  il bonifico è arrivato (ultimi 24 mesi).
 - **Centro e logo**, **Campi** (nome e indirizzo di ognuno), **Trainer**.
 - **Orari e regole**: apertura e chiusura della griglia, ore per la disdetta, penalità che sospende il cane, e
   **Penalità automatica se il cane non entra in campo** (accesa all'inizio).
 - **Metodi di pagamento**: bonifico istantaneo (il tuo IBAN) e carta con Nexi.
-- **Lezioni**, **Pacchetti**, **Schede di valutazione**.
+- **Lezioni**, **Pacchetti**, **Tesseramento** (nome e quota della tessera; durata: anno solare, stagione sportiva
+  dal 1 settembre al 31 agosto o 12 mesi dal pagamento; da quanti giorni prima della scadenza si rinnova; se serve per
+  prenotare), **Schede di valutazione**.
 - **Fatture** (o **Fatture e scontrini**): vedi i punti [7](#7-collegare-fatture-in-cloud) e [8](#8-scontrini-registratore-e-pos).
 - **Report mensile**, **Proprietari** (altri proprietari con la loro email), **Regolamento e privacy**.
 
@@ -240,6 +251,12 @@ In **Impostazioni → Licenza** c'è **QR code per i clienti**: un QR con il **c
 - **Clienti**: per ognuno "Persona: scontrino" oppure i dati della società, i cani con il microchip, pacchetti,
   penalità (qui togli una penalità sbagliata), sospensione. La ricerca trova anche la ragione sociale e il codice
   fiscale.
+- **Tessere** (se usi il tesseramento): in Clienti ogni cliente ha il segno **Tessera scaduta**, **Tessera in
+  scadenza**, **Senza tessera** o **Tessera da incassare**, e il filtro **Tessera da rinnovare** li mostra tutti. In
+  cima c'è chi ha chiesto la tessera dall'app. Nella scheda del cliente scegli **Contanti**, **Carta** o **Bonifico**,
+  scrivi se vuoi il numero della tessera e premi **Tessera incassata** (o **Rinnovo incassato**): vale da oggi, o dal
+  giorno dopo la scadenza di quella in corso. Lì sotto c'è lo storico di tutte le sue tessere, con il tasto
+  **Annulla** per una registrata per sbaglio. La quota associativa non fa partire né fattura né scontrino.
 - **Incassi** e **Statistiche** (secondo il piano).
 
 ---
@@ -417,7 +434,9 @@ Releases → **K9 Gestore** (lo crea l'action **Pannello del gestore**):
 ### Le sezioni
 
 - **Centri**: tutti i centri, chi deve pagare, modifica del piano e dei prezzi di un centro, rinnovo a mano,
-  sospensione, cambio della password di chi entra in un centro, "Riprova la preparazione".
+  sospensione, cambio della password di chi entra in un centro, "Riprova la preparazione". Aprendo un centro vedi lo
+  **Storico dei pagamenti** degli ultimi 12 mesi: per ogni mese l'importo, se è pagato e il giorno del bonifico, o
+  da quando è scaduto.
 - **Database**: stato e spazio usato dei database dei centri.
 - **Statistiche**: addebitato, incassato, prenotazioni, centri nuovi.
 - **Banca e bonifici**: il tuo IBAN, il collegamento al conto (Enable Banking) e i bonifici da abbinare.

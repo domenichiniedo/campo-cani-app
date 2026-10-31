@@ -280,3 +280,30 @@ export type LessonRating = {
   created_at: string;
   updated_at: string;
 };
+
+/** La tessera del centro (da 0025_tesseramento.sql): nome, quota, durata e se serve per prenotare. */
+export type MembershipSettings = {
+  id: 1;
+  enabled: boolean;
+  name: string;
+  price_cents: number;
+  /** anno: fino al 31 dicembre; stagione: fino al 31 agosto; mesi: 12 mesi dal primo giorno. */
+  period: 'anno' | 'stagione' | 'mesi';
+  required: boolean;
+  /** Giorni prima della scadenza in cui il cliente può già rinnovare. */
+  renew_days: number;
+};
+
+/** Una tessera di un cliente: ogni rinnovo è una riga nuova, così resta lo storico. */
+export type Membership = {
+  id: string;
+  user_id: string;
+  number: string;
+  price_cents: number;
+  status: 'requested' | 'active' | 'cancelled';
+  pay_method: '' | 'contanti' | 'carta' | 'bonifico';
+  starts_on: string | null;
+  expires_on: string | null;
+  requested_at: string;
+  paid_at: string | null;
+};

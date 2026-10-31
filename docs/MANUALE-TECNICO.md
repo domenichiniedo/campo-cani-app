@@ -245,6 +245,7 @@ nuovo) e in `gestore/supabase/functions/_shared/migrazioni.ts` (il gestore le ag
 | 0022_voto_lezioni | `rate_lesson` |
 | 0023_cani | microchip, obiettivi, sesso e sterilizzazione del cane; assenze e `penalize_no_shows` |
 | 0024_clienti_societa | persona o società; dati della società e della fattura |
+| 0025_tesseramento | `membership_settings` e `memberships` (una riga per tessera, così resta lo storico); `request_membership`, `membership_end`, `has_membership`; il trigger `check_membership` ferma la prenotazione del cliente senza tessera valida se il centro la chiede |
 
 Le regole stanno nel database, non solo nell'app: le policy RLS fanno vedere a un cliente solo i suoi dati, e i
 trigger `guard_profile` e `guard_dog` gli impediscono di cambiare ruolo o togliere una sospensione.

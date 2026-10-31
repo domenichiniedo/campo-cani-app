@@ -9,6 +9,7 @@ import { SubscriptionPanel } from '@/components/subscription-panel';
 import { TransferPanel } from '@/components/transfer-panel';
 import { LicensePanel } from '@/components/license-panel';
 import { LimitNote } from '@/components/limit-note';
+import { MembershipEditor } from '@/components/membership-editor';
 import { NexiPanel } from '@/components/nexi-panel';
 import { OwnersPanel } from '@/components/owners-panel';
 import { PackagesEditor } from '@/components/packages-editor';
@@ -284,6 +285,7 @@ export default function OwnerSettings() {
     { id: 'pagamenti', title: t('Metodi di pagamento') },
     { id: 'lezioni', title: t('Lezioni') },
     { id: 'pacchetti', title: t('Pacchetti') },
+    { id: 'tessera', title: t('Tesseramento') },
     { id: 'valutazioni', title: t('Schede di valutazione') },
     { id: 'fatture', title: plan.invoices ? t('Fatture') : t('Fatture e scontrini') },
     { id: 'report', title: t('Report mensile') },
@@ -518,6 +520,13 @@ export default function OwnerSettings() {
         </>
       ) : (
         <PlanNote title={t('Pacchetti')} plan={planWith('packages')} />
+      )}
+
+      {show('tessera') && (
+        <>
+          <Step title={t('Tesseramento')} />
+          <MembershipEditor />
+        </>
       )}
 
       {!show('valutazioni') ? null : plan.evals ? (
