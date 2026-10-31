@@ -3,11 +3,13 @@ import { useCallback, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { Stars } from '@/components/lesson-rating';
+import { SubTabs } from '@/components/sub-tabs';
 import { Button, Card, Chips, ErrorText, H1, Muted, Row, Screen, Stat, Step } from '@/components/ui';
 import { addDays, cap, dayKey, euro, longDay, monthName, today } from '@/lib/format';
 import { locale, t, tKey } from '@/lib/i18n';
 import { mondayOf } from '@/lib/owner';
 import { planWith, usePlan } from '@/lib/plans';
+import { useSections } from '@/lib/sections';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
@@ -74,6 +76,11 @@ export default function OwnerStats() {
   const { lessonTypes, fields, trainers } = useSession();
   const plan = usePlan();
   const [period, setPeriod] = useState<Period>('month');
+  const tab = useSections('stats', [
+    { id: 'riepilogo', title: t('Riepilogo') },
+    { id: 'dettaglio', title: t('Lezioni') },
+    { id: 'gradimento', title: t('Gradimento') },
+  ]);
   const [anchor, setAnchor] = useState(today());
   const [rows, setRows] = useState<Line[]>([]);
   const [sold, setSold] = useState<Sold[]>([]);
@@ -242,7 +249,10 @@ export default function OwnerStats() {
         <Button small kind="ghost" title={t('Dopo ›')} onPress={() => move(1)} />
       </Row>
       <ErrorText>{err}</ErrorText>
+      <SubTabs page="stats" />
 
+      {tab === 'riepilogo' && (
+      <>
       <Row>
         <Stat label={t('Incassato')} value={euro(lessonsPaid + packagesPaid + dues)} />
         <Stat label={sold.length === 1 ? t('1 pacchetto venduto') : t('{n} pacchetti venduti', { n: sold.length })} value={euro(packagesPaid)} />
@@ -314,6 +324,11 @@ export default function OwnerStats() {
         </Row>
       )}
 
+      </>
+      )}
+
+      {tab === 'dettaglio' && (
+      <>
       {sections.map((s) => {
         const top = Math.max(...s.rows.map((r) => r.n));
         return (
@@ -341,9 +356,11 @@ export default function OwnerStats() {
         );
       })}
       {!loading && active.length === 0 && <Muted>{t('Nessuna lezione in questo periodo.')}</Muted>}
+      {!plan.stats && <Muted style={{ fontSize: 13 }}>{t('Grafico, presenze, disdette e ripartizioni per lezione, campo e trainer sono compresi dal piano {piano}.', { piano: planWith('stats') })}</Muted>}
+      </>
+      )}
 
-      <Step title={t('Gradimento dei clienti')} />
-      {votes.length === 0 ? (
+      {tab === 'gradimento' && (votes.length === 0 ? (
         <Muted>{t('Nessun voto dei clienti in questo periodo. I clienti votano le lezioni fatte da «Le mie lezioni».')}</Muted>
       ) : (
         <>
@@ -418,7 +435,7 @@ export default function OwnerStats() {
             </View>
           )}
         </>
-      )}
+      ))}
     </Screen>
   );
 }

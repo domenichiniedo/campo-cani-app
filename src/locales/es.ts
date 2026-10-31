@@ -61,7 +61,6 @@ const dict: Record<string, string> = {
   'Dai un voto da 1 a 5 alle lezioni fatte e, se vuoi, lascia un commento per il centro.': 'Valora tus clases realizadas de 1 a 5 y, si quieres, deja un comentario para el centro.',
   'Voto per trainer': 'Valoración por entrenador',
   'Voto per tipo di lezione': 'Valoración por tipo de clase',
-  'Gradimento dei clienti': 'Satisfacción de los clientes',
   'Nessun voto dei clienti in questo periodo. I clienti votano le lezioni fatte da «Le mie lezioni».': 'No hay valoraciones de clientes en este periodo. Los clientes valoran sus clases realizadas desde «Mis clases».',
   'Voto medio': 'Valoración media',
   'Voti ricevuti': 'Valoraciones recibidas',
@@ -1105,6 +1104,13 @@ const dict: Record<string, string> = {
   "Evento non trovato": "Evento no encontrado",
   "L'evento è già passato": "El evento ya ha pasado",
   "L'evento è al completo": "El evento está completo",
+  "Riepilogo": "Resumen",
+  "Gradimento": "Valoraciones",
+  "Agenda": "Agenda",
+  "Conti": "Cuentas",
+  "Centro": "Centro",
+  "Chiudi il menu": "Cerrar el menú",
+  "Menu": "Menú",
 };
 
 export default dict;

@@ -1,15 +1,11 @@
 import { useEffect, useSyncExternalStore } from 'react';
 
-import { ownerOnly } from '@/lib/edition';
-
 /**
- * I paragrafi di una pagina nel menu laterale del programma per Windows: la pagina li elenca, il menu li mostra
- * sotto il suo nome e la pagina apre solo quello scelto. Sul telefono la pagina resta tutta di seguito.
+ * Le sottoschede di una pagina del proprietario: la pagina le elenca, il menu a sinistra le mostra sotto il suo nome
+ * (e sul telefono anche una fila di schede in cima alla pagina) e la pagina mostra solo quella scelta.
  */
 export type SectionItem = { id: string; title: string };
 type PageSections = { items: SectionItem[]; open: string };
-
-export const sectionMenu = ownerOnly;
 
 let pages: Record<string, PageSections> = {};
 const listeners = new Set<() => void>();
@@ -28,7 +24,7 @@ function subscribe(l: () => void) {
 
 const NONE: PageSections = { items: [], open: '' };
 
-/** I paragrafi della pagina e quello aperto, per il menu laterale. */
+/** Le sottoschede della pagina e quella aperta, per il menu. */
 export function usePageSections(page: string): PageSections {
   return useSyncExternalStore(subscribe, () => pages[page] ?? NONE);
 }
@@ -39,19 +35,38 @@ export function openSection(page: string, id: string) {
 }
 
 /**
- * La pagina dichiara i suoi paragrafi e riceve quello da mostrare: null quando si vedono tutti (sul telefono).
- * Se il paragrafo aperto sparisce (per esempio cambiando piano) si apre il primo.
+ * La pagina dichiara le sue sottoschede e riceve quella da mostrare. Se quella aperta sparisce (per esempio cambiando
+ * piano) si apre la prima.
  */
-export function useSections(page: string, items: SectionItem[]): string | null {
+export function useSections(page: string, items: SectionItem[]): string {
   const key = items.map((x) => `${x.id}\u0000${x.title}`).join('\u0001');
   useEffect(() => {
-    if (!sectionMenu) return;
     const p = pages[page];
     const open = p && items.some((x) => x.id === p.open) ? p.open : (items[0]?.id ?? '');
     change(page, { items, open });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, key]);
   const p = usePageSections(page);
-  if (!sectionMenu) return null;
   return items.some((x) => x.id === p.open) ? p.open : (items[0]?.id ?? '');
 }
+
+/**
+ * Il menu a sinistra sul telefono: chiuso, si apre con il tasto ☰ nella fascia in alto. `enabled` vale solo dove
+ * il menu è a scomparsa (proprietario su schermo stretto); sul computer resta sempre aperto.
+ */
+type Drawer = { enabled: boolean; open: boolean };
+let drawer: Drawer = { enabled: false, open: false };
+
+function setDrawer(next: Drawer) {
+  if (next.enabled === drawer.enabled && next.open === drawer.open) return;
+  drawer = next;
+  listeners.forEach((l) => l());
+}
+
+export function useDrawer(): Drawer {
+  return useSyncExternalStore(subscribe, () => drawer);
+}
+
+export const openDrawer = () => setDrawer({ ...drawer, open: true });
+export const closeDrawer = () => setDrawer({ ...drawer, open: false });
+export const enableDrawer = (enabled: boolean) => setDrawer({ enabled, open: enabled && drawer.open });

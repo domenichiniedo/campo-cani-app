@@ -20,6 +20,7 @@ import { pickAndUpload, removeImage, type Source } from '@/lib/images';
 import { licensingEnabled } from '@/lib/license';
 import { planWith, usePlan } from '@/lib/plans';
 import { useSections } from '@/lib/sections';
+import { SubTabs } from '@/components/sub-tabs';
 import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
@@ -274,7 +275,7 @@ export default function OwnerSettings() {
     setMsg(t('Impostazioni salvate.'));
   }
 
-  // Nel programma per Windows i paragrafi stanno nel menu a sinistra e se ne vede uno alla volta.
+  // Le sottoschede: nel menu a sinistra e, sul telefono, in cima alla pagina. Se ne vede una alla volta.
   const open = useSections('settings', [
     ...(licensingEnabled
       ? [
@@ -297,9 +298,9 @@ export default function OwnerSettings() {
     { id: 'proprietari', title: t('Proprietari') },
     { id: 'regole', title: t('Regolamento e privacy') },
   ]);
-  const show = (id: string) => open === null || open === id;
+  const show = (id: string) => open === id;
   // "Salva impostazioni" serve ai paragrafi con i campi da compilare; gli altri salvano da sé.
-  const saveHere = open === null || ['centro', 'campi', 'trainer', 'orari', 'lezioni', 'regole'].includes(open);
+  const saveHere = ['centro', 'campi', 'trainer', 'orari', 'lezioni', 'regole'].includes(open);
 
   if (!settings) return null;
   const consentsChanged = rules !== settings.rules || privacy !== settings.privacy;
@@ -307,6 +308,7 @@ export default function OwnerSettings() {
   return (
     <Screen>
       <H1>{t('Impostazioni')}</H1>
+      <SubTabs page="settings" />
 
       {!!trialEnd && (
         <Card>

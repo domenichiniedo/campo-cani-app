@@ -2,11 +2,13 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Text, View } from 'react-native';
 
-import { Body, Button, Card, Chips, ConfirmButton, ErrorText, Field, H1, Muted, Row, Screen, Stat, Step } from '@/components/ui';
+import { SubTabs } from '@/components/sub-tabs';
+import { Body, Button, Card, Chips, ConfirmButton, ErrorText, Field, H1, Muted, Row, Screen, Stat } from '@/components/ui';
 import { parseDay } from '@/lib/board';
 import { cap, dayKey, euro, monthName, today } from '@/lib/format';
 import { t, tKey } from '@/lib/i18n';
 import { dayText, PAY_METHODS, payMethodLabel, type PayMethod } from '@/lib/membership';
+import { useSections } from '@/lib/sections';
 import { errorText, supabase } from '@/lib/supabase';
 import { useColors } from '@/lib/theme';
 import type { Expense } from '@/lib/types';
@@ -31,6 +33,11 @@ export default function OwnerExpenses() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
+  const tab = useSections('expenses', [
+    { id: 'elenco', title: t('Elenco') },
+    { id: 'categorie', title: t('Per categoria') },
+    { id: 'nuova', title: t('Nuova spesa') },
+  ]);
 
   const from = dayKey(month);
   const to = dayKey(new Date(month.getFullYear(), month.getMonth() + 1, 0));
@@ -87,9 +94,9 @@ export default function OwnerExpenses() {
         <Stat label={t('Uscite del mese')} value={euro(total)} />
         <Stat label={t('Spese segnate')} value={rows.length} />
       </Row>
-      <Muted style={{ fontSize: 12 }}>{t('Nella pagina Incassi le uscite si tolgono dall\'incassato per il saldo del periodo.')}</Muted>
+      <SubTabs page="expenses" />
 
-      <Step title={t('Nuova spesa')} />
+      {tab === 'nuova' && (
       <Card>
         <Chips items={CATEGORIES.map((x) => ({ value: x, label: t(x) }))} value={cat} onChange={setCat} />
         {cat === 'Altro' && <Field label={t('Categoria (facoltativa)')} value={other} onChangeText={setOther} placeholder={t('Veterinario, gara, ...')} />}
@@ -103,10 +110,12 @@ export default function OwnerExpenses() {
         {!!msg && <Muted>{msg}</Muted>}
         <Button title={t('Segna la spesa')} onPress={add} loading={saving} />
       </Card>
+      )}
+      {tab === 'nuova' && <Muted style={{ fontSize: 12 }}>{t('Nella pagina Incassi le uscite si tolgono dall\'incassato per il saldo del periodo.')}</Muted>}
 
-      {byCat.length > 0 && (
+      {tab === 'categorie' && byCat.length === 0 && !loading && <Muted>{t('Nessuna spesa in questo mese.')}</Muted>}
+      {tab === 'categorie' && byCat.length > 0 && (
         <>
-          <Step title={t('Per categoria')} />
           <Card>
             {byCat.map(([k, v]) => (
               <View key={k} style={{ gap: 4 }}>
@@ -123,9 +132,8 @@ export default function OwnerExpenses() {
         </>
       )}
 
-      <Step title={t('Elenco')} />
-      {rows.length === 0 && !loading && <Muted>{t('Nessuna spesa in questo mese.')}</Muted>}
-      {rows.length > 0 && (
+      {tab === 'elenco' && rows.length === 0 && !loading && <Muted>{t('Nessuna spesa in questo mese.')}</Muted>}
+      {tab === 'elenco' && rows.length > 0 && (
         <Card>
           {rows.map((x) => (
             <Row key={x.id} style={{ justifyContent: 'space-between' }}>

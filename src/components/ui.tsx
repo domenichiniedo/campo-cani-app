@@ -23,6 +23,7 @@ import { LANGS, setLang, t, useLang } from '@/lib/i18n';
 import { licensingEnabled } from '@/lib/license';
 import { useLicense, type SavedCentre } from '@/lib/license-gate';
 import { useWhenActive } from '@/lib/refresh';
+import { openDrawer, useDrawer } from '@/lib/sections';
 import { useSession } from '@/lib/session';
 import { useColors } from '@/lib/theme';
 
@@ -66,8 +67,14 @@ function BrandBar() {
   const c = useColors();
   const { settings, logoUrl } = useSession();
   const [centres, setCentres] = useState(false);
+  const drawer = useDrawer();
   return (
     <View style={[styles.brand, { backgroundColor: c.pitch }]}>
+      {drawer.enabled && (
+        <Pressable accessibilityRole="button" accessibilityLabel={t('Menu')} onPress={openDrawer} hitSlop={10} style={{ paddingRight: 4 }}>
+          <Text style={{ color: c.onPitch, fontSize: 24, fontWeight: '800' }}>☰</Text>
+        </Pressable>
+      )}
       <View style={[styles.logo, { backgroundColor: c.onPitch }]}>
         {logoUrl ? (
           <Image source={{ uri: logoUrl }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
