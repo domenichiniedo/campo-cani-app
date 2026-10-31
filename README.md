@@ -563,8 +563,8 @@ aggiorna anche la prova generale. Nessuna action parte da sola a ogni commit, tr
 **Proprietario**
 - Giorno: lezioni con cliente e telefono, filtro per campo, assegnazione del trainer, tasto Ingresso, incasso, penalità,
   annullo. Un trainer non può avere due lezioni alla stessa ora, nemmeno su campi diversi.
-- Settimana: sul PC griglia a colonne divisa per campi, con le ore chiuse in pastello e il trainer su ogni lezione; tocchi
-  un'ora libera per prenotare per un cliente. Sul telefono, lista dei 7 giorni.
+- Settimana: griglia a colonne (giorni affiancati × ore) divisa per campi, con le ore chiuse in pastello e il trainer su
+  ogni lezione; tocchi un'ora libera per prenotare per un cliente. Sul telefono i giorni si scorrono di lato, partendo da oggi.
 - Orari: per ogni campo e per ogni trainer apri o chiudi le mezz'ore di ogni giorno, copiale sulle settimane seguenti o su
   tutti i campi. Un trainer senza orari impostati è sempre disponibile.
 - Incassi: incassato (lezioni, pacchetti, tessere e quote), da incassare, previsto, uscite e saldo per settimana, mese o

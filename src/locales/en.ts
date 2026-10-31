@@ -691,6 +691,7 @@ const dict: Record<string, string> = {
   'Lingua': 'Language',
   'Chiuso': 'Closed',
   "Clicca su una lezione per aprire il giorno, o su una mezz'ora libera per prenotare per un cliente.": 'Click a lesson to open the day, or a free half hour to book for a client.',
+  "Scorri di lato per gli altri giorni. Tocca una lezione per aprire il giorno, o una mezz'ora libera per prenotare per un cliente.": 'Swipe sideways for the other days. Tap a lesson to open the day, or a free half hour to book for a client.',
   'Il codice fiscale non è valido. Controlla le lettere e i numeri.': "The tax code isn't valid. Check the letters and numbers.",
   'Inserisci via e numero civico per la fatturazione.': 'Enter the street and house number for billing.',
   'Il CAP deve avere 5 cifre.': 'The postcode must have 5 digits.',

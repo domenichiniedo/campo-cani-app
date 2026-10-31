@@ -1,25 +1,19 @@
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { useWindowDimensions } from 'react-native';
 
 import { useAddLesson } from '@/components/add-lesson';
-import { Badge, Button, Card, ErrorText, H1, Muted, Row, Screen, Stat } from '@/components/ui';
+import { Button, ErrorText, H1, Row, Screen, Stat } from '@/components/ui';
 import { WeekGrid } from '@/components/week-grid';
-import { addDays, cap, dayKey, hm, longDay, monthShort, today } from '@/lib/format';
+import { addDays, dayKey, monthShort, today } from '@/lib/format';
 import { t } from '@/lib/i18n';
-import { useLessonColors } from '@/lib/lesson-colors';
 import { mondayOf, ownerBookings, ownerClasses, type OwnerBooking, type OwnerClass } from '@/lib/owner';
 import { usePlan } from '@/lib/plans';
-import { useSession } from '@/lib/session';
 import { errorText, supabase } from '@/lib/supabase';
-import { useColors } from '@/lib/theme';
 
 export default function OwnerWeek() {
-  const c = useColors();
-  const { fields } = useSession();
-  const color = useLessonColors();
   const plan = usePlan();
-  // Sul PC (finestra larga) la settimana è a colonne; sul telefono resta la lista dei giorni.
+  // La settimana è sempre a griglia; sul telefono (finestra stretta) i giorni si scorrono di lato.
   const wide = useWindowDimensions().width >= 900;
   const [monday, setMonday] = useState(mondayOf(today()));
   const [rows, setRows] = useState<OwnerBooking[]>([]);
@@ -75,52 +69,8 @@ export default function OwnerWeek() {
         <Stat label={t('Lezioni')} value={rows.length} />
       </Row>
       <ErrorText>{err}</ErrorText>
-      {wide && <WeekGrid days={days} rows={rows} classes={classes} open={open} onSlot={(day, fieldId, start) => add.book({ day, fieldId, start })} />}
+      <WeekGrid narrow={!wide} days={days} rows={rows} classes={classes} open={open} onSlot={(day, fieldId, start) => add.book({ day, fieldId, start })} />
       {add.dialogs}
-      {!wide && days.map((k) => {
-        const list = rows.filter((b) => b.day === k);
-        // Una riga per le lezioni singole e una per ogni classe di gruppo.
-        const dayClasses = classes.filter((cl) => cl.day === k);
-        const lines = [
-          ...list
-            .filter((b) => !b.class_id || !dayClasses.some((cl) => cl.id === b.class_id))
-            .map((b) => ({
-              id: b.id,
-              start: b.start_min,
-              type: b.lesson_type,
-              text: `${b.dogs?.name} · ${b.lesson_types?.label ?? b.lesson_type}${b.lesson_option ? ` ${b.lesson_option}` : ''}${b.fields && fields.length > 1 ? ` · ${b.fields.name}` : ''}${b.trainers ? ` · ${b.trainers.name}` : ''}`,
-              done: !!b.checked_in_at,
-            })),
-          ...dayClasses.map((cl) => ({
-            id: cl.id,
-            start: cl.start_min,
-            type: cl.lesson_type,
-            text: `${t('Gruppo {n}/{posti}', { n: list.filter((b) => b.class_id === cl.id).length, posti: cl.seats })} · ${cl.lesson_types?.label ?? cl.lesson_type}${cl.lesson_option ? ` ${cl.lesson_option}` : ''}${cl.fields && fields.length > 1 ? ` · ${cl.fields.name}` : ''}${cl.trainers ? ` · ${cl.trainers.name}` : ''}`,
-            done: false,
-          })),
-        ].sort((x, y) => x.start - y.start);
-        return (
-          <Pressable key={k} accessibilityRole="button" onPress={() => router.navigate({ pathname: '/', params: { day: k } })}>
-            <Card accent={k === todayKey}>
-              <Row style={{ justifyContent: 'space-between' }}>
-                <Text style={{ color: c.text, fontSize: 16, fontWeight: '800' }}>{cap(longDay(k))}</Text>
-                <Badge tone={lines.length ? 'ok' : 'neutral'}>{list.length ? (list.length === 1 ? t('1 lezione') : t('{n} lezioni', { n: list.length })) : lines.length ? t('Classi senza iscritti') : t('Libero')}</Badge>
-              </Row>
-              {lines.map((l) => (
-                <View key={l.id} style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-                  <View style={{ width: 4, alignSelf: 'stretch', borderRadius: 2, backgroundColor: color(l.type).bar }} />
-                  <Text style={{ color: c.text, fontWeight: '700', width: 48 }}>{hm(l.start)}</Text>
-                  <Text style={{ color: c.text, flex: 1 }} numberOfLines={1}>
-                    {l.text}
-                  </Text>
-                  {l.done && <Text style={{ color: c.accent, fontWeight: '800' }}>✓</Text>}
-                </View>
-              ))}
-              {lines.length > 0 && <Muted style={{ fontSize: 12 }}>{t('Tocca per aprire il giorno')}</Muted>}
-            </Card>
-          </Pressable>
-        );
-      })}
     </Screen>
   );
 }

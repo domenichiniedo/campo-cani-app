@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
-import { Pressable, Text, useColorScheme, View } from 'react-native';
+import { useEffect, useRef, type ComponentRef, type ReactNode } from 'react';
+import { Pressable, ScrollView, Text, useColorScheme, View } from 'react-native';
 
 import { cap, dayKey, fromKey, hm, STEP, today, weekdayShort } from '@/lib/format';
 import { t } from '@/lib/i18n';
@@ -11,6 +12,12 @@ import { useColors } from '@/lib/theme';
 /** Altezza in pixel di mezz'ora. */
 const ROW = 40;
 const HOURS_W = 52;
+/** Altezza dell'intestazione del giorno e della riga con i nomi dei campi. */
+const HEAD_H = 52;
+const FIELDS_H = 22;
+/** Sul telefono: larghezza minima di un giorno e di un campo; i giorni che non ci stanno si scorrono di lato. */
+const NARROW_DAY_W = 104;
+const NARROW_FIELD_W = 74;
 
 const openDay = (k: string) => router.navigate({ pathname: '/', params: { day: k } });
 
@@ -97,8 +104,9 @@ function layout(list: Block[]) {
 const CLOSED = { light: '#f4e4e8', dark: '#2b2026' };
 
 /**
- * Settimana a colonne, per gli schermi larghi (PC): un giorno per colonna, divisa per campo, con le
- * ore in verticale. Le mezz'ore chiuse sono in pastello; cliccando una mezz'ora libera si prenota.
+ * Settimana a colonne: un giorno per colonna, divisa per campo, con le ore in verticale. Le mezz'ore
+ * chiuse sono in pastello; cliccando una mezz'ora libera si prenota. Sul telefono (narrow) le colonne
+ * hanno una larghezza fissa e si scorrono di lato, con le ore sempre visibili a sinistra.
  */
 export function WeekGrid({
   days,
@@ -106,6 +114,7 @@ export function WeekGrid({
   classes,
   open,
   onSlot,
+  narrow = false,
 }: {
   days: string[];
   rows: OwnerBooking[];
@@ -113,6 +122,8 @@ export function WeekGrid({
   /** Mezz'ore aperte per campo e giorno: chiave "campo|giorno". */
   open: Record<string, number[]>;
   onSlot: (day: string, fieldId: string, start: number) => void;
+  /** Schermo stretto (telefono): i giorni si scorrono di lato. */
+  narrow?: boolean;
 }) {
   const c = useColors();
   const dark = useColorScheme() === 'dark';
@@ -130,6 +141,25 @@ export function WeekGrid({
   const end = Math.ceil(last / 60) * 60;
   const slots = (end - start) / STEP;
   const top = (min: number) => ((min - start) / STEP) * ROW;
+  const headH = HEAD_H + (many ? FIELDS_H : 0);
+  const dayW = Math.max(NARROW_DAY_W, fields.length * NARROW_FIELD_W);
+
+  // Sul telefono la griglia si apre su oggi, se è in questa settimana.
+  const scroller = useRef<ComponentRef<typeof ScrollView>>(null);
+  const todayIdx = days.indexOf(todayKey);
+  const firstDay = days[0];
+  useEffect(() => {
+    if (narrow) scroller.current?.scrollTo({ x: Math.max(todayIdx, 0) * dayW, animated: false });
+  }, [narrow, todayIdx, dayW, firstDay]);
+
+  const scroll = (children: ReactNode) =>
+    narrow ? (
+      <ScrollView ref={scroller} horizontal style={{ flex: 1 }}>
+        <View style={{ width: days.length * dayW }}>{children}</View>
+      </ScrollView>
+    ) : (
+      <View style={{ flex: 1 }}>{children}</View>
+    );
 
   return (
     <View style={{ gap: 10 }}>
@@ -146,141 +176,158 @@ export function WeekGrid({
         </View>
       </View>
 
-      <View style={{ borderWidth: 1, borderColor: c.line, borderRadius: 10, overflow: 'hidden', backgroundColor: c.surface }}>
-        {/* Intestazione: giorno, numero di lezioni e, con più campi, il nome di ogni campo */}
-        <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderColor: c.line }}>
-          <View style={{ width: HOURS_W }} />
-          {days.map((k) => {
-            const n = bookings.filter((b) => b.day === k).length;
-            const isToday = k === todayKey;
-            return (
-              <View key={k} style={{ flex: 1, borderLeftWidth: 1, borderColor: c.lineStrong, backgroundColor: isToday ? c.accentSoft : undefined }}>
-                <Pressable accessibilityRole="button" onPress={() => openDay(k)} style={{ paddingVertical: 8, alignItems: 'center' }}>
-                  <Text style={{ color: isToday ? c.accent : c.text, fontWeight: '800' }}>
-                    {`${cap(weekdayShort(fromKey(k)))} ${fromKey(k).getDate()}`}
-                  </Text>
-                  <Text style={{ color: c.muted, fontSize: 12 }}>{n ? (n === 1 ? t('1 lezione') : t('{n} lezioni', { n })) : t('Libero')}</Text>
-                </Pressable>
-                {many && (
-                  <View style={{ flexDirection: 'row', borderTopWidth: 1, borderColor: c.line }}>
-                    {fields.map((f, i) => (
-                      <Text
-                        key={f.id}
-                        numberOfLines={1}
-                        style={{
-                          flex: 1,
-                          textAlign: 'center',
-                          color: c.muted,
-                          fontSize: 11,
-                          fontWeight: '700',
-                          paddingVertical: 3,
-                          borderLeftWidth: i ? 1 : 0,
-                          borderColor: c.line,
-                        }}>
-                        {f.name}
-                      </Text>
-                    ))}
-                  </View>
-                )}
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Ore e lezioni */}
-        <View style={{ flexDirection: 'row', height: slots * ROW }}>
-          <View style={{ width: HOURS_W }}>
+      <View style={{ flexDirection: 'row', borderWidth: 1, borderColor: c.line, borderRadius: 10, overflow: 'hidden', backgroundColor: c.surface }}>
+        {/* Le ore, fuori dallo scorrimento laterale */}
+        <View style={{ width: HOURS_W }}>
+          <View style={{ height: headH, borderBottomWidth: 1, borderColor: c.line }} />
+          <View style={{ height: slots * ROW }}>
             {Array.from({ length: slots / 2 }, (_, i) => (
               <Text key={i} style={{ position: 'absolute', top: i * 2 * ROW + 2, right: 8, color: c.muted, fontSize: 12 }}>
                 {hm(start + i * 60)}
               </Text>
             ))}
           </View>
-          {days.map((k) => (
-            <View key={k} style={{ flex: 1, flexDirection: 'row', borderLeftWidth: 1, borderColor: c.lineStrong }}>
-              {fields.map((f, fi) => {
-                const list = rows.filter((b) => b.day === k && b.field_id === f.id);
-                const pos = layout(list);
-                const openSlots = open[`${f.id}|${k}`] ?? [];
+        </View>
+        {scroll(
+          <>
+            {/* Intestazione: giorno, numero di lezioni e, con più campi, il nome di ogni campo */}
+            <View style={{ flexDirection: 'row', height: headH, borderBottomWidth: 1, borderColor: c.line }}>
+              {days.map((k) => {
+                const n = bookings.filter((b) => b.day === k).length;
+                const isToday = k === todayKey;
                 return (
-                  <View key={f.id} style={{ flex: 1, borderLeftWidth: fi ? 1 : 0, borderColor: c.line }}>
-                    {Array.from({ length: slots }, (_, i) => {
-                      const m = start + i * STEP;
-                      const closed = !openSlots.includes(m);
-                      return (
-                        <Pressable
-                          key={i}
-                          accessibilityLabel={`${t('Prenota')} ${f.name} ${hm(m)}`}
-                          onPress={() => onSlot(k, f.id, m)}
-                          style={{
-                            position: 'absolute',
-                            top: i * ROW,
-                            height: ROW,
-                            left: 0,
-                            right: 0,
-                            borderTopWidth: i ? 1 : 0,
-                            borderColor: i % 2 ? c.off : c.line,
-                            backgroundColor: closed ? closedBg : k === todayKey ? c.surface2 : undefined,
-                          }}
-                        />
-                      );
-                    })}
-                    {list.map((b) => {
-                      const col = color(b.lesson_type);
-                      const h = Math.max(top(b.start_min + b.dur_min) - top(b.start_min) - 2, ROW - 2);
-                      const { lane, of } = pos.get(b.id)!;
-                      const tall = h > 2 * ROW;
-                      return (
-                        <Pressable
-                          key={b.id}
-                          accessibilityRole="button"
-                          onPress={() => openDay(k)}
-                          style={{
-                            position: 'absolute',
-                            top: top(b.start_min) + 1,
-                            height: h,
-                            left: `${(lane / of) * 100}%`,
-                            width: `${100 / of}%`,
-                            padding: 2,
-                          }}>
-                          <View
+                  <View
+                    key={k}
+                    style={{ flex: 1, borderLeftWidth: 1, borderColor: c.lineStrong, backgroundColor: isToday ? c.accentSoft : undefined }}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => openDay(k)}
+                      style={{ height: HEAD_H, justifyContent: 'center', alignItems: 'center' }}>
+                      <Text style={{ color: isToday ? c.accent : c.text, fontWeight: '800' }}>
+                        {`${cap(weekdayShort(fromKey(k)))} ${fromKey(k).getDate()}`}
+                      </Text>
+                      <Text style={{ color: c.muted, fontSize: 12 }}>{n ? (n === 1 ? t('1 lezione') : t('{n} lezioni', { n })) : t('Libero')}</Text>
+                    </Pressable>
+                    {many && (
+                      <View style={{ flexDirection: 'row', height: FIELDS_H, alignItems: 'center', borderTopWidth: 1, borderColor: c.line }}>
+                        {fields.map((f, i) => (
+                          <Text
+                            key={f.id}
+                            numberOfLines={1}
                             style={{
                               flex: 1,
-                              backgroundColor: col.bg,
-                              borderLeftWidth: 4,
-                              borderColor: col.bar,
-                              borderRadius: 6,
-                              paddingHorizontal: 5,
-                              paddingVertical: 2,
-                              overflow: 'hidden',
+                              textAlign: 'center',
+                              color: c.muted,
+                              fontSize: 11,
+                              fontWeight: '700',
+                              paddingVertical: 3,
+                              borderLeftWidth: i ? 1 : 0,
+                              borderColor: c.line,
                             }}>
-                            <Text style={{ color: col.text, fontSize: 12, fontWeight: '800' }} numberOfLines={1}>
-                              {`${hm(b.start_min)} ${b.who}`}
-                              {b.done ? ' ✓' : ''}
-                            </Text>
-                            <Text style={{ color: col.text, fontSize: 11 }} numberOfLines={tall ? 2 : 1}>
-                              {tall
-                                ? `${b.lesson}${b.lesson_option ? ` · ${b.lesson_option}` : ''}`
-                                : `${b.trainer ?? t('Trainer da assegnare')} · ${b.lesson_option || b.lesson}`}
-                            </Text>
-                            {tall && (
-                              <Text style={{ color: col.text, fontSize: 11, fontWeight: '700' }} numberOfLines={1}>
-                                {b.trainer ? t('Trainer: {nome}', { nome: b.trainer }) : t('Trainer da assegnare')}
-                              </Text>
-                            )}
-                          </View>
-                        </Pressable>
-                      );
-                    })}
+                            {f.name}
+                          </Text>
+                        ))}
+                      </View>
+                    )}
                   </View>
                 );
               })}
             </View>
-          ))}
-        </View>
+
+            {/* Ore e lezioni */}
+            <View style={{ flexDirection: 'row', height: slots * ROW }}>
+              {days.map((k) => (
+                <View key={k} style={{ flex: 1, flexDirection: 'row', borderLeftWidth: 1, borderColor: c.lineStrong }}>
+                  {fields.map((f, fi) => {
+                    const list = rows.filter((b) => b.day === k && b.field_id === f.id);
+                    const pos = layout(list);
+                    const openSlots = open[`${f.id}|${k}`] ?? [];
+                    return (
+                      <View key={f.id} style={{ flex: 1, borderLeftWidth: fi ? 1 : 0, borderColor: c.line }}>
+                        {Array.from({ length: slots }, (_, i) => {
+                          const m = start + i * STEP;
+                          const closed = !openSlots.includes(m);
+                          return (
+                            <Pressable
+                              key={i}
+                              accessibilityLabel={`${t('Prenota')} ${f.name} ${hm(m)}`}
+                              onPress={() => onSlot(k, f.id, m)}
+                              style={{
+                                position: 'absolute',
+                                top: i * ROW,
+                                height: ROW,
+                                left: 0,
+                                right: 0,
+                                borderTopWidth: i ? 1 : 0,
+                                borderColor: i % 2 ? c.off : c.line,
+                                backgroundColor: closed ? closedBg : k === todayKey ? c.surface2 : undefined,
+                              }}
+                            />
+                          );
+                        })}
+                        {list.map((b) => {
+                          const col = color(b.lesson_type);
+                          const h = Math.max(top(b.start_min + b.dur_min) - top(b.start_min) - 2, ROW - 2);
+                          const { lane, of } = pos.get(b.id)!;
+                          const tall = h > 2 * ROW;
+                          return (
+                            <Pressable
+                              key={b.id}
+                              accessibilityRole="button"
+                              onPress={() => openDay(k)}
+                              style={{
+                                position: 'absolute',
+                                top: top(b.start_min) + 1,
+                                height: h,
+                                left: `${(lane / of) * 100}%`,
+                                width: `${100 / of}%`,
+                                padding: 2,
+                              }}>
+                              <View
+                                style={{
+                                  flex: 1,
+                                  backgroundColor: col.bg,
+                                  borderLeftWidth: 4,
+                                  borderColor: col.bar,
+                                  borderRadius: 6,
+                                  paddingHorizontal: 5,
+                                  paddingVertical: 2,
+                                  overflow: 'hidden',
+                                }}>
+                                <Text style={{ color: col.text, fontSize: 12, fontWeight: '800' }} numberOfLines={1}>
+                                  {/* Sul telefono la colonna è stretta: prima il nome, l'ora va sotto. */}
+                                  {narrow ? b.who : `${hm(b.start_min)} ${b.who}`}
+                                  {b.done ? ' ✓' : ''}
+                                </Text>
+                                <Text style={{ color: col.text, fontSize: 11 }} numberOfLines={tall ? 2 : 1}>
+                                  {narrow && !tall
+                                    ? `${hm(b.start_min)} · ${b.trainer ?? t('Trainer da assegnare')}`
+                                    : tall
+                                      ? `${b.lesson}${b.lesson_option ? ` · ${b.lesson_option}` : ''}`
+                                      : `${b.trainer ?? t('Trainer da assegnare')} · ${b.lesson_option || b.lesson}`}
+                                </Text>
+                                {tall && (
+                                  <Text style={{ color: col.text, fontSize: 11, fontWeight: '700' }} numberOfLines={1}>
+                                    {b.trainer ? t('Trainer: {nome}', { nome: b.trainer }) : t('Trainer da assegnare')}
+                                  </Text>
+                                )}
+                              </View>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    );
+                  })}
+                </View>
+              ))}
+            </View>
+          </>,
+        )}
       </View>
       <Text style={{ color: c.muted, fontSize: 12 }}>
-        {t("Clicca su una lezione per aprire il giorno, o su una mezz'ora libera per prenotare per un cliente.")}
+        {narrow
+          ? t("Scorri di lato per gli altri giorni. Tocca una lezione per aprire il giorno, o una mezz'ora libera per prenotare per un cliente.")
+          : t("Clicca su una lezione per aprire il giorno, o su una mezz'ora libera per prenotare per un cliente.")}
       </Text>
     </View>
   );
